@@ -1,6 +1,6 @@
 import unittest
 import numpy as np
-import graph_priors.graph_properties as gp
+import graph_sampling.graph_properties as gp
 
 
 class GraphPropertiesTests(unittest.TestCase):

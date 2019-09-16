@@ -13,9 +13,9 @@ import numpy as np
 class TransitionKernel:
 
     def __init__(self, next_step_fn,
-                       log_prob_fn=None,
-                       log_prob_change_fn=None,
-                       log_prob_correction=(lambda xp, x: 0)):
+                 log_prob_fn=None,
+                 log_prob_change_fn=None,
+                 log_acc_correction=(lambda xp, x: 0)):
         """
         A TransitionKernel instance encodes a transition system
         used by the MCMC to generate samples.
@@ -49,8 +49,7 @@ class TransitionKernel:
         self._log_prob_change_fn = log_prob_change_fn
         self._log_acc_correction = log_acc_correction
 
-
-    def one_step(cur_state):
+    def one_step(self, cur_state):
         """
         Execute one step of Metropolis-Hastings:
         * propose a next state
