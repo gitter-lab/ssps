@@ -71,19 +71,23 @@ class GaussianBayesNet:
         :return:
         """
 
-        y_var = np.var(y)
         if X is None:
             # If there are no independent variables, then we
             # simply represent y as a gaussian.
             mu = np.mean(y)
+            y_var = np.var(y)
             if return_score:
-                return (mu, y_var), -(mu - y)**2.0 / y_var
+                return (mu, y_var), - 0.5 * (y - mu)**2.0 / y_var
             else:
-                return (mu, y_var)
+                return mu, y_var
         else:
             # Otherwise, fit a linear model to the data.
-            (w, w0), res, _ = np.linalg.lstsq(X, y)[0]
-            return w, w0, y_var
+            w, res, _, _ = np.linalg.lstsq(np.concatenate((X, np.ones((y.shape[0], 1))), axis=1), y)
+            mle_var = res / y.shape[0]
+            if return_score:
+                return (w, mle_var), -0.5 * y.shape[0] * (1 + np.log(2 * np.pi * mle_var))
+            else:
+                return w, mle_var
 
     def score(self, X):
         """
@@ -115,9 +119,10 @@ class GaussianBayesNet:
         :return:
         """
         if X is None:
-            return - (y - cpt[0])**2.0 / cpt[1]
+            return - 0.5*(y - cpt[0])**2.0 / cpt[1] - 0.5*y.shape[0]*np.log(2*np.pi*cpt[1])
 
         else:
-            return - (y - np.dot(X, cpt[0]) + cpt[1])**2.0 / cpt[2]
+            return - 0.5*(y - np.dot(np.concatenate((X, np.ones((y.shape[0], 1))), axis=1), cpt[0]))**2.0 / cpt[2]\
+                   - 0.5*y.shape[0]*np.log(2*np.pi*cpt[1])
 
 

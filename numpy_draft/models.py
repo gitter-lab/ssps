@@ -61,6 +61,6 @@ def log_bayes_net_prob_change(bn_new, bn_old, X=None):
     # get the columns where the adjacency matrix has changed
     diff_vertices = np.unique(np.where(bn_new.adj_mat != bn_old.adj_mat)[1])
     for v in diff_vertices:
-
+        pass
 
     return change
