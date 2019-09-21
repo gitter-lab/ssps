@@ -1,4 +1,14 @@
+# python junk
 *.pyc
 *__pycache__
 *.pytest_cache
 *.idea
+
+# visuals
+*.png
+
+# LaTeX junk
+*.pdf
+*.aux
+*.log
+
