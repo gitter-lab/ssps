@@ -36,6 +36,7 @@ def get_all_ancestors(adj_mat):
     return [get_ancestors(v_ind, adj_mat) for v_ind in range(adj_mat.shape[0])]
 
 
+# TODO: CYCLE DETECTION IS NOT DONE CORRECTLY >:(
 def dfs(adj_mat, vertex=0, directed=False, fail_on_cycle=False):
     """
     Performs DFS traversal of the graph, starting at
@@ -55,10 +56,8 @@ def dfs(adj_mat, vertex=0, directed=False, fail_on_cycle=False):
         v = stack.pop()
         if v not in visited:
             visited.append(v)
-        else:
-            if fail_on_cycle:
-                raise CycleDetectedException
-            continue
+        if fail_on_cycle and v in stack:
+            raise CycleDetectedException
 
         if directed:
             succ = _d_successors(v, adj_mat)
