@@ -2,9 +2,9 @@
 # 2019-09-26
 # David Merrell
 #
-# Module for simple
+# Module for simple edgelist-based directed graphs
 
-module Graph
+module DiGraphs
 
 import Base: copy
 
@@ -56,15 +56,15 @@ end
 
 
 include("Containers.jl")
-using Containers
+using .Containers
 
 """
-    graph_traversal(dg::DiGraph{T}, root::T, ds::AbstractDS{T})
+    graph_traversal(dg::DiGraph{T}, root::T, ds::AbstractContainer{T})
 
 Generic graph traversal method. 
 ds::Stack implies DFS traversal; ds::Queue implies BFS traversal
 """
-function graph_traversal(dg::DiGraph{T}, root::T, ds::AbstractDS{T}) where T
+function graph_traversal(dg::DiGraph{T}, root::T, ds::AbstractContainer{T}) where T
     
     visited = Vector{T}()
     push!(ds, root)

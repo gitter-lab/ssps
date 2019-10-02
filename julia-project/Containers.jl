@@ -9,25 +9,25 @@ module Containers
 
 import Base: isempty, pop!, push!, in, copy
 
-export Stack, Queue
+export AbstractContainer, Stack, Queue
 
 """
-    AbstractDS{T}
+    AbstractContainer{T}
 
 Defines a simple container interface with typical methods.
 """
-abstract type AbstractDS{T} end
-push!(ds::AbstractDS{T}, item::T) where T = push!(ds.vec, item)
-pop!(ds::AbstractDS{T}) where T = pop!(ds.vec)
-isempty(ds::AbstractDS{T}) where T = isempty(ds.vec)
-in(item::T, ds::AbstractDS{T}) where T = in(item, ds.vec)
+abstract type AbstractContainer{T} end
+push!(ds::AbstractContainer{T}, item::T) where T = push!(ds.vec, item)
+pop!(ds::AbstractContainer{T}) where T = pop!(ds.vec)
+isempty(ds::AbstractContainer{T}) where T = isempty(ds.vec)
+in(item::T, ds::AbstractContainer{T}) where T = in(item, ds.vec)
 
 """
     Queue{T}(vec::Vector{T})
 
-Vector-based Queue. Implements AbstractDS interface.
+Vector-based Queue. Implements AbstractContainer interface.
 """
-mutable struct Queue{T} <: AbstractDS{T}
+mutable struct Queue{T} <: AbstractContainer{T}
     vec::Vector{T}
 end
 Queue{T}() where T = Queue{T}(Vector{T}())
@@ -38,9 +38,9 @@ copy(q::Queue{T}) where T = Queue(copy(q.vec))
 """
     Stack{T}(vec::Vector{T})
 
-Vector-based Stack. Implements AbstractDS interface.
+Vector-based Stack. Implements AbstractContainer interface.
 """
-mutable struct Stack{T} <: AbstractDS{T}
+mutable struct Stack{T} <: AbstractContainer{T}
     vec::Vector{T}
 end
 Stack{T}() where T = Stack{T}(Vector{T}())
