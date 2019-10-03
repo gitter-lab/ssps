@@ -10,7 +10,7 @@ import Base: copy
 
 export DiGraph, add_edge!, remove_edge!, add_vertex!, remove_vertex!, 
        out_neighbors, in_neighbors, dfs_traversal, bfs_traversal,
-       is_cyclic
+       is_cyclic, get_ancestors, transpose!, multiroot_bfs
 
 """
     DiGraph{T}(vertices::Set{T}, edges::Array{T,2})
@@ -34,7 +34,7 @@ function add_edge!(dg::DiGraph{T}, orig::T, dest::T) where T
 end
 
 function remove_edge!(dg::DiGraph{T}, orig::T, dest::T) where T
-    dg.edges = dg.edges[(dg.edges[:,1] .!= orig) .| (dg.edges[:,2] .!= dest),:]
+    dg.edges = dg.edges[(dg.edges[:,1] .!= [orig]) .| (dg.edges[:,2] .!= [dest]),:]
 end
 
 function add_vertex!(dg::DiGraph{T}, v::T) where T
@@ -43,17 +43,20 @@ end
 
 function remove_vertex!(dg::DiGraph{T}, v::T) where T
     delete!(dg.vertices, v)
-    dg.edges = dg.edges[(dg.edges[:,1] .!= v) .& (dg.edges[:,2] .!= v), :]
+    dg.edges = dg.edges[(dg.edges[:,1] .!= [v]) .& (dg.edges[:,2] .!= [v]), :]
 end
 
 function out_neighbors(dg::DiGraph{T}, v::T) where T
-    return Set(dg.edges[dg.edges[:,1] .== v, 2])
+    return Set(dg.edges[dg.edges[:,1] .== [v], 2])
 end
 
 function in_neighbors(dg::DiGraph{T}, v::T) where T
-    return Set(dg.edges[dg.edges[:,2] .== v, 1])
+    return Set(dg.edges[dg.edges[:,2] .== [v], 1])
 end
 
+function transpose!(dg::DiGraph{T}) where T
+    dg.edges = dg.edges[:,[2,1]]
+end
 
 include("Containers.jl")
 using .Containers
@@ -170,6 +173,38 @@ function is_cyclic(dg::DiGraph{T}) where T
 end
 
 
+"""
+    get_ancestors(dg::DiGraph{T}, v::T)
+
+Find all the ancestors of vertex v in the directed graph,
+assuming no cycles. (if necessary, this can be checked
+by calling is_cyclic(dg).
+"""
+function get_ancestors(dg::DiGraph{T}, v::T) where T 
+
+    dg_copy = copy(dg)
+    transpose!(dg_copy)
+
+    return set(dfs_traversal(dg_copy, v))
 end
 
+"""
+    topological_sort(dg::DiGraph{T})
+
+Assuming dg is a dag, this yields a DFS-based topological 
+sort of the vertices.
+"""
+function topological_sort(dg::DiGraph{T}) where T
+
+    dgc = copy(dg)
+    visited = Array([])
+
+    while ! isempty(dgc.vertices)
+        
+    end
+
+end
+
+
+end
 
