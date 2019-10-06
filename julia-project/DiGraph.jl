@@ -1,4 +1,4 @@
-# Graph.jl
+# DiGraph.jl
 # 2019-09-26
 # David Merrell
 #
@@ -10,7 +10,7 @@ import Base: copy
 
 export DiGraph, add_edge!, remove_edge!, add_vertex!, remove_vertex!, 
        out_neighbors, in_neighbors, dfs_traversal, bfs_traversal,
-       is_cyclic, get_ancestors, transpose!, multiroot_bfs
+       is_cyclic, get_ancestors, transpose!, topological_sort 
 
 """
     DiGraph{T}(vertices::Set{T}, edges::Array{T,2})
@@ -188,6 +188,7 @@ function get_ancestors(dg::DiGraph{T}, v::T) where T
     return set(dfs_traversal(dg_copy, v))
 end
 
+
 """
     topological_sort(dg::DiGraph{T})
 
@@ -197,13 +198,38 @@ sort of the vertices.
 function topological_sort(dg::DiGraph{T}) where T
 
     dgc = copy(dg)
-    visited = Array([])
+    visited = Array{T,1}()
 
     while ! isempty(dgc.vertices)
-        
+        v = first(dgc.vertices)
+        _visit!(dgc, visited, v)
+    end
+
+    return visited
+
+end
+
+
+function _visit!(dg::DiGraph{T}, visited::Array{T,1}, v::T) where T
+    
+    succ = out_neighbors(dg, v)
+    if length(succ) > 0
+        for s in succ
+            _visit!(dg, visited, s)
+	end
+    end
+
+    if ! in(v, visited)
+        pushfirst!(visited, v)
+        remove_vertex!(dg, v)
+    else
+        throw(CycleException)
     end
 
 end
+
+
+struct CycleException <: Exception end
 
 
 end
