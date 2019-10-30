@@ -6,6 +6,7 @@
 
 # visuals
 *.png
+*.gif
 
 # LaTeX junk
 *.pdf
