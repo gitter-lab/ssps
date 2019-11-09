@@ -14,7 +14,7 @@
 \newif\if@final
 
 \DeclareOption{draft}{\PassOptionsToPackage{draft}{graphicx}}
-\DeclareOption{a4paper}{\PassOptionsToPackage{a4}{crop}}
+\DeclareOption{b4paper}{\PassOptionsToPackage{b4}{crop}}
 \DeclareOption{centre}{\PassOptionsToPackage{center}{crop}}
 \DeclareOption{crop}{\PassOptionsToPackage{cam}{crop}\global\@cropmarksontrue}
 \DeclareOption{nocrop}{\PassOptionsToPackage{off}{crop}\global\@cropmarksonfalse}
@@ -22,18 +22,27 @@
 \DeclareOption{noinfo}{\PassOptionsToPackage{noinfo}{crop}}
 \DeclareOption{final}{\global\@finaltrue}
 
-\ExecuteOptions{a4paper,nocrop,centre,info}
+\ExecuteOptions{b4paper,crop,centre,info}
 
 \ProcessOptions
 
 % Load all necessary packages
 \RequirePackage{inputenc,crop,graphicx,amsmath,array,color,amssymb,flushend,stfloats,amsthm,chngpage,times}
-%\RequirePackage[LY1]{fontenc}
+\RequirePackage[LY1]{fontenc}
+
+\renewcommand{\rmdefault}{ptm}
+\renewcommand{\sfdefault}{phb}
+\renewcommand{\ttdefault}{pcr}
+
 %\RequirePackage[LY1,mtbold]{mathtime}
 \def\helvetica{\fontfamily{phv}\selectfont}
 \def\helveticaitalic{\fontfamily{phv}\itshape\selectfont}
 \def\helveticabold{\fontfamily{phv}\bfseries\selectfont}
 \def\helveticabolditalic{\fontfamily{phv}\bfseries\itshape\selectfont}
+\def\helveticacn{\fontfamily{phv}\fontseries{mc}\fontshape{n}\selectfont}
+\def\helveticacnitalic{\fontfamily{phv}\fontseries{mc}\fontshape{sl}\selectfont}
+\def\helveticacnbold{\fontfamily{phv}\fontseries{bc}\fontshape{n}\selectfont}
+\def\helveticacnbolditalic{\fontfamily{phv}\fontseries{bc}\fontshape{sl}\selectfont}
 
 % Not sure if needed.
 \newcommand\@ptsize{0}
@@ -47,8 +56,8 @@
 \reversemarginpar
 
 \renewcommand\normalsize{%
-   \@setfontsize\normalsize{9}{11}%
-   \abovedisplayskip 10\p@ \@plus2\p@ \@minus5\p@
+   \@setfontsize\normalsize{8}{11}%
+   \abovedisplayskip 11\p@ \@plus2\p@ \@minus5\p@
    \abovedisplayshortskip \z@ \@plus3\p@
    \belowdisplayshortskip 6\p@ \@plus3\p@ \@minus3\p@
    \belowdisplayskip \abovedisplayskip
@@ -57,8 +66,8 @@
 \let\@bls\baselineskip
 
 \newcommand\small{%
-    \@setfontsize\small{9}{11}%
-    \abovedisplayskip 11\p@ minus 3\p@
+    \@setfontsize\small{7}{10}%
+    \abovedisplayskip 10\p@ minus 3\p@
     \belowdisplayskip \abovedisplayskip
     \abovedisplayshortskip \z@ plus 2\p@
     \belowdisplayshortskip 4\p@ plus 2\p@ minus2\p@
@@ -75,7 +84,7 @@
     \def\@listi{\topsep 3\p@ plus 1\p@ minus 1\p@
        \parsep 2\p@ plus 1\p@ minus 1\p@\itemsep \parsep}}
        
-\def\scriptsize{\@setfontsize\scriptsize{7pt}{9pt}}
+\def\scriptsize{\@setfontsize\scriptsize{6.5pt}{9.5pt}}
 \def\tiny{\@setfontsize\tiny{5pt}{7pt}}
 \def\large{\@setfontsize\large{11.5pt}{12pt}}
 \def\Large{\@setfontsize\Large{14pt}{16}}
@@ -84,7 +93,10 @@
 \def\Huge{\@setfontsize\Huge{30pt}{30pt}}
 
 \DeclareOldFontCommand{\rm}{\normalfont\rmfamily}{\mathrm}
-\DeclareOldFontCommand{\sf}{\normalfont\sffamily}{\mathsf}
+\DeclareOldFontCommand{\sf}{\normalfont\helvetica}{\mathsf}
+\DeclareOldFontCommand{\sfit}{\normalfont\sffamily\itshape}{\mathsf}
+\DeclareOldFontCommand{\sfb}{\normalfont\helveticabold}{\mathsf}
+\DeclareOldFontCommand{\sfbi}{\normalfont\sffamily\bfseries\itshape}{\mathsf}
 \DeclareOldFontCommand{\tt}{\normalfont\ttfamily}{\mathtt}
 \DeclareOldFontCommand{\bf}{\normalfont\bfseries}{\mathbf}
 \DeclareOldFontCommand{\it}{\normalfont\itshape}{\mathit}
@@ -98,7 +110,7 @@
 
 % Paragraph dimensions and inter-para spacing
 \setlength\parskip{0\p@}
-\setlength\parindent{3mm}
+\setlength\parindent{12pt}
 
 % Set inter-para skips
 \setlength\smallskipamount{3\p@ \@plus 1\p@ \@minus 1\p@}
@@ -134,18 +146,18 @@
 % Set page layout dimensions
 %
 \setlength\headheight{16\p@}        % height of running head
-\setlength\topmargin{2.9pc}         % head margin
+\setlength\topmargin{2.5pc}         % head margin
 \addtolength\topmargin{-1in}        % subtract out the 1 inch driver margin
 
 \setlength\topskip{10\p@}           % height of first line of text
-\setlength\headsep{19\p@}        %   space below running head --
+\setlength\headsep{8\p@}        %   space below running head --
 
-\setlength\footskip{34\p@}          % space above footer line
+\setlength\footskip{10\p@}          % space above footer line
 \setlength\maxdepth{.5\topskip}     % pages can be short or deep by half a line?
 
-\setlength\textwidth{42pc}          % text measure excluding margins
+\setlength\textwidth{40.5pc}          % text measure excluding margins
 
-\setlength\textheight{58\baselineskip} % 54 lines on a full page,
+\setlength\textheight{61\baselineskip} % 54 lines on a full page,
 \addtolength\textheight{\topskip}      %   including the first
                                        %   line on the page
 
@@ -154,11 +166,11 @@
 \setlength\marginparpush{3\p@}
 \setlength\marginparwidth{35\p@}
 
-\setlength\oddsidemargin{4.5pc}
+\setlength\oddsidemargin{5.25pc}
 \addtolength\oddsidemargin{-1in}     % subtract out the 1 inch driver margin
 \setlength\@tempdima{\paperwidth}
 \addtolength\@tempdima{-\textwidth}
-\addtolength\@tempdima{-4.5pc}
+\addtolength\@tempdima{-5.25pc}
 \setlength\evensidemargin{\@tempdima}
 \addtolength\evensidemargin{-1in}
 
@@ -225,32 +237,34 @@
 % Page styles
 \def\ps@headings
   {%
-  \def\@oddfoot{\vbox to 12.5\p@{\hbox{\rule{\textwidth}{0.5\p@}}\vss
-        \hbox to \textwidth{\hfill\helveticabold\small\thepage}%
-        }}%
-  \def\@evenfoot{\vbox to 12.5\p@{\rule{\textwidth}{0.5\p@}\vss
-        \hbox to \textwidth{\helveticabold\small\thepage\hfill}%
-        }}%
+%  \def\@oddfoot{\vbox to 12.5\p@{\hbox{\rule{\textwidth}{1\p@}}\vss
+%        \hbox to \textwidth{\hfill\helveticabold\small\thepage}%
+%        }}%
+%  \def\@evenfoot{\vbox to 12.5\p@{\rule{\textwidth}{1\p@}\vss
+%        \hbox to \textwidth{\helveticabold\small\thepage\hfill}%
+%        }}%
+  \let\@oddfoot\@empty%
+  \let\@evenfoot\@empty%
   \def\@evenhead{\vbox{\hbox to \textwidth{\fontsize{8}{10}\selectfont
-        \helveticabold{\fontshape{it}\selectfont
-        \strut\leftmark}\hfill}\vspace{6.5\p@}\rule{\textwidth}{0.5\p@}}}%
-  \def\@oddhead{\vbox{\hbox to \textwidth{\hfill\fontsize{8}{10}\selectfont
-        \helveticabold{\fontshape{it}\selectfont\strut\rightmark}}%
-        \vspace{6.5\p@}\rule{\textwidth}{0.5\p@}}}%
+        {\helveticabold{\selectfont\thepage}}\hfill\helveticaitalic{\fontshape{sl}\selectfont
+        \strut\leftmark}}\vspace{5\p@}\rule{\textwidth}{1\p@}}}%
+  \def\@oddhead{\vbox{\hbox to \textwidth{\fontsize{8}{10}\selectfont
+        {\helveticaitalic{\fontshape{it}\selectfont\strut\rightmark}}\hfill{\helveticabold{\thepage}}}%
+        \vspace{5\p@}\rule{\textwidth}{1\p@}}}%
   \def\titlemark##1{\markboth{##1}{##1}}%
   \def\authormark##1{\gdef\leftmark{##1}}%
   }
 
 \def\ps@opening
   {%
-  \def\@oddfoot{\vbox to 13\p@{\hbox{\rule{\textwidth}{1\p@}}\vss
+  \def\@oddfoot{{
         \hbox to \textwidth{\helvetica
-        \fontsize{7}{9}\fontshape{n}\selectfont \copyright\space Oxford University Press \@copyrightyear.%
+        \fontsize{7}{9}\fontshape{n}\selectfont \copyright\space The Author \@copyrightyear. Published by Oxford University Press. All rights reserved. For permissions, please e-mail: journals.permissions@oup.com%
           \hfill\small\helveticabold\thepage}%
         }}%
-  \def\@evenfoot{\vbox to 13\p@{\rule{\textwidth}{1\p@}\vss
+  \def\@evenfoot{{
         \hbox to \textwidth{\helvetica\thepage\hfill
-          \fontsize{7}{9}\fontshape{n}\selectfont \copyright\space Oxford University Press \@copyrightyear.}%
+          \fontsize{7}{9}\fontshape{n}\selectfont The Author \@copyrightyear. Published by Oxford University Press. All rights reserved. For permissions, please e-mail: journals.permissions@oup.com}%
         }}%
   \let\@evenhead\relax
   \let\@oddhead\relax}
@@ -380,6 +394,8 @@
 \def\short@title[#1]{\titlemark{#1}\@@@title}
 \def\@@title#1{\authormark{#1}\@@@title{#1}}
 \long\def\@@@title#1{\gdef\@title{#1}}
+\long\def\subtitle#1{\gdef\@subtitle{#1}}
+\subtitle{Genome analysis}
 
 \long\def\author{\@ifnextchar[{\short@uthor}{\@uthor}}
 \def\short@uthor[#1]{\authormark{#1}\@@author}
@@ -390,13 +406,17 @@
 \def\issue#1{\global\def\@issue{#1}}
 \def\address#1{\global\def\@issue{#1}}
 \def\history#1{\global\def\@history{#1}}
+\def\abstract#1{\global\def\@abstract{#1}}
 \def\editor#1{\global\def\@editor{#1}}
 \def\pubyear#1{\global\def\@pubyear{#1}}
 \def\copyrightyear#1{\global\def\@copyrightyear{#1}}
 \def\address#1{\global\def\@address{#1}}
+\def\corresp#1{\global\def\@corresp{#1}}
 \def\DOI#1{\global\def\@DOI{#1}}
 
 \definecolor{gray}{cmyk}{0, 0, 0, 0.15}
+\definecolor{grayfifty}{cmyk}{0, 0, 0, 0.5}
+\definecolor{graysixtyfive}{cmyk}{0, 0, 0, 0.65}
 \newlength{\extraspace}
 \setlength{\extraspace}{\z@}
 
@@ -414,7 +434,7 @@
         \twocolumn[\@maketitle]%
       \fi
     \else
-      \newpage
+      \newpage\enlargethispage{-23pt}
       \global\@topnum\z@   % Prevents figures from going at top of page.
       \@maketitle
     \fi
@@ -425,11 +445,13 @@
   \global\let\maketitle\relax
   \global\let\@maketitle\relax
   \global\let\@address\@empty
+  \global\let\@corresp\@empty  
   \global\let\@history\@empty
   \global\let\@editor\@empty
   \global\let\@thanks\@empty
   \global\let\@author\@empty
   \global\let\@date\@empty
+  \global\let\@subtitle\@empty  
   \global\let\@title\@empty
   \global\let\@pubyear\@empty
   \global\let\address\relax
@@ -442,47 +464,77 @@
   \global\let\@copyrightline\@empty
   \global\let\and\relax
   \@afterindentfalse\@afterheading
-}
+\enlargethispage{-23pt}}
 
 \newlength{\aboveskipchk}%for checking oddpage or evenpage top skip
 \setlength{\aboveskipchk}{\z@}%
 
+\def\access#1{\gdef\@access{#1}}
+\access{Advance Access Publication Date: 2 April 2015}
+
+\def\appnotes#1{\gdef\@appnotes{#1}}
+\appnotes{Applications Note}
+
 \def\@maketitle{%
   \let\footnote\thanks
   \clearemptydoublepage
-    \checkoddpage\ifcpoddpage\setlength{\aboveskipchk}{-3pc}\else\setlength{\aboveskipchk}{-5pc}\fi%for checking oddpage or evenpage top skip%%
+    \checkoddpage\ifcpoddpage\setlength{\aboveskipchk}{-16pt}\else\setlength{\aboveskipchk}{-16pt}\fi%for checking oddpage or evenpage top skip%%
   \vspace*{\aboveskipchk}%
   \vspace{\dropfromtop}%
-  \hbox to \textwidth{%
-  {\helvetica\itshape\bfseries\fontsize{19}{12}\selectfont {\color{gray}BIOINFORMATICS}
-    \hfil
-    \if@appnotes APPLICATIONS NOTE\hfil\fi
-    }%
-\enskip  \parbox[b]{11.3pc}{%
-    \helvetica
-    \flushright\fontsize{8}{10}\fontshape{it}\selectfont
-        Vol. 00\ no. 00 \@pubyear\\
-        \hfill Pages \thepagerange
-  }}
-  \rule{\textwidth}{1\p@}\par%
+  \hbox to \textwidth{\raisebox{5pt}[0pt]{%
+  \parbox[b]{415pt}{\raggedleft{\helveticacnitalic\fontsize{8}{12}\selectfont {Bioinformatics}}\\[1pt]
+  {\helveticacn doi.10.1093/bioinformatics/xxxxxx}\\[1pt]
+  {\ifx\@access\@empty
+  \else
+  {\helveticacn \@access}\fi}
+  \vskip1pt
+  {\ifx\@appnotes\@empty
+  \else
+  {\helveticacn \@appnotes}\fi}
+    }}%
+%\enskip  \parbox[b]{11.3pc}{%
+%    \helvetica
+%    \flushright\fontsize{8}{10}\fontshape{it}\selectfont
+%        Vol. 00\ no. 00 \@pubyear\\
+%        \hfill Pages \thepagerange
+%  }
+  \hfill\includegraphics{OUP_First_SBk_Bot_8401.eps}}
+  \vskip2pt
+  \rule{415pt}{2\p@}\par%
   \helvetica
   \hbox to \textwidth{%
   \parbox[t]{36.5pc}{%
-    \vspace*{1sp}
-    {\helveticabold\fontsize{16}{21}\selectfont\raggedright \@title \par}%
-    \vspace{4.5\p@}
-    {\helvetica\fontsize{13}{15}\selectfont\raggedright \@author \par}%
-        \vspace{4\p@}
-    {\helvetica\fontsize{10}{12}\selectfont\raggedright \@address \par}%
+    \vspace*{3pt}
+    \ifx\@subtitle\@empty
+    \else
+    {\helveticacn\fontsize{14}{21}\selectfont\raggedright \@subtitle \par}%
+    \vspace{7.5\p@}
+    \fi
+    {\helveticabold\fontsize{18}{23}\selectfont\raggedright \@title \par}%
+    \vspace{8.8\p@}
+    {\helveticabold\boldmath\fontsize{12}{15}\selectfont\raggedright \@author \par}%
+        \vspace{9\p@}
+    {\helveticacn\fontsize{9}{12}\selectfont\raggedright \@address \par}%
+    \vspace{6\p@}
+    {\helveticacn\fontsize{8.5}{12}\selectfont\raggedright \@corresp \par}%
+    \vspace{2\p@}
+    {\helvetica\fontsize{8.5}{12}\selectfont\raggedright \@editor \par}
     \vspace{4\p@}
-    {\helvetica\fontsize{8}{10}\selectfont\raggedright \@history \par}
-    \vspace{24\p@}
-    {\helvetica\fontsize{10}{12}\selectfont\raggedright \@editor \par}
+    {\helvetica\fontsize{7}{12}\selectfont\raggedright \@history \par}
+    \vspace{14\p@}
+    {
+  \let\section\absection  
+  {\helvetica\fontsize{10}{12}\bfseries\selectfont Abstract}\par}
+  \vskip5pt
+    \begingroup\begin{minipage}[t]{415pt}\parindent=0pt
+    {\helvetica\fontsize{9}{12}\selectfont \@abstract\par}
+    \end{minipage}
+    \endgroup
     %\vspace{20\p@}
     }%
   }
-  \vspace{14.5\p@}%
-  \rule{\textwidth}{1\p@}%
+  \vspace{13.5\p@}%
+  \rule{415pt}{2\p@}%
   \vspace{12\p@ plus 6\p@ minus 6\p@}%
   \vspace{\extraspace}
   }
@@ -492,34 +544,34 @@
 \newcommand{\absection}[1]{%
   \par\noindent{\bfseries #1}\space\ignorespaces}
 
-\newenvironment{abstract}{%
-  \begingroup
-  \let\section\absection
-  \fontfamily{\sfdefault}\fontsize{8}{11}\sffamily\selectfont
-  {\fontseries{b}\selectfont ABSTRACT}\par}
-{\endgroup\bigskip\@afterheading\@afterindentfalse\vskip 12pt plus 3pt minus 1pt}
+%\newenvironment{abstract}{%
+%  \begingroup
+%  \let\section\absection
+%  \fontfamily{\sfdefault}\fontsize{10}{12}\sffamily\selectfont
+%  {\fontseries{b}\selectfont Abstract}\par}
+%{\endgroup\bigskip\@afterheading\@afterindentfalse\vskip 12pt plus 3pt minus 1pt}
 
 % Section macros
 
 % Lowest level heading that takes a number by default
 \setcounter{secnumdepth}{3}
 
-\renewcommand{\@seccntformat}[1]{\csname the#1\endcsname\quad}
+\renewcommand{\@seccntformat}[1]{\csname the#1\endcsname\space}
 
 \def\section{%
   \@startsection{section}{1}{\z@}
-  {-22\p@ plus -3\p@}{3\p@}
-  {\reset@font\raggedright\helveticabold\fontsize{10}{12}\selectfont\MakeUppercase}}
+  {-22\p@ plus -3\p@}{4\p@}
+  {\reset@font\raggedright\helveticabold\fontsize{10}{12}\selectfont}}
   
 \def\subsection{%
   \@startsection{subsection}{2}{\z@}
-  {-11\p@ plus -2\p@}{3\p@}
-  {\reset@font\raggedright\mathversion{bold}\fontseries{b}\fontsize{10}{12}\selectfont}}
+  {-11\p@ plus -2\p@}{4\p@}
+  {\reset@font\raggedright\helvetica\fontsize{9}{12}\selectfont}}
  
 \def\subsubsection{%
   \@startsection{subsubsection}{3}{\z@}
-  {-11\p@ plus -1\p@}{-1em}
-  {\reset@font\normalfont\normalsize\itshape}}
+  {-11\p@ plus -1\p@}{0.001em}
+  {\reset@font\normalfont\mathversion{bold}\normalsize\bfseries}}
 
 \def\textcolon{\text{\rm :}}
 
@@ -544,26 +596,26 @@
 \newlength{\abovecaptionskip}
 \newlength{\belowcaptionskip}
 \setlength{\abovecaptionskip}{13pt}
-\setlength{\belowcaptionskip}{10.5pt}
+\setlength{\belowcaptionskip}{2pt}
 
 \long\def\@makecaption#1#2{\vspace{\abovecaptionskip}%
   \begingroup
-  \footnotesize
-  \textbf{#1.}\enskip{#2}\par
+  \scriptsize\sffamily
+  \text{\sfb #1.}\space{#2}\par
   \endgroup}
 
 \long\def\@tablecaption#1#2{%
   \begingroup
-  \footnotesize
-  \textbf{#1.}\enskip{#2\strut\par}
+  \fontsize{7.5pt}{10.5pt}\sffamily\selectfont
+  \textbf{#1.}\space{#2\strut\par}
   \endgroup\vspace{\belowcaptionskip}}
 
 % Table rules
-\def\toprule{\noalign{\ifnum0=`}\fi\hrule \@height 0.5pt \hrule \@height 6pt \@width 0pt \futurelet
+\def\toprule{\noalign{\ifnum0=`}\fi\hrule \@height 0.5pt \hrule \@height 4pt \@width 0pt \futurelet
    \@tempa\@xhline}
-\def\midrule{\noalign{\ifnum0=`}\fi \hrule \@height 6.75pt \@width 0pt \hrule \@height 0.5pt
-    \hrule \@height 6pt \@width 0pt \futurelet \@tempa\@xhline}
-\def\botrule{\noalign{\ifnum0=`}\fi \hrule \@height 5.75pt \@width 0pt \hrule \@height 0.5pt \futurelet
+\def\midrule{\noalign{\ifnum0=`}\fi \hrule \@height 3pt \@width 0pt \hrule \@height 0.5pt
+    \hrule \@height 4pt \@width 0pt \futurelet \@tempa\@xhline}
+\def\botrule{\noalign{\ifnum0=`}\fi \hrule \@height 3.75pt \@width 0pt \hrule \@height 0.5pt \futurelet
    \@tempa\@xhline}
 \def\hrulefill{\leavevmode\leaders\hrule height .5pt\hfill\kern\z@}
 
@@ -615,7 +667,7 @@
 \long\gdef\@ifnotmtarg#1{\@xifmtarg#1QQ\@firstofone\@gobble\@nil}
 \endgroup
 
-\def\tablesize{\@setfontsize\tablesize{8\p@}{10\p@}}
+\def\tablesize{\@setfontsize\tablesize{7.5\p@}{10\p@}}
 
 \newenvironment{processtable}[3]{\setbox\temptbox=\hbox{{\tablesize #2}}%
 \tempdime\wd\temptbox\@processtable{#1}{#2}{#3}{\tempdime}}
@@ -634,7 +686,7 @@
 \hbox to \hsize{\hss\begin{minipage}[t]{#4}%
 \vskip2.9pt
 \@ifmtarg{#1}{}{\caption{#1}}{\tablesize #2}%
-\vskip6\p@\noindent
+\vskip6\p@\parindent=12pt
 \parbox{#4}{\fontsize{7}{9}\selectfont #3\par}%
 \end{minipage}\hss}\fi}%
 
@@ -676,12 +728,12 @@
 % Changes to the list parameters for enumerate
 \def\enumargs{%
    \partopsep     \z@
-   \itemsep       3\p@
+   \itemsep       \z@
    \parsep        \z@
-   \labelsep      0.5em
+   \labelsep      1em
    \listparindent \parindent
    \itemindent    \z@
-   \topsep 11\p@
+   \topsep 7\p@
 }
 
 \def\enumerate{%
@@ -697,7 +749,7 @@
        \usecounter{\@enumctr}
        \settowidth\labelwidth{#1}
        \addtolength{\leftmargin}{\labelwidth}
-       \addtolength{\leftmargin}{\labelsep}
+       \addtolength{\leftmargin}{2pt}
        \def\makelabel##1{\hss \llap{##1}}}%
      \fi
    }
@@ -706,13 +758,13 @@
 % Changes to the list parameters for itemize
 \def\itemargs{%
    \partopsep     \z@
-   \itemsep       3\p@
+   \itemsep       0\p@
    \parsep        \z@
-   \labelsep      0.5em
+   \labelsep      1em
    \rightmargin   \z@
    \listparindent \parindent
    \itemindent    \z@
-   \topsep11\p@
+   \topsep7\p@
 }
 
 \def\itemize{%
@@ -727,7 +779,7 @@
        \setlength{\leftmargin}{\csname leftmargin\romannumeral\the\@itemdepth\endcsname}
        \settowidth\labelwidth{#1}
        \addtolength{\leftmargin}{\labelwidth}
-       \addtolength{\leftmargin}{\labelsep}
+       %\addtolength{\leftmargin}{\labelsep}
        \def\makelabel##1{\hss \llap{##1}}}%
      \fi
    }
@@ -878,16 +930,16 @@
 \def\section{%
   \@startsection{section}{1}{\z@}
   {-24\p@ plus -3\p@}{4\p@}
-  {\reset@font\raggedright\helveticabold\fontsize{10}{12}\selectfont\MakeUppercase}}
+  {\reset@font\raggedright\helveticabold\fontsize{10}{12}\selectfont}}
  \def\subsection{%
   \@startsection{subsection}{2}{\z@}
-  {-5\p@ plus -2\p@}{4\p@}
-  {\reset@font\raggedright\mathversion{bold}\fontseries{b}\fontsize{10}{12}\selectfont}}
- \def\subsubsection{%
+  {-11\p@ plus -2\p@}{4\p@}
+  {\reset@font\raggedright\helvetica\fontsize{9}{12}\selectfont}}
+\def\subsubsection{%
   \@startsection{subsubsection}{3}{\z@}
-  {-6\p@ plus -1\p@}{-1em}
-  {\reset@font\normalfont\normalsize\itshape}}
-\footnotesize
+  {-11\p@ plus -1\p@}{0.001em}
+  {\reset@font\normalfont\mathversion{bold}\normalsize\bfseries}}
+\normalsize
   \par}
 {\par\endgroup\bigskip\@afterheading\@afterindentfalse}
 

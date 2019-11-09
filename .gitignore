@@ -4,6 +4,9 @@
 *.pytest_cache
 *.idea
 
+# jupyter checkpoints
+*-checkpoint.ipynb
+
 # visuals
 *.png
 *.gif
@@ -13,3 +16,5 @@
 *.aux
 *.log
 
+# bulky stuff
+*.zip
