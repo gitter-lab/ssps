@@ -6,7 +6,7 @@
 
 module DiGraphs
 
-import Base: copy
+import Base: copy, isapprox
 
 export DiGraph, add_edge!, remove_edge!, add_vertex!, remove_vertex!, 
        out_neighbors, in_neighbors, dfs_traversal, bfs_traversal,
@@ -26,6 +26,18 @@ DiGraph(edges::Array{T,2}) where T = DiGraph(Set(edges), edges)
 DiGraph{T}() where T = DiGraph(Array{T,2}(undef, 0, 2))
 copy(dg::DiGraph{T}) where T =  DiGraph(copy(dg.vertices), copy(dg.edges))
 
+
+function isapprox(x::DiGraph{T}, y::DiGraph{T}) where T
+
+    if x.vertices != y.vertices
+	return false
+    end
+
+    ex = Set([x.edges[i,:] for i=1:size(x.edges)[1]])
+    ey = Set([y.edges[i,:] for i=1:size(y.edges)[1]])
+    return ex == ey
+
+end
 
 function add_edge!(dg::DiGraph{T}, orig::T, dest::T) where T
     dg.edges = vcat(dg.edges, [orig dest])
