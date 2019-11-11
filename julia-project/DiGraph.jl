@@ -70,16 +70,16 @@ function transpose!(dg::DiGraph{T}) where T
     dg.edges = dg.edges[:,[2,1]]
 end
 
-include("Containers.jl")
-using .Containers
+include("DPMCollections.jl")
+using .DPMCollections
 
 """
-    graph_traversal(dg::DiGraph{T}, root::T, ds::AbstractContainer{T})
+    graph_traversal(dg::DiGraph{T}, root::T, ds::AbstractCollection{T})
 
 Generic graph traversal method. 
 ds::Stack implies DFS traversal; ds::Queue implies BFS traversal
 """
-function graph_traversal(dg::DiGraph{T}, root::T, ds::AbstractContainer{T}) where T
+function graph_traversal(dg::DiGraph{T}, root::T, ds::AbstractCollection{T}) where T
     
     visited = Vector{T}()
     push!(ds, root)
