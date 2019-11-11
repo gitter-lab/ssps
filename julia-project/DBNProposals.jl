@@ -6,7 +6,54 @@ using Gen
 include("PSDiGraph.jl")
 using .PSDiGraphs
 
-export digraph_proposal, digraph_involution
+export digraph_v_proposal, digraph_v_involution
+
+
+"""
+    digraph_e_proposal(tr, ordered_vertices)
+
+A very simple proposal distribution for exploring the unconstrained
+space of directed graphs (with a fixed set of edges). 
+"""
+@gen function digraph_e_proposal(tr, ordered_vertices)
+
+    V = length(ordered_vertices)
+   
+    u_idx = @trace(Gen.uniform_discrete(1,V), :u_idx)
+    u = ordered_vertices[u_idx]
+    
+    v_idx = @trace(Gen.uniform_discrete(1,V), :v_idx)
+    v = ordered_vertices[v_idx]
+
+    if u in G.parents[v]
+	Gdiff = ("remove", u, v)
+    elseif v in G.parents[u]
+	Gdiff = ("reverse", v, u)
+    else
+	Gdiff = ("add", u, v)
+
+    return Gdiff
+
+end
+
+
+"""
+    digraph_e_involution(tr, cur_tr, fwd_choices, fwd_ret, prop_args)
+
+The involution corresponding to `digraph_e_proposal`.
+"""
+function digraph_e_involution(cur_tr, fwd_choices, fwd_ret, prop_args)
+
+    ordered_vertices = prop_args[1]
+    
+    fwd_u_idx = fwd_choices[:u_idx]
+    fwd_v_idx = fwd_choices[:v_idx]
+
+    bwd_choices = Gen.choicemap()
+    bwd_choices[
+
+    return new_tr, bwd_choices, weight
+end
 
 
 """
@@ -17,10 +64,9 @@ directed graphs.
 is higher than this, then we are much more likely to remove an edge
 from one of its parents.
 """
-@gen function digraph_proposal(tr, expected_indegree::Float64)
+@gen function digraph_v_proposal(tr, ordered_vertices, expected_indegree::Float64)
     
     G = copy(tr[:G])
-    ordered_vertices = sort(collect(vertices(G)))
     V = length(ordered_vertices)
     
     u_idx = @trace(Gen.uniform_discrete(1,V), :u_idx)
@@ -65,7 +111,7 @@ from one of its parents.
 end;
 
 
-function digraph_involution(cur_tr, fwd_choices, fwd_ret, prop_args)
+function digraph_v_involution(cur_tr, fwd_choices, fwd_ret, prop_args)
     
     # Update the trace 
     new_G = fwd_ret
@@ -76,7 +122,7 @@ function digraph_involution(cur_tr, fwd_choices, fwd_ret, prop_args)
     
     # figure out what has changed
     fwd_u_idx = fwd_choices[:u_idx]
-    sorted_vertices = sort(collect(vertices(old_G)))
+    sorted_vertices = prop_args[1]
     fwd_u = sorted_vertices[fwd_u_idx]
     fwd_v_idx = fwd_choices[:v_idx]
     
