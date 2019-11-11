@@ -1,7 +1,14 @@
 
-@gen (static) function full_model(X::Vector{Array{Float64,2}}, reference_graph::DiGraph, deg_max::Int64)
+module DBNModels
+
+using Gen
+
+export dbn_single_context
+
+
+@gen (static) function dbn_single_context(X::Vector{Array{Float64,2}}, reference_graph::PSDiGraph, deg_max::Int64)
     
-    V = sort(collect(reference_graph.vertices))
+    V = sort(collect(vertices(reference_graph)))
     lambda = @trace(Gen.gamma(1,1), :lambda)
     
     G = @trace(graphprior(lambda, reference_graph), :G)
@@ -13,4 +20,7 @@
     
     @trace(dbnmarginal(parent_vecs, Xminus, Xplus, deg_max), :X)
     
+end
+
+
 end

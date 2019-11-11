@@ -1,23 +1,55 @@
 
-# PRIOR DISTRIBUTION
-struct GraphPrior <: Gen.Distribution{DiGraph} end
+module DBNDistributions
+
+using LRUCache
+include("PSDiGraph.jl")
+using .PSDiGraphs
+
+import Gen: Distribution, random, logpdf
+
+export GraphPrior, graphprior, clear_caches, DBNMarginal, dbnmarginal 
+
+
+"""
+    GraphPrior
+
+Implementation of the graph prior described in 
+Hill et al. 2012: 
+    P(G) ~ exp(-lambda * |G \ G'|)
+"""
+struct GraphPrior <: Gen.Distribution{PSDiGraph} end
 const graphprior = GraphPrior()
 
-Gen.random(gp::GraphPrior, lambda::Float64, reference_graph::DiGraph) = reference_graph
+Gen.random(gp::GraphPrior, lambda::Float64, reference_graph::PSDiGraph) = reference_graph
 
-function graph_edge_diff(g::DiGraph, g_ref::DiGraph)
-    e1 = Set([g.edges[i,:] for i=1:size(g.edges)[1]])
-    e_ref = Set([g_ref.edges[i,:] for i=1:size(g_ref.edges)[1]])
+function graph_edge_diff(g::PSDiGraph, g_ref::PSDiGraph)
+    e1 = edges(g)
+    eref = edges(g_ref)
+    #e1 = Set([g.edges[i,:] for i=1:size(g.edges)[1]])
+    #e_ref = Set([g_ref.edges[i,:] for i=1:size(g_ref.edges)[1]])
     return length(setdiff(e1, e_ref))
 end
     
-Gen.logpdf(gp::GraphPrior, graph::DiGraph, lambda::Float64, reference_graph::DiGraph) = -lambda * graph_edge_diff(graph, reference_graph)
+Gen.logpdf(gp::GraphPrior, graph::PSDiGraph, lambda::Float64, reference_graph::PSDiGraph) = -lambda * graph_edge_diff(graph, reference_graph)
 
-graphprior(lambda::Float64, reference_graph::DiGraph) = Gen.random(graphprior, lambda, reference_graph);
+graphprior(lambda::Float64, reference_graph::PSDiGraph) = Gen.random(graphprior, lambda, reference_graph);
 
 
 
-# MARGINAL LIKELIHOOD DISTRIBUTION
+"""
+    DBNMarginal
+
+Implementation of the DBN marginal distribution 
+described in Hill et al. 2012:
+
+P(X|G) ~ (1.0 + n)^(-Bwidth/2) * ( X+^T X+ - n/(n+1) * X+^T B2invconj X+)^(n/2)
+
+This is expensive to compute. In order to reduce redundant
+comptuation, we use multiple levels of caching.
+"""
+struct DBNMarginal <: Gen.Distribution{Vector{Array{Float64,2}}} end
+const dbnmarginal = DBNMarginal()
+
 
 # We use a few levels of LRU caching to reduce redundant computation.
 const TENMB = 10000000
@@ -34,7 +66,15 @@ B2invconj_cache = LRU{Vector{Int64},Array{Float64,2}}(maxsize=100*TENMB, by=Base
 # enormous, so an LRU policy is called for.
 B_col_cache = LRU{Vector{Int64},Vector{Float64}}(maxsize=100*TENMB, by=Base.summarysize)
 
+function clear_caches()
+    empty!(lp_cache)
+    empty!(B2invconj_cache)
+    empty!(B_col_cache)
+end
 
+###########################################
+# DBN MARGINAL LIKELIHOOD HELPER FUNCTIONS
+###########################################
 function compute_B_col(inds::Vector{Int64}, Xminus)
     return prod(Xminus[:,inds], dims=2)[:,1]
 end
@@ -109,12 +149,13 @@ function log_marg_lik(ind::Int64, parent_inds::Vector{Int64},
     
 end
 
-function get_parent_vecs(graph::DiGraph, vertices)
+function get_parent_vecs(graph::PSDiGraph, vertices)
     return [convert(Vector{Int64}, sort([indexin([n], vertices)[1] for n in in_neighbors(graph, v)])) for v in vertices]
 end
 
-struct DBNMarginal <: Gen.Distribution{Vector{Array{Float64,2}}} end
-const dbnmarginal = DBNMarginal()
+#######################
+# END HELPER FUNCTIONS
+#######################
 
 """
 DBNMarginal's sampling method does nothing.
@@ -141,3 +182,8 @@ function Gen.logpdf(dbn::DBNMarginal, X::Vector{Array{Float64,2}},
     
     return lp
 end
+
+
+# END MODULE
+end
+

@@ -1,6 +1,15 @@
 
-function visualize_digraph(dg::DiGraph, v_labels::Vector{String})
-    v = sort(collect(dg.vertices))
+module DBNVisualization
+
+using Plots
+
+export visualize_digraph, visualize_digraph_weighted,
+       animate_dbn_sampling, animate_dbn_sampling_density,
+       animate_dbn_exploration
+
+
+function visualize_digraph(dg::PSDiGraph, v_labels::Vector{String})
+    v = sort(collect(vertices(dg)))
     ys = length(v):-1:1
     y_dict = Dict([vert => ys[i] for (i,vert) in enumerate(v)])
     xs = [1.0, length(v)]
@@ -9,9 +18,8 @@ function visualize_digraph(dg::DiGraph, v_labels::Vector{String})
     legend=false, framestyle=:none, aspect_ratio=1.0)
     Plots.yticks!(p, ys, v_labels)
     
-    for i=1:size(dg.edges)[1]
-        e = dg.edges[i,:]
-        Plots.plot!(p, xs, [y_dict[e[1]]; y_dict[e[2]]], c=:black)
+    for e in edges(dg)
+	Plots.plot!(p, xs, [y_dict[first(e)]; y_dict[last(e)]], c=:black)
     end
     for j=1:length(v)
         Plots.scatter!(p, xs, [y_dict[v[j]]; y_dict[v[j]]], markersize=60.0/length(v), markercolor=:gray)
@@ -22,8 +30,8 @@ function visualize_digraph(dg::DiGraph, v_labels::Vector{String})
     return p
 end
         
-function visualize_digraph_weighted(dg::DiGraph, weights::Dict, v_labels::Vector{String})
-    v = sort(collect(dg.vertices))
+function visualize_digraph_weighted(dg::PSDiGraph, weights::Dict, v_labels::Vector{String})
+    v = sort(collect(vertices(dg)))
     ys = length(v):-1:1
     y_dict = Dict([vert => ys[i] for (i,vert) in enumerate(v)])
     xs = [1.0, length(v)]
@@ -45,7 +53,7 @@ function visualize_digraph_weighted(dg::DiGraph, weights::Dict, v_labels::Vector
     return p
 end
 
-function animate_dbn_sampling(dg::DiGraph, v_labels, model, model_args, observations, proposal, proposal_args, 
+function animate_dbn_sampling(dg::PSDiGraph, v_labels, model, model_args, observations, proposal, proposal_args, 
                               involution, n_samples, thinning, title, gif_file_name)
    
     tr, _ = Gen.generate(model, model_args, observations)
@@ -64,7 +72,7 @@ function animate_dbn_sampling(dg::DiGraph, v_labels, model, model_args, observat
     
 end
 
-function animate_dbn_sampling_density(dg::DiGraph, v_labels, model, model_args, observations, proposal, proposal_args, involution, 
+function animate_dbn_sampling_density(dg::PSDiGraph, v_labels, model, model_args, observations, proposal, proposal_args, involution, 
                                       n_samples, thinning, median_weight, title, gif_file_name)
     
     tr, _ = Gen.generate(model, model_args, observations)
@@ -77,8 +85,7 @@ function animate_dbn_sampling_density(dg::DiGraph, v_labels, model, model_args, 
         end
         
         G = tr[:G]
-        for j=1:size(G.edges)[1]
-            e = G.edges[j,:]
+	for e in edges(G)
             count_dict[e] = get(count_dict, e, 0) + 1
         end
         
@@ -94,9 +101,9 @@ function animate_dbn_sampling_density(dg::DiGraph, v_labels, model, model_args, 
     return count_dict
 end
 
-function graph_diff(new_g::DiGraph{T}, old_g::DiGraph{T}) where T
-    new_e = Set([new_g.edges[i,:] for i=1:size(new_g.edges)[1]])
-    old_e = Set([old_g.edges[i,:] for i=1:size(old_g.edges)[1]])
+function graph_diff(new_g::PSDiGraph{T}, old_g::PSDiGraph{T}) where T
+    new_e = edges(new_g)
+    old_e = edges(old_g)
     
     new_exc = setdiff(new_e, old_e)
     old_exc = setdiff(old_e, new_e)
@@ -111,10 +118,10 @@ function graph_diff(new_g::DiGraph{T}, old_g::DiGraph{T}) where T
     end
 end
 
-function animate_dbn_exploration(dg::DiGraph, v_labels, model, model_args, observations, proposal, proposal_args, 
+function animate_dbn_exploration(dg::PSDiGraph, v_labels, model, model_args, observations, proposal, proposal_args, 
                                  involution, n_iterations, title, gif_file_name)
     
-    v = sort(collect(dg.vertices))
+    v = sort(collect(vertices(dg)))
     ys = length(v):-1:1
     y_dict = Dict([vert => ys[i] for (i,vert) in enumerate(v)])
     xs = [1.0, length(v)]
@@ -147,3 +154,8 @@ function animate_dbn_exploration(dg::DiGraph, v_labels, model, model_args, obser
     
     return 1.0*rejections/n_iterations
 end
+
+# END OF MODULE
+end
+
+

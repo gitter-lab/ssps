@@ -1,4 +1,14 @@
 
+
+module DBNProposals
+
+using Gen
+include("PSDiGraph.jl")
+using .PSDiGraphs
+
+export digraph_proposal, digraph_involution
+
+
 """
 Proposal distribution for exploring the unconstrained space of
 directed graphs.
@@ -10,8 +20,8 @@ from one of its parents.
 @gen function digraph_proposal(tr, expected_indegree::Float64)
     
     G = copy(tr[:G])
-    ordered_vertices = sort(collect(G.vertices))
-    V = length(G.vertices)
+    ordered_vertices = sort(collect(vertices(G)))
+    V = length(ordered_vertices)
     
     u_idx = @trace(Gen.uniform_discrete(1,V), :u_idx)
     u = ordered_vertices[u_idx]
@@ -41,7 +51,7 @@ from one of its parents.
             remove_edge!(G, u, v)
             add_edge!(G, v, u)
         else
-            nonparents = sort(collect(setdiff(G.vertices, ordered_inneighbors)))
+            nonparents = sort(collect(setdiff(ordered_vertices, ordered_inneighbors)))
             len = length(nonparents)
             v_idx = @trace(Gen.uniform_discrete(1,len), :v_idx)
             v = nonparents[v_idx]
@@ -54,6 +64,7 @@ from one of its parents.
     
 end;
 
+
 function digraph_involution(cur_tr, fwd_choices, fwd_ret, prop_args)
     
     # Update the trace 
@@ -65,7 +76,7 @@ function digraph_involution(cur_tr, fwd_choices, fwd_ret, prop_args)
     
     # figure out what has changed
     fwd_u_idx = fwd_choices[:u_idx]
-    sorted_vertices = sort(collect(old_G.vertices))
+    sorted_vertices = sort(collect(vertices(old_G)))
     fwd_u = sorted_vertices[fwd_u_idx]
     fwd_v_idx = fwd_choices[:v_idx]
     
@@ -75,7 +86,7 @@ function digraph_involution(cur_tr, fwd_choices, fwd_ret, prop_args)
         
         fwd_parents = collect(in_neighbors(old_G, fwd_u))
         fwd_v = sort(fwd_parents)[fwd_v_idx]
-        bwd_nonparents = sort(collect(setdiff(new_G.vertices,in_neighbors(new_G, fwd_u))))
+        bwd_nonparents = sort(collect(setdiff(sorted_vertices,in_neighbors(new_G, fwd_u))))
         bwd_v_idx = indexin([fwd_v], bwd_nonparents)[1]
         
         bwd_choices[:u_idx] = fwd_u_idx 
@@ -99,7 +110,7 @@ function digraph_involution(cur_tr, fwd_choices, fwd_ret, prop_args)
             
         else # an edge was added -- remove it.
             
-            fwd_nonparents = sort(collect(setdiff(old_G.vertices, in_neighbors(old_G, fwd_u))))
+            fwd_nonparents = sort(collect(setdiff(sorted_vertices, in_neighbors(old_G, fwd_u))))
             fwd_v = fwd_nonparents[fwd_v_idx]
             bwd_parents = sort(collect(in_neighbors(new_G, fwd_u)))
             bwd_v_idx = indexin([fwd_v], bwd_parents)[1]
@@ -113,3 +124,5 @@ function digraph_involution(cur_tr, fwd_choices, fwd_ret, prop_args)
     
     return new_tr, bwd_choices, weight
 end;
+
+end

@@ -1,6 +1,23 @@
 
-function inference_program(model, model_args, choices, proposal, proposal_args, 
-                           involution, n_samples, burnin, thinning)
+module DBNInference
+
+using Gen
+
+export base_mh_sampling
+
+"""
+    base_mh_sampling
+
+A simple metropolis hastings sampling program.
+Provide a model, model arguments, proposal, and involution;
+a function which extracts quantities of interest from the trace;
+the number of samples; and the burnin and thinning rates;
+and this will return a vector of results.
+"""
+function base_mh_sampling(model, model_args::Tuple, 
+			  choices, proposal, proposal_args::Tuple, 
+			  involution, trace_function, 
+			  n_samples::Integer, burnin::Integer, thinning::Integer)
     
     tr, _ = Gen.generate(model, model_args, choices)
     
@@ -12,7 +29,7 @@ function inference_program(model, model_args, choices, proposal, proposal_args,
         accepted[prop_count] = acc
         prop_count += 1
     end
-    push!(results, tr[:G])
+    push!(results, trace_function(tr))
     
     for i=1:n_samples-1
         for t=1:thinning
@@ -20,8 +37,11 @@ function inference_program(model, model_args, choices, proposal, proposal_args,
             accepted[prop_count] = acc
             prop_count += 1
         end
-        push!(results, tr[:G])
+	push!(results, trace_function(tr))
     end
     
     return results, accepted
+end
+
+
 end

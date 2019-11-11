@@ -1,8 +1,8 @@
-include("DiGraph.jl")
+include("PSDiGraph.jl")
+using .PSDiGraphs
 using Gen
 using Plots
 Plots.pyplot()
-using .DiGraphs
 using LinearAlgebra
 using CSV
 using DataFrames
@@ -52,10 +52,6 @@ Plots.title!(p, "Reference Graph")
 #    @trace(graphprior(lambda, reference_dg), :G)
 #    return
 #end
-
-empty!(lp_cache)
-empty!(B2invconj_cache)
-empty!(B_col_cache)
 
 lambda = 3.0
 n_steps = 1000

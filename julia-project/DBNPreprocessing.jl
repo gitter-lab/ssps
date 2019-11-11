@@ -1,11 +1,13 @@
 
-protein_names = CSV.read("data/protein_names.csv");
-protein_vec = convert(Matrix, protein_names)[:,1];
-protein_vec = [name[3:length(name)-2] for name in protein_vec]
-reference_adjacency = CSV.read("data/prior_graph.csv");
-adj_mat = convert(Matrix, reference_adjacency);
-timesteps = CSV.read("data/time.csv");
-timeseries_data = CSV.read("data/mukherjee_data.csv");
+module DBNPreprocessing
+
+using CSV
+using DataFrames
+include("PSDiGraph.jl")
+using .PSDiGraphs
+
+export hill_2012_preprocess
+
 
 function timeseries_preprocess!(timeseries_df)
     timeseries_data.condition = [ split(s, " ")[2] for s in timeseries_data[!, :Column1] ]
@@ -20,7 +22,7 @@ function timeseries_preprocess!(timeseries_df)
 end
 
 function build_reference_graph(vertices::Vector{T}, reference_adj::Array{Int,2}) where T
-    dg = DiGraph{T}()
+    dg = PSDiGraph{T}()
     for i=1:size(reference_adj)[1]
         for j=1:size(reference_adj)[2]
             if reference_adj[i,j] == 1
@@ -29,4 +31,32 @@ function build_reference_graph(vertices::Vector{T}, reference_adj::Array{Int,2})
         end
     end
     return dg
-end;
+end
+
+function hill_2012_preprocess(timeseries_data_path,
+			      protein_names_path,
+			      prior_graph_path,
+			      timesteps_path)
+
+
+    protein_names = CSV.read("data/protein_names.csv");
+    protein_vec = convert(Matrix, protein_names)[:,1];
+    protein_vec = [name[3:length(name)-2] for name in protein_vec]
+    
+    reference_adjacency = CSV.read("data/prior_graph.csv");
+    adj_mat = convert(Matrix, reference_adjacency);
+    ref_dg = build_reference_graph(...)
+
+    timesteps = CSV.read("data/time.csv");
+
+    timeseries_data = CSV.read("data/mukherjee_data.csv");
+    timeseries_vec = timeseries_preprocess!(timeseries_data)
+
+    return (timeseries_vec, protein_vec, ref_dg, timesteps)
+end
+
+
+# END MODULE
+end
+
+
