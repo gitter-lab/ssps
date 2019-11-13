@@ -3,7 +3,6 @@
 using LRUCache
 import Gen: Distribution, random, logpdf
 
-
 """
     GraphPrior
 

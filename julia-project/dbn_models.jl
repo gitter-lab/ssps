@@ -4,9 +4,8 @@
 #
 #
 
-
-
 include("dbn_distributions.jl")
+
 
 @gen (static) function dbn_single_context(X::Vector{Array{Float64,2}}, reference_graph::PSDiGraph, deg_max::Int64)
 

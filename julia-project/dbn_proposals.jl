@@ -5,8 +5,6 @@
 #
 
 
-
-
 """
     digraph_e_proposal(tr, ordered_vertices)
 
@@ -23,17 +21,18 @@ space of directed graphs (with a fixed set of edges).
     v_idx = @trace(Gen.uniform_discrete(1,V), :v_idx)
     v = ordered_vertices[v_idx]
 
-    new_G = copy(G)
-    if u in G.parents[v] # edge exists: remove it!
-		remove_edge!(new_G, u, v)
-    elseif v in G.parents[u]  # reversed edge exists: reverse it!
-	    remove_edge!(new_G, v, u)
-		add_edge!(new_G, u, v)
+    new_G = copy(tr[:G])
+    if u in new_G.parents[v] # edge exists: remove it!
+        remove_edge!(new_G, u, v)
+        return new_G
+    elseif v in new_G.parents[u]  # reversed edge exists: reverse it!
+        remove_edge!(new_G, v, u)
+        add_edge!(new_G, u, v)
+        return new_G
     else # edge doesn't exist at all: add it!
-		add_edge!(new_G, u, v)
-	end
-
-    return new_G
+        add_edge!(new_G, u, v)
+        return new_G
+    end
 
 end
 
@@ -46,30 +45,30 @@ The involution corresponding to `digraph_e_proposal`.
 function digraph_e_involution(cur_tr, fwd_choices, fwd_ret, prop_args)
 
     ordered_vertices = prop_args[1]
-	old_G = cur_tr[:G]
+    old_G = cur_tr[:G]
     new_G = fwd_ret
-
-	update_constraints = Gen.choicemap()
-	update_constraints[:G] = new_G
-    new_tr, w, _, _ = Gen.update(cur_tr, get_args(cur_tr), (),
-	                             update_constraints)
+    
+    update_constraints = Gen.choicemap()
+    update_constraints[:G] = new_G
+    new_tr, weight, _, _ = Gen.update(cur_tr, get_args(cur_tr), (),
+                                      update_constraints)
 
     fwd_u_idx = fwd_choices[:u_idx]
-	fwd_u = ordered_vertices[fwd_u_idx]
+    fwd_u = ordered_vertices[fwd_u_idx]
     fwd_v_idx = fwd_choices[:v_idx]
-	fwd_v = ordered_vertices[fwd_v_idx]
+    fwd_v = ordered_vertices[fwd_v_idx]
 
     bwd_choices = Gen.choicemap()
-	if u in old_G.parents[v]  # the edge was removed; add it back
+    if fwd_u in old_G.parents[fwd_v]  # the edge was removed; add it back
         bwd_choices[:u_idx] = fwd_u_idx
-		bwd_choices[:v_idx] = fwd_v_idx
-	elseif v in old_G.parents[u] # the edge was reversed; reverse it again.
+        bwd_choices[:v_idx] = fwd_v_idx
+    elseif fwd_v in old_G.parents[fwd_u] && fwd_u in new_G.parents[fwd_v] # the edge was reversed; reverse it again.
         bwd_choices[:u_idx] = fwd_v_idx
-		bwd_choices[:v_idx] = fwd_u_idx
-	else # the edge was added; remove it
-		bwd_choices[:u_idx] = fwd_u_idx
-		bwd_choices[:v_idx] = fwd_v_idx
-	end
+        bwd_choices[:v_idx] = fwd_u_idx
+    else # the edge was added; remove it
+        bwd_choices[:u_idx] = fwd_u_idx
+        bwd_choices[:v_idx] = fwd_v_idx
+    end
 
     return new_tr, bwd_choices, weight
 end

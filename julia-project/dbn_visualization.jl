@@ -4,7 +4,6 @@
 #
 #
 
-
 using Plots
 Plots.pyplot()
 
@@ -19,7 +18,7 @@ function visualize_digraph(dg::PSDiGraph, v_labels::Vector{String})
     Plots.yticks!(p, ys, v_labels)
 
     for e in edges(dg)
-	    Plots.plot!(p, xs, [y_dict[first(e)]; y_dict[last(e)]], c=:black)
+        Plots.plot!(p, xs, [y_dict[first(e)]; y_dict[last(e)]], c=:black)
     end
     for j=1:length(v)
         Plots.scatter!(p, xs, [y_dict[v[j]]; y_dict[v[j]]], markersize=60.0/length(v), markercolor=:gray)
@@ -154,3 +153,5 @@ function animate_dbn_exploration(dg::PSDiGraph, v_labels, model, model_args, obs
 
     return 1.0*rejections/n_iterations
 end
+
+

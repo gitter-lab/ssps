@@ -8,9 +8,8 @@
 
 """
     (new_tr, accept) = mh_diff(trace, proposal::GenerativeFunction,
-	                           proposal_args::Tuple, involution::Function,
-                               diff_update!::Function, diff_weight::Function,
-							   check_round_trip=false)
+                               proposal_args::Tuple, involution::Function,
+                               diff_update!::Function, diff_weight::Function; check_round_trip=false)
 
 Imitates the four-argument Gen.mh function, but works in terms of *differences* between traces.
 The point of this new version is to avoid copying the trace on each proposal.
@@ -41,9 +40,8 @@ i.e., the quantity log(P(trace + trace_diff | inputs) / P(trace | inputs)).
 IT IS THE USER'S RESPONSIBILITY TO MAKE SURE `diff_weight` IS IMPLEMENTED CORRECTLY.
 """
 function mh_diff(trace, proposal::GenerativeFunction,
-	             proposal_args::Tuple, involution::Function,
-                 diff_update!::Function, diff_weight::Function;
-				 check_round_trip=false)
+                 proposal_args::Tuple, involution::Function,
+                 diff_update!::Function, diff_weight::Function; check_round_trip=false)
 
     (fwd_choices, fwd_score, fwd_diff) = propose(proposal, (trace, proposal_args...,))
     (bwd_diff, bwd_choices) = involution(trace, fwd_choices, fwd_diff, proposal_args)
@@ -51,10 +49,10 @@ function mh_diff(trace, proposal::GenerativeFunction,
     weight = diff_weight(trace, fwd_diff)
     diff_update!(trace, fwd_diff)
 
-	(bwd_score, bwd_ret) = assess(proposal, (trace, proposal_args...), bwd_choices)
-
-	if check_round_trip
-		# check that the involution works correctly
+    (bwd_score, bwd_ret) = assess(proposal, (trace, proposal_args...), bwd_choices)
+    
+    if check_round_trip
+    	# check that the involution works correctly
         (rt_diff, fwd_choices_rt) = involution(trace, bwd_choices, bwd_ret, proposal_args)
         if !isapprox(fwd_choices_rt, fwd_choices)
             println("fwd_choices:")
@@ -64,27 +62,27 @@ function mh_diff(trace, proposal::GenerativeFunction,
             error("Involution round trip check failed")
         end
         if !(fwd_diff == rt_diff)
-			println("fwd_diff:")
+            println("fwd_diff:")
             println(fwd_diff)
             println("round trip diff:")
             println(rt_diff)
             error("Involution round trip check failed")
         end
-		weight_rt = diff_weight(trace, bwd_diff)
+        weight_rt = diff_weight(trace, bwd_diff)
         if !isapprox(weight, -weight_rt)
             println("weight: $weight, -weight_rt: $(-weight_rt)")
             error("Involution round trip check failed")
         end
-		rt_trace = copy(trace)
-		diff_update!(rt_trace, bwd_diff)
-		diff_update!(rt_trace, fwd_diff)
-		if !isapprox(get_choices(trace), get_choices(rt_trace))
-			println("trace choices:")
-			println(get_choices(trace))
-			println("round trip choices:")
-			println(get_choices(rt_trace))
-			error("Involution round trip check failed")
-		end
+        rt_trace = copy(trace)
+        diff_update!(rt_trace, bwd_diff)
+        diff_update!(rt_trace, fwd_diff)
+        if !isapprox(get_choices(trace), get_choices(rt_trace))
+            println("trace choices:")
+            println(get_choices(trace))
+            println("round trip choices:")
+            println(get_choices(rt_trace))
+            error("Involution round trip check failed")
+        end
     end
     if log(rand()) < weight + bwd_score - fwd_score
         # accept
@@ -134,3 +132,5 @@ function base_mh_sampling(model, model_args::Tuple,
 
     return results, accepted
 end
+
+

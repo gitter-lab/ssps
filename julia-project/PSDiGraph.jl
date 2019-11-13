@@ -4,6 +4,7 @@
 #
 # Simple digraph implementation based on parent-sets
 
+
 module PSDiGraphs
 
 import Base: copy, isapprox
@@ -197,7 +198,6 @@ function graph_traversal(dg::PSDiGraph{T}, root::T, ds::AbstractCollection{T}) w
 
         for succ in out_neighbors(dg, v)
             push!(ds, succ)
-
         end
     end
 
