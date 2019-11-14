@@ -37,8 +37,12 @@ function dumb_func1()
     tr, _ = Gen.generate(dumb_model, ())
     accepted = 0
     for i=1:100
-        tr, was_accepted = Gen.metropolis_hastings(tr, digraph_e_proposal, (protein_vec,), digraph_e_involution, check_round_trip=true)
+        tr, was_accepted = Gen.metropolis_hastings(tr, digraph_e_proposal, 
+						   (protein_vec,), 
+						   digraph_e_involution, 
+						   check_round_trip=false)
         accepted += was_accepted
+	println(i, " iterations;\t", accepted, " accepted")
     end
     println(accepted, "/100 proposals accepted")
 end

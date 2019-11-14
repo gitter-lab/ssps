@@ -8,32 +8,65 @@
 """
     digraph_e_proposal(tr, ordered_vertices)
 
-A very simple proposal distribution for exploring the unconstrained
-space of directed graphs (with a fixed set of edges).
+A proposal distribution for exploring the unconstrained
+space of directed graphs (with a fixed set of vertices).
+Chooses a pair of vertices (u,v) at random and then 
+proposes an update dependent on the edge(s) that exist
+between them.
+
+This is more complicated than one might have expected--the
+reason is that Gen's metropolis-hastings sampler requires
+proposal distributions to have very special properties.
 """
 @gen function digraph_e_proposal(tr, ordered_vertices)
 
     V = length(ordered_vertices)
 
+    # Random choices
     u_idx = @trace(Gen.uniform_discrete(1,V), :u_idx)
     u = ordered_vertices[u_idx]
-
     v_idx = @trace(Gen.uniform_discrete(1,V), :v_idx)
     v = ordered_vertices[v_idx]
 
+    # Propose an update
     new_G = copy(tr[:G])
-    if u in new_G.parents[v] # edge exists: remove it!
-        remove_edge!(new_G, u, v)
-        return new_G
-    elseif v in new_G.parents[u]  # reversed edge exists: reverse it!
-        remove_edge!(new_G, v, u)
-        add_edge!(new_G, u, v)
-        return new_G
-    else # edge doesn't exist at all: add it!
-        add_edge!(new_G, u, v)
-        return new_G
+    if (u in new_G.parents[v]) && (v in new_G.parents[u])
+        del_choice = @trace(Gen.bernoulli(0.5), :del_choice)
+	if del_choice
+            remove_edge!(new_G, u, v)
+	else
+            remove_edge!(new_G, v, u)
+	end
+    elseif !(u in new_G.parents[v]) && !(v in new_G.parents[u])
+        add_choice = @trace(Gen.bernoulli(0.5), :add_choice)
+        if add_choice
+            add_edge!(new_G, u, v)
+        else
+    	    add_edge!(new_G, v, u)
+        end
+    else
+        action = @trace(Gen.uniform_discrete(1,3), :action)
+        if u in new_G.parents[v]
+            if action == 1
+                remove_edge!(new_G, u, v)
+	    elseif action == 2
+                remove_edge!(new_G, u, v)
+		add_edge!(new_G, v, u)
+	    else
+                add_edge!(new_G, v, u)
+	    end
+        else # v in new_G.parents[u]
+            if action == 1
+                remove_edge!(new_G, v, u) 
+            elseif action == 2
+                remove_edge!(new_G, v, u)
+		add_edge!(new_G, u, v)
+            else
+                add_edge!(new_G, u, v)
+	    end
+	end
     end
-
+    return new_G
 end
 
 
@@ -59,15 +92,29 @@ function digraph_e_involution(cur_tr, fwd_choices, fwd_ret, prop_args)
     fwd_v = ordered_vertices[fwd_v_idx]
 
     bwd_choices = Gen.choicemap()
-    if fwd_u in old_G.parents[fwd_v]  # the edge was removed; add it back
-        bwd_choices[:u_idx] = fwd_u_idx
-        bwd_choices[:v_idx] = fwd_v_idx
-    elseif fwd_v in old_G.parents[fwd_u] && fwd_u in new_G.parents[fwd_v] # the edge was reversed; reverse it again.
-        bwd_choices[:u_idx] = fwd_v_idx
-        bwd_choices[:v_idx] = fwd_u_idx
-    else # the edge was added; remove it
-        bwd_choices[:u_idx] = fwd_u_idx
-        bwd_choices[:v_idx] = fwd_v_idx
+    bwd_choices[:u_idx] = fwd_u_idx
+    bwd_choices[:v_idx] = fwd_v_idx
+
+    if has_value(fwd_choices, :del_choice)
+        if (fwd_u_idx != fwd_v_idx)
+	    bwd_choices[:action] = 3
+        else
+            bwd_choices[:add_choice] = true
+        end
+    elseif has_value(fwd_choices, :add_choice) 
+	if (fwd_u_idx != fwd_v_idx)
+            bwd_choices[:action] = 1
+	else
+            bwd_choices[:del_choice] = true
+	end
+    elseif has_value(fwd_choices, :action)
+	if fwd_choices[:action] == 1 
+            bwd_choices[:add_choice] = true
+        elseif fwd_choices[:action] == 2
+            bwd_choices[:action] = 2
+        elseif fwd_choices[:action] == 3
+            bwd_choices[:del_choice] = true
+	end
     end
 
     return new_tr, bwd_choices, weight
