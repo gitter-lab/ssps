@@ -97,7 +97,7 @@ function construct_B2invconj(parent_inds::Vector{Int64}, Xminus::Array{Float64,2
         return Matrix{Float64}(I, size(Xminus)[1], size(Xminus)[1])
     end
     B = construct_B(parent_inds, Xminus, deg_max)
-    B2inv = LinearAlgebra.inv(LinearAlgebra.Symmetric(transpose(B) * B + 0.01*I))
+    B2inv = LinearAlgebra.inv(LinearAlgebra.Symmetric(transpose(B) * B + 0.001*I))
     return B * (B2inv * transpose(B))
 end
 
@@ -154,7 +154,9 @@ end
 DBNMarginal's sampling method does nothing.
 In our inference task, the Xs will always be observed.
 """
-random(dbnm::DBNMarginal, parents::Vector{Vector{T}}, Xminus::Array{Float64,2}, Xplus::Array{Float64,2}, deg_max::Int64) where T = [zeros(length(parents), length(Xminus))]
+random(dbnm::DBNMarginal, parents::Vector{Vector{T}}, 
+       Xminus::Array{Float64,2}, Xplus::Array{Float64,2}, 
+       deg_max::Int64) where T = [zeros(length(parents), length(Xminus))]
 
 dbnmarginal(parents, Xminus, Xplus, deg_max) = random(dbnmarginal, parents, Xminus, Xplus, deg_max)
 
@@ -175,3 +177,20 @@ function logpdf(dbn::DBNMarginal, X::Vector{Array{Float64,2}},
 
     return lp
 end
+
+
+"""
+    CPDMarginal
+
+Implementation of the regression marginal likelihood
+described in Hill et al. 2012:
+
+P(X|G) ~ (1.0 + n)^(-Bwidth/2) * ( X+^T X+ - n/(n+1) * X+^T B2invconj X+)^(n/2)
+
+This is expensive to compute. In order to reduce redundant
+comptuation, we use multiple levels of caching.
+"""
+struct CPDMarginal <: Distribution{Vector{Float64}} end
+const cpdmarginal = CPDMarginal()
+
+function logpdf(

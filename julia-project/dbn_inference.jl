@@ -7,8 +7,8 @@
 
 
 """
-    (new_tr, accept) = mh_diff(trace, proposal::GenerativeFunction,
-                               proposal_args::Tuple, involution::Function,
+    (new_tr, accept) = mh_diff(trace, diff_proposal::GenerativeFunction,
+                               proposal_args::Tuple, diff_involution::Function,
                                diff_update!::Function, diff_weight::Function; check_round_trip=false)
 
 Imitates the four-argument Gen.mh function, but works in terms of *differences* between traces.
@@ -19,11 +19,11 @@ So it isn't satisfactory.
 
 The parameters of type (Generative)Function should have the following signatures:
 
-    fwd_diff = proposal(trace, proposal_args...)
+    fwd_diff = diff_proposal(trace, proposal_args...)
 
 where `fwd_diff` is an object (of whatever suitable type) encoding all of the information necessary to update a trace.
 
-    (bwd_diff, bwd_choices) = involution(trace, fwd_choices, fwd_diff, proposal_args)
+    (bwd_diff, bwd_choices) = diff_involution(trace, fwd_choices, fwd_diff, proposal_args)
 
 `bwd_diff` should be of the same type as `fwd_diff`.
 Notice that this involution does not return a weight.
@@ -39,21 +39,21 @@ Should return the change in log-probability resulting from `trace_diff`;
 i.e., the quantity log(P(trace + trace_diff | inputs) / P(trace | inputs)).
 IT IS THE USER'S RESPONSIBILITY TO MAKE SURE `diff_weight` IS IMPLEMENTED CORRECTLY.
 """
-function mh_diff(trace, proposal::GenerativeFunction,
-                 proposal_args::Tuple, involution::Function,
+function mh_diff(trace, diff_proposal::GenerativeFunction,
+                 proposal_args::Tuple, diff_involution::Function,
                  diff_update!::Function, diff_weight::Function; check_round_trip=false)
 
-    (fwd_choices, fwd_score, fwd_diff) = propose(proposal, (trace, proposal_args...,))
-    (bwd_diff, bwd_choices) = involution(trace, fwd_choices, fwd_diff, proposal_args)
+    (fwd_choices, fwd_score, fwd_diff) = propose(diff_proposal, (trace, proposal_args...,))
+    (bwd_diff, bwd_choices) = diff_involution(trace, fwd_choices, fwd_diff, proposal_args)
 
     weight = diff_weight(trace, fwd_diff)
     diff_update!(trace, fwd_diff)
 
-    (bwd_score, bwd_ret) = assess(proposal, (trace, proposal_args...), bwd_choices)
+    (bwd_score, bwd_ret) = assess(diff_proposal, (trace, proposal_args...), bwd_choices)
     
     if check_round_trip
     	# check that the involution works correctly
-        (rt_diff, fwd_choices_rt) = involution(trace, bwd_choices, bwd_ret, proposal_args)
+        (rt_diff, fwd_choices_rt) = diff_involution(trace, bwd_choices, bwd_ret, proposal_args)
         if !isapprox(fwd_choices_rt, fwd_choices)
             println("fwd_choices:")
             println(fwd_choices)
@@ -89,7 +89,7 @@ function mh_diff(trace, proposal::GenerativeFunction,
         (trace, true)
     else
         # reject: undo the update to the trace.
-		diff_update!(trace, bwd_diff)
+	diff_update!(trace, bwd_diff)
         (trace, false)
     end
 end
