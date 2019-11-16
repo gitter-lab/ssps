@@ -50,7 +50,7 @@ end
 # Two `Map` applications generate an
 # entire adjacency matrix of sampled edges.
 sample_parents = Gen.Map(sample_edge)
-sample_children = Gen.Map(sample_row)
+sample_children = Gen.Map(sample_parents)
 
 """
 Sample an adjacency matrix from the graph prior:
@@ -62,11 +62,48 @@ P(G) propto exp(-lambda * sum( z_ij, ij not in reference graph ))
     V = size(reference_adj)[1]
     enl = exp(-1.0*lambda)
     probs = fill(fill(enl/(1.0 + enl), V), V)
-    adj = @trace(sample_children(reference_adj, probs), :adj)
+    edges = @trace(sample_children(reference_adj, probs), :edges)
 
-    return adj
+    return edges 
 
 end
 
+
+"""
+
+"""
+@gen (static) function generate_Xp(Xminus, ind, parents, regression_deg)
+    return @trace(cpdmarginal(Xminus, ind, 
+                              parents, 
+			      regression_deg), :Xp)
+end
+
+generate_Xplus = Gen.Map(generate_Xp)
+
+function adj_to_parentvec(adj)
+
+    return [findall(x->x, adj_vec) for adj_vec in adj]
+end
+
+"""
+Model the data-generating process:
+P(X,G,lambda | G') = P(X|G) * P(G|lambda, G') * P(lambda)
+"""
+@gen (static) function dbn_model(reference_adj::Vector{Vector{Bool}}, 
+				 Xminus_stacked::Vector{Array{Float64,2}}, 
+				 Xplus::Vector{Vector{Float64}},
+				 regression_deg::Float64)
+
+    lambda = @trace(Gen.geometric(0.125), :lambda)
+
+    adj = @trace(graph_edge_prior(reference_adj, lambda), :adjacency)
+    ps = adj_to_parentvec(adj)
+
+    V = length(Xplus)
+    Xpl = @trace(generate_Xplus(Xminus_stacked, collect(1:V),
+                                ps, fill(regression_deg, V)), :Xplus)
+    return Xpl
+
+end
 
 

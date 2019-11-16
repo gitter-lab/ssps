@@ -29,20 +29,6 @@ graphprior(lambda::Float64, reference_graph::PSDiGraph) = random(graphprior, lam
 
 
 
-"""
-    DBNMarginal
-
-Implementation of the DBN marginal distribution
-described in Hill et al. 2012:
-
-P(X|G) ~ (1.0 + n)^(-Bwidth/2) * ( X+^T X+ - n/(n+1) * X+^T B2invconj X+)^(n/2)
-
-This is expensive to compute. In order to reduce redundant
-comptuation, we use multiple levels of caching.
-"""
-struct DBNMarginal <: Distribution{Vector{Array{Float64,2}}} end
-const dbnmarginal = DBNMarginal()
-
 
 # We use a few levels of LRU caching to reduce redundant computation.
 const TENMB = 10000000
@@ -73,14 +59,14 @@ function compute_B_col(inds::Vector{Int64}, Xminus)
 end
 
 
-function construct_B(parent_inds::Vector{Int64}, Xminus::Array{Float64,2}, deg_max::Int64)
+function construct_B(parent_inds::Vector{Int64}, Xminus::Array{Float64,2}, regression_deg::Int64)
 
-    n_cols = sum([binomial(length(parent_inds), k) for k=1:min(deg_max,length(parent_inds))])
+    n_cols = sum([binomial(length(parent_inds), k) for k=1:min(regression_deg,length(parent_inds))])
     #println("N_COLS: ", n_cols)
     B = zeros(size(Xminus)[1], n_cols)
 
     col = 1
-    for deg=1:deg_max
+    for deg=1:regression_deg
         for comb in Combinatorics.combinations(parent_inds, deg)
             B[:,col] = get!(B_col_cache, comb) do
                 return compute_B_col(comb, Xminus)
@@ -92,11 +78,11 @@ function construct_B(parent_inds::Vector{Int64}, Xminus::Array{Float64,2}, deg_m
 end
 
 
-function construct_B2invconj(parent_inds::Vector{Int64}, Xminus::Array{Float64,2}, deg_max::Int64)
+function construct_B2invconj(parent_inds::Vector{Int64}, Xminus::Array{Float64,2}, regression_deg::Int64)
     if length(parent_inds) == 0
         return Matrix{Float64}(I, size(Xminus)[1], size(Xminus)[1])
     end
-    B = construct_B(parent_inds, Xminus, deg_max)
+    B = construct_B(parent_inds, Xminus, regression_deg)
     B2inv = LinearAlgebra.inv(LinearAlgebra.Symmetric(transpose(B) * B + 0.001*I))
     return B * (B2inv * transpose(B))
 end
@@ -127,19 +113,32 @@ function combine_X(X::Vector{Array{Float64,2}})
     return Xminus, Xplus
 end
 
-
+"""
+This log marginal likelihood is used by the "whole-graph" model
+formulation. `Xplus` is the whole array of forward-time data values.
+"""
 function log_marg_lik(ind::Int64, parent_inds::Vector{Int64},
-                      Xminus::Array{Float64,2}, Xplus::Array{Float64,2}, deg_max::Int64)
+                      Xminus::Array{Float64,2}, Xplus::Array{Float64,2}, regression_deg::Int64)
+    Xp = Xplus[:, ind]
+    return log_marg_lik(parent_inds, Xminus, Xp, regression_deg)
+end
+
+"""
+This log marginal likelihood is used by the "vertex-specific" model
+formulation. `Xp` is a single column of forward-time data values. 
+"""
+function log_marg_lik(parent_inds::Vector{Int64},
+		      Xminus::Array{Float64,2}, Xp::Vector{Float64}, 
+		      regression_deg::Int64)
 
     B2invconj = get!(B2invconj_cache, parent_inds) do
-        construct_B2invconj(parent_inds, Xminus, deg_max)
+        construct_B2invconj(parent_inds, Xminus, regression_deg)
     end
-    Xp = Xplus[:, ind]
-    n = size(Xplus)[1]
+    n = size(Xp)[1]
     m = length(parent_inds)
-    Bwidth = sum([Base.binomial(m, i) for i=1:min(m,deg_max)])
+    Bwidth = sum([Base.binomial(m, i) for i=1:min(m,regression_deg)])
     return -0.5*Bwidth*log(1.0 + n) - 0.5*n*log( dot(Xp,Xp) - (1.0*n/(n+1))*dot( Xp, B2invconj * Xp))
-
+    
 end
 
 function get_parent_vecs(graph::PSDiGraph, vertices)
@@ -150,15 +149,38 @@ end
 # END HELPER FUNCTIONS
 #######################
 
+
+####################################################
+# Marginal Likelihood: "Entire-graph" formulation
+####################################################
+"""
+    DBNMarginal
+
+Implementation of the DBN marginal distribution
+described in Hill et al. 2012:
+
+P(X|G) ~ (1.0 + n)^(-Bwidth/2) * ( X+^T X+ - n/(n+1) * X+^T B2invconj X+)^(n/2)
+
+This is expensive to compute. In order to reduce redundant
+comptuation, we use multiple levels of caching.
+"""
+struct DBNMarginal <: Distribution{Vector{Array{Float64,2}}} end
+const dbnmarginal = DBNMarginal()
+
+
 """
 DBNMarginal's sampling method does nothing.
 In our inference task, the Xs will always be observed.
 """
-random(dbnm::DBNMarginal, parents::Vector{Vector{T}}, 
+random(dbnm::DBNMarginal, parents::Vector{Vector{Int64}}, 
        Xminus::Array{Float64,2}, Xplus::Array{Float64,2}, 
-       deg_max::Int64) where T = [zeros(length(parents), length(Xminus))]
+       regression_deg::Int64) where T = [zeros(length(parents), length(Xminus))]
 
-dbnmarginal(parents, Xminus, Xplus, deg_max) = random(dbnmarginal, parents, Xminus, Xplus, deg_max)
+dbnmarginal(parents, Xminus, Xplus, regression_deg) = random(dbnmarginal, 
+							     parents, 
+							     Xminus, 
+							     Xplus, 
+							     regression_deg)
 
 
 """
@@ -166,18 +188,24 @@ DBNMarginal's log_pdf, in effect, returns a score for the
 network topology. We use a dictionary to cache precomputed terms of the sum.
 """
 function logpdf(dbn::DBNMarginal, X::Vector{Array{Float64,2}},
-                    parents::Vector{Vector{Int64}}, Xminus::Array{Float64,2}, Xplus::Array{Float64,2}, deg_max::Int64)
+                parents::Vector{Vector{Int64}}, 
+		Xminus::Array{Float64,2}, Xplus::Array{Float64,2}, 
+		regression_deg::Int64)
 
     lp = 0.0
     for i=1:length(parents)
         lp += get!(lp_cache, [[i]; parents[i]]) do
-           log_marg_lik(i, parents[i], Xminus, Xplus, deg_max)
+           log_marg_lik(i, parents[i], Xminus, Xplus, regression_deg)
         end
     end
 
     return lp
 end
 
+
+##################################################
+# Marginal likelihood: "Vertex-wise" formulation
+##################################################
 
 """
     CPDMarginal
@@ -193,4 +221,25 @@ comptuation, we use multiple levels of caching.
 struct CPDMarginal <: Distribution{Vector{Float64}} end
 const cpdmarginal = CPDMarginal()
 
-function logpdf(
+cpdmarginal(Xminus, ind, parents, regression_deg) = random(cpdmarginal,
+							   Xminus,
+							   ind, parents,
+							   regression_deg)
+
+"""
+The random function does nothing -- we will always observe these values.
+"""
+function random(cpdm::CPDMarginal, Xminus::Array{Float64,2},
+		ind::Int64, parents::Vector{Int64}, regression_deg::Int64)
+    return zeros(size(Xminus)[1])
+end
+
+
+function logpdf(cpdm::CPDMarginal, Xp::Vector{Float64}, Xminus::Array{Float64,2},
+		ind::Int64, parents::Vector{Int64}, regression_deg::Int64)
+    lp = get!(lp_cache, [[ind]; parents]) do
+        log_marg_lik(parents, Xminus, Xp, regression_deg)
+    end
+    return lp
+end
+
