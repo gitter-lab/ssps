@@ -88,30 +88,6 @@ function construct_B2invconj(parent_inds::Vector{Int64}, Xminus::Array{Float64,2
 end
 
 
-function combine_X(X::Vector{Array{Float64,2}})
-
-    len = sum([size(x)[1] - 1 for x in X])
-    wid = size(X[1])[2]
-
-    Xminus = zeros(len, wid)
-    Xplus = zeros(len, wid)
-
-    l_ind = 1
-    for x in X
-        r_ind = l_ind + size(x)[1] - 2
-        Xminus[l_ind:r_ind, :] = x[1:size(x)[1]-1, :]
-        Xplus[l_ind:r_ind, :] = x[2:size(x)[1], :]
-        l_ind = r_ind + 1
-    end
-
-    mus = Statistics.mean(Xminus, dims=1)
-    sigmas = statistics.std(Xminus, dims=1)
-
-    Xminus = (Xminus .- mus) ./ sigmas
-    Xplus = (Xplus .- mus) ./ sigmas
-
-    return Xminus, Xplus
-end
 
 """
 This log marginal likelihood is used by the "whole-graph" model

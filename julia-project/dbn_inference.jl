@@ -133,4 +133,85 @@ function base_mh_sampling(model, model_args::Tuple,
     return results, accepted
 end
 
+"""
+Loop through the parts of the model and perform
+Metropolis-Hastings updates on them.
+"""
+function dbn_gibbs_loop(tr, lambda_r, V, t)
+
+    tr, lambda_acc = Gen.mh(tr, lambda_proposal, (lambda_r,))
+    
+    acc_vec = zeros(V)
+    for i=1:V
+        tr, acc_vec[i] = Gen.mh(tr, parentvec_proposal, 
+                                (i, V, t), 
+                                parentvec_involution)
+    end
+
+    return tr, lambda_acc, acc_vec
+end
+
+"""
+Helper function for collecting edge counts during inference.
+"""
+function increment_counts!(edge_counts, tr)
+    for i=1:shape(edge_counts)[1]
+        for j=1:shape(edge_counts)[2]
+            edge_counts[i,j] += tr[:adjacency => :edges => i => j => :z]
+	end
+    end
+end
+
+
+"""
+Inference program for the DBN pathway reconstruction task. 
+"""
+function dbn_vertexwise_inference(reference_adj::Vector{Vector{Bool}},
+				  X::Vector{Array{Float64,2}},
+                                  regression_deg::Int64,
+                                  n_samples::Int64,
+                                  burnin::Int64, thinning::Int64,
+				  lambda_r::Int64, 
+				  median_deg::Float64)
+
+    # Some preprocessing for the data
+    Xminus, Xplus  = combine_X(X)
+    Xminus_stacked, Xplus = vectorize_X(Xminus, Xplus)
+
+    # Condition the model on the data
+    observations = Gen.choicemap()
+
+    for (i, Xp) in enumerate(Xplus)
+        observations[:Xplus => i => :Xp] = Xp
+    end
+
+    tr, _ = Gen.generate(dbn_model, (reference_adj, 
+				     Xminus_stacked, 
+                                     Xplus, 
+				     regression_deg),
+			 observations)
+    
+    # Some useful parameters
+    V = length(Xplus) 
+    t = 1.0 / log2(V/median_deg)
+
+    # The results we care about
+    edge_counts = zeros((V,V))
+
+    for i=1:burnin
+        tr, la, psa = dbn_gibbs_loop(tr, lambda_r, V, t) 
+    end
+    increment_counts!(edge_counts, tr)
+
+    for j=1:n_samples-1
+        for k=1:thinning
+            tr, la, psa = dbn_gibbs_loop(tr, lambda_r, V, t)
+	end
+	increment_counts!(edge_counts, tr)
+    end
+
+    return convert(Matrix{Float64}, edge_counts)./n_samples
+
+end
+
 
