@@ -1,6 +1,8 @@
 
 
 using LRUCache
+using Combinatorics
+using LinearAlgebra
 import Gen: Distribution, random, logpdf
 
 """

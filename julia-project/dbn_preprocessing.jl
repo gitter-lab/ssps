@@ -6,6 +6,7 @@
 
 using CSV
 using DataFrames
+using Statistics
 
 function timeseries_preprocess!(timeseries_df)
     timeseries_df.condition = [ split(s, " ")[2] for s in timeseries_df[!, :Column1] ]
@@ -56,7 +57,7 @@ function hill_2012_preprocess(timeseries_data_path,
 
     timesteps = CSV.read(timesteps_path)
 
-    return (timeseries_vec, protein_vec, ref_dg, timesteps)
+    return (timeseries_vec, protein_vec, reference_adj, timesteps)
 end
 
 
@@ -77,7 +78,7 @@ function combine_X(X::Vector{Array{Float64,2}})
     end
 
     mus = Statistics.mean(Xminus, dims=1)
-    sigmas = statistics.std(Xminus, dims=1)
+    sigmas = Statistics.std(Xminus, dims=1)
 
     Xminus = (Xminus .- mus) ./ sigmas
     Xplus = (Xplus .- mus) ./ sigmas
