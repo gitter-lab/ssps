@@ -36,16 +36,19 @@ graphprior(lambda::Float64, reference_graph::PSDiGraph) = random(graphprior, lam
 const TENMB = 10000000
 
 # Top level: store computed log-marginal likelihoods: log P(x_i | parents(x_i))
-lp_cache = LRU{Vector{Int64}, Float64}(maxsize=10*TENMB, by=Base.summarysize)
+global lml_ingredient_cache = LRU{Vector{Int64}, Tuple{Int,Float64,Float64,Float64}}(maxsize=100*TENMB, 
+										    by=Base.summarysize)
+
+global lp_cache = LRU{Vector{Int64}, Float64}(maxsize=10*TENMB, by=Base.summarysize)
 
 # Middle level: store the value of B inv(B^T B) B^T;
 # may be reused when different children have the same parents.
-B2invconj_cache = LRU{Vector{Int64},Array{Float64,2}}(maxsize=100*TENMB, by=Base.summarysize)
+global B2invconj_cache = LRU{Vector{Bool},Array{Float64,2}}(maxsize=100*TENMB, by=Base.summarysize)
 
 # Bottom level: store B columns. B columns may be reused by different B matrices
 # (so caching may be useful). But the number of possible columns is
 # enormous, so an LRU policy is called for.
-B_col_cache = LRU{Vector{Int64},Vector{Float64}}(maxsize=100*TENMB, by=Base.summarysize)
+global B_col_cache = LRU{Vector{Int64},Vector{Float64}}(maxsize=100*TENMB, by=Base.summarysize)
 
 function clear_caches()
     empty!(lp_cache)
@@ -61,15 +64,18 @@ function compute_B_col(inds::Vector{Int64}, Xminus)
 end
 
 
-function construct_B(parent_inds::Vector{Int64}, Xminus::Array{Float64,2}, regression_deg::Int64)
+function construct_B(parent_inds::Vector{Bool}, Xminus::Array{Float64,2}, regression_deg::Int64)
 
-    n_cols = sum([binomial(length(parent_inds), k) for k=1:min(regression_deg,length(parent_inds))])
+    n_cols = sum([binomial(sum(parent_inds), k) for k=1:min(regression_deg,sum(parent_inds))])
     #println("N_COLS: ", n_cols)
     B = zeros(size(Xminus)[1], n_cols)
 
     col = 1
+
+    parent_idx = [i for (i,b) in enumerate(parent_inds) if b]
+    
     for deg=1:regression_deg
-        for comb in Combinatorics.combinations(parent_inds, deg)
+        for comb in Combinatorics.combinations(parent_idx, deg)
             B[:,col] = get!(B_col_cache, comb) do
                 return compute_B_col(comb, Xminus)
             end
@@ -80,8 +86,8 @@ function construct_B(parent_inds::Vector{Int64}, Xminus::Array{Float64,2}, regre
 end
 
 
-function construct_B2invconj(parent_inds::Vector{Int64}, Xminus::Array{Float64,2}, regression_deg::Int64)
-    if length(parent_inds) == 0
+function construct_B2invconj(parent_inds::Vector{Bool}, Xminus::Array{Float64,2}, regression_deg::Int64)
+    if sum(parent_inds) == 0
         return Matrix{Float64}(I, size(Xminus)[1], size(Xminus)[1])
     end
     B = construct_B(parent_inds, Xminus, regression_deg)
@@ -101,21 +107,45 @@ function log_marg_lik(ind::Int64, parent_inds::Vector{Int64},
     return log_marg_lik(parent_inds, Xminus, Xp, regression_deg)
 end
 
+
+"""
+
+"""
+function compute_lml_ingredients(parent_inds::Vector{Bool},
+				 Xminus::Array{Float64,2}, Xp::Vector{Float64},
+				 regression_deg::Int64)
+    
+    B2invconj = get!(B2invconj_cache, parent_inds) do
+        construct_B2invconj(parent_inds, Xminus, regression_deg)
+    end
+    
+    m = sum(parent_inds)
+    Bwidth = sum([Base.binomial(m, i) for i=1:min(m,regression_deg)])
+    
+    n = size(Xp)[1]
+    f1 = -0.5*Bwidth
+    f2 = dot(Xp,Xp)
+    f3 = dot( Xp, B2invconj * Xp)
+
+    return (n, f1, f2, f3)
+
+end
+
 """
 This log marginal likelihood is used by the "vertex-specific" model
 formulation. `Xp` is a single column of forward-time data values. 
 """
-function log_marg_lik(parent_inds::Vector{Int64},
+function log_marg_lik(ind::Int64, parent_inds::Vector{Bool},
 		      Xminus::Array{Float64,2}, Xp::Vector{Float64}, 
-		      regression_deg::Int64)
+		      regression_deg::Int64,
+		      phi_ratio::Float64)
 
-    B2invconj = get!(B2invconj_cache, parent_inds) do
-        construct_B2invconj(parent_inds, Xminus, regression_deg)
+    (n, f1, f2, f3) = get!(lml_ingredient_cache, [[ind]; parent_inds]) do
+        compute_lml_ingredients(parent_inds, Xminus, Xp, regression_deg)
     end
-    n = size(Xp)[1]
-    m = length(parent_inds)
-    Bwidth = sum([Base.binomial(m, i) for i=1:min(m,regression_deg)])
-    return -0.5*Bwidth*log(1.0 + n) - 0.5*n*log( dot(Xp,Xp) - (1.0*n/(n+1))*dot( Xp, B2invconj * Xp))
+
+    phi = n*phi_ratio
+    return f1*log(1.0 + phi) - 0.5*n*log( f2 - (phi/(phi+1.0))*f3 )
     
 end
 
@@ -173,7 +203,7 @@ function logpdf(dbn::DBNMarginal, X::Vector{Array{Float64,2}},
     lp = 0.0
     for i=1:length(parents)
         lp += get!(lp_cache, [[i]; parents[i]]) do
-           log_marg_lik(i, parents[i], Xminus, Xplus, regression_deg)
+           log_marg_lik(i, parents[i], Xminus, Xplus, regression_deg, 1)
         end
     end
 
@@ -208,16 +238,13 @@ cpdmarginal(Xminus, ind, parents, regression_deg) = random(cpdmarginal,
 The random function does nothing -- we will always observe these values.
 """
 function random(cpdm::CPDMarginal, Xminus::Array{Float64,2},
-		ind::Int64, parents::Vector{Int64}, regression_deg::Int64)
+		ind::Int64, parents::Vector{Bool}, regression_deg::Int64, phi_ratio::Float64)
     return zeros(size(Xminus)[1])
 end
 
 
 function logpdf(cpdm::CPDMarginal, Xp::Vector{Float64}, Xminus::Array{Float64,2},
-		ind::Int64, parents::Vector{Int64}, regression_deg::Int64)
-    lp = get!(lp_cache, [[ind]; parents]) do
-        log_marg_lik(parents, Xminus, Xp, regression_deg)
-    end
-    return lp
+		ind::Int64, parents::Vector{Bool}, regression_deg::Int64, phi_ratio::Float64)
+    return log_marg_lik(ind, parents, Xminus, Xp, regression_deg, phi_ratio)
 end
 

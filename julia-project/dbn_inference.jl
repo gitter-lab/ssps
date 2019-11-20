@@ -137,26 +137,55 @@ end
 Loop through the parts of the model and perform
 Metropolis-Hastings updates on them.
 """
-function dbn_gibbs_loop(tr, lambda_r, V, t)
+function dbn_gibbs_loop(tr, lambda_r, V, t; update_lambda=true)
 
-    tr, lambda_acc = Gen.mh(tr, lambda_proposal, (lambda_r,))
-    
+    lambda_acc = false
+    if update_lambda
+        tr, lambda_acc = Gen.mh(tr, lambda_proposal, (lambda_r,))
+    end
+
     acc_vec = zeros(V)
     for i=1:V
+	#println(get_args(tr)[end])
         tr, acc_vec[i] = Gen.mh(tr, parentvec_proposal, 
-                                (i, V, t), 
+				(i, V, t[i]), 
                                 parentvec_involution)
     end
 
     return tr, lambda_acc, acc_vec
 end
 
+
+"""
+Loop through the edges of the graph.
+Use the prior distribution to propose a flip. 
+"""
+function edge_gibbs_loop(tr)
+    V = length(ref_adj)
+    edge_accs = zeros(V,V)
+    for child=1:V
+        for parent=1:V
+            tr, edge_accs[child, parent] = Gen.mh(tr, Gen.select(:adjacency => :edges => child => parent => :z))
+        end
+    end
+
+    return tr, edge_accs
+end
+
+
 """
 Helper function for collecting edge counts during inference.
+
+The entry
+tr[:adjacency => :edges => i => j => :z] 
+indicates existence of edge j --> i
+(kind of backward from what you might expect.)
+
+So this matrix should be read "row = child; column = parent"
 """
 function increment_counts!(edge_counts, tr)
-    for i=1:shape(edge_counts)[1]
-        for j=1:shape(edge_counts)[2]
+    for i=1:size(edge_counts)[1] # Child
+        for j=1:size(edge_counts)[2] # Parent
             edge_counts[i,j] += tr[:adjacency => :edges => i => j => :z]
 	end
     end
@@ -169,10 +198,12 @@ Inference program for the DBN pathway reconstruction task.
 function dbn_vertexwise_inference(reference_adj::Vector{Vector{Bool}},
 				  X::Vector{Array{Float64,2}},
                                   regression_deg::Int64,
+				  phi_ratio::Float64,
+				  lambda_prior_param::Float64,
                                   n_samples::Int64,
                                   burnin::Int64, thinning::Int64,
-				  lambda_r::Int64, 
-				  median_deg::Float64)
+				  lambda_r::Float64, 
+				  median_degs::Vector{Float64})
 
     # Some preprocessing for the data
     Xminus, Xplus  = combine_X(X)
@@ -180,7 +211,6 @@ function dbn_vertexwise_inference(reference_adj::Vector{Vector{Bool}},
 
     # Condition the model on the data
     observations = Gen.choicemap()
-
     for (i, Xp) in enumerate(Xplus)
         observations[:Xplus => i => :Xp] = Xp
     end
@@ -188,29 +218,181 @@ function dbn_vertexwise_inference(reference_adj::Vector{Vector{Bool}},
     tr, _ = Gen.generate(dbn_model, (reference_adj, 
 				     Xminus_stacked, 
                                      Xplus, 
-				     regression_deg),
+				     lambda_prior_param,
+				     regression_deg,
+				     phi_ratio),
 			 observations)
     
     # Some useful parameters
     V = length(Xplus) 
-    t = 1.0 / log2(V/median_deg)
+    t = 1.0 ./ log2.(V./median_degs)
 
     # The results we care about
     edge_counts = zeros((V,V))
+    lambdas = zeros(n_samples)
+
+    ps_accs = zeros(V)
+    lambda_accs = 0
 
     for i=1:burnin
-        tr, la, psa = dbn_gibbs_loop(tr, lambda_r, V, t) 
+        tr, la, psa = dbn_gibbs_loop(tr, lambda_r, V, t; update_lambda=true) 
+        lambda_accs += la
+        ps_accs .+= psa
     end
     increment_counts!(edge_counts, tr)
+    lambdas[1] = tr[:lambda]
 
     for j=1:n_samples-1
         for k=1:thinning
-            tr, la, psa = dbn_gibbs_loop(tr, lambda_r, V, t)
+            tr, la, psa = dbn_gibbs_loop(tr, lambda_r, V, t; update_lambda=true)
+	    lambda_accs += la
+	    ps_accs .+= psa
+	end
+	increment_counts!(edge_counts, tr)
+	lambdas[j+1] = tr[:lambda]
+    end
+
+    n_props = burnin + (n_samples-1)*thinning
+    lambda_accs = lambda_accs / n_props
+    ps_accs = ps_accs ./ n_props
+
+    edge_probs = convert(Matrix{Float64}, edge_counts)./n_samples
+
+    return edge_probs, lambdas, lambda_accs, ps_accs
+
+end
+
+
+"""
+Inference program for the DBN pathway reconstruction task.
+
+Uses annealing to address the challenge of low acceptance probabilities.
+
+`phi_ratio_schedule` should be a function with the following signature:
+    
+    phi_ratio = phi_ratio_schedule(t::Float64)
+
+where `t` \\in [0,1] represents the fraction of thinning steps completed thus far.
+A good choice of schedule might be a sigmoid function.
+
+For sake of comparison against Hill et al.'s method, we'll give lambda a fixed
+value in this inference task.
+"""
+function dbn_edgeind_annealing_inference(reference_adj::Vector{Vector{Bool}},
+				         X::Vector{Array{Float64,2}},
+                                         regression_deg::Int64,
+				         phi_ratio_schedule::Function,
+				         fixed_lambda::Float64,
+                                         n_samples::Int64,
+                                         thinning::Int64,
+				         median_degs::Vector{Float64})
+
+    # Some preprocessing for the data
+    Xminus, Xplus  = combine_X(X)
+    Xminus_stacked, Xplus = vectorize_X(Xminus, Xplus)
+
+    # Condition the model on the data
+    observations = Gen.choicemap()
+    for (i, Xp) in enumerate(Xplus)
+        observations[:Xplus => i => :Xp] = Xp
+    end
+    observations[:lambda] = fixed_lambda
+    tr, _ = Gen.generate(dbn_model, (reference_adj, 
+				     Xminus_stacked, 
+                                     Xplus, 
+				     1.0,
+				     regression_deg,
+				     0.0),
+			 observations)
+    
+    # Some useful parameters
+    V = length(Xplus) 
+    t = 1.0 ./ log2.(V./median_degs)
+
+    # The results we care about
+    edge_counts = zeros((V,V))
+    ps_accs = zeros(V)
+
+    for j=1:n_samples-1
+        for k=1:thinning
+        
+	    pr = phi_ratio_schedule(1.0*k/thinning)
+	    newargs = tuple(Gen.get_args(tr)[1:end-1]..., pr)
+	    argdiffs = tuple([[Gen.NoChange() for i=1:length(newargs)-1]; [Gen.UnknownChange()]]...)
+	    tr, _ = Gen.update(tr, newargs, argdiffs, Gen.choicemap())
+            tr, la, psa = dbn_gibbs_loop(tr, lambda_r, V, t; update_lambda=false)
+	    ps_accs .+= psa
 	end
 	increment_counts!(edge_counts, tr)
     end
 
-    return convert(Matrix{Float64}, edge_counts)./n_samples
+    n_props = n_samples*thinning
+    ps_accs = ps_accs ./ n_props
+
+    edge_probs = convert(Matrix{Float64}, edge_counts)./n_samples
+
+    return edge_probs,  ps_accs
+
+end
+
+
+
+function dbn_edgeind_gibbs_inference(reference_adj::Vector{Vector{Bool}},
+				     X::Vector{Array{Float64,2}},
+                                     regression_deg::Int64,
+				     phi_ratio::Float64,
+				     fixed_lambda::Float64,
+                                     n_samples::Int64,
+				     burnin::Int64,
+                                     thinning::Int64)
+
+    # Some preprocessing for the data
+    Xminus, Xplus  = combine_X(X)
+    Xminus_stacked, Xplus = vectorize_X(Xminus, Xplus)
+
+    # Condition the model on the data
+    observations = Gen.choicemap()
+    for (i, Xp) in enumerate(Xplus)
+        observations[:Xplus => i => :Xp] = Xp
+    end
+    observations[:lambda] = fixed_lambda
+    tr, _ = Gen.generate(dbn_model, (reference_adj, 
+				     Xminus_stacked, 
+                                     Xplus, 
+				     1.0,
+				     regression_deg,
+				     phi_ratio),
+			 observations)
+    
+    # Some useful parameters
+    V = length(Xplus)
+
+    # The results we care about
+    edge_counts = zeros((V,V))
+    edge_accs = zeros((V,V))
+  
+    # burnin
+    for i=1:burnin
+        tr, accs = edge_gibbs_loop(tr)
+        edge_accs .+= accs
+    end
+    increment_counts!(edge_counts, tr)
+
+    # sampling (with thinning)
+    for i=1:n_samples-1
+        for t=1:thinning
+            tr, accs = edge_gibbs_loop(tr)
+            edge_accs .+= accs
+	end
+        increment_counts!(edge_counts, tr)
+    end
+   
+    # A little bit of postprocessing 
+    n_props = burnin + (n_samples-1)*thinning
+    edge_accs = edge_accs ./ n_props
+    posterior_edge_probs = convert(Matrix{Float64}, edge_counts)./n_samples
+
+    return posterior_edge_probs,  edge_accs
 
 end
 

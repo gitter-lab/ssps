@@ -446,8 +446,14 @@ end
 
 @gen function lambda_proposal(tr, radius::Int64)
 
-    @trace(Gen.uniform_discrete(max(tr[:lambda]-radius, 0), 
-				tr[:lambda]+radius ), :lambda)
+    @trace(Gen.normal(tr[:lambda], radius), :lambda)
 
 end
 
+
+@gen (static) function edge_proposal(cur_tr, parent_idx::Int64, 
+				             child_idx::Int64,
+					     prob::Float64)
+    @trace(Gen.bernoulli(prob), 
+           :adjacency => :edges => child_idx => parent_idx => :z)
+end

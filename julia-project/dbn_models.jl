@@ -72,17 +72,16 @@ end
 """
 
 """
-@gen (static) function generate_Xp(Xminus, ind, parents, regression_deg)
+@gen (static) function generate_Xp(Xminus, ind, parents, regression_deg, phi_ratio)
     return @trace(cpdmarginal(Xminus, ind, 
                               parents, 
-			      regression_deg), :Xp)
+			      regression_deg, phi_ratio), :Xp)
 end
 
 generate_Xplus = Gen.Map(generate_Xp)
 
-function adj_to_parentvec(adj)
-
-    return [findall(x->x, adj_vec) for adj_vec in adj]
+function convert_to_vec(adj)::Vector{Vector{Bool}}
+	return [[Bool(u) for u in v] for v in adj] 
 end
 
 """
@@ -92,16 +91,18 @@ P(X,G,lambda | G') = P(X|G) * P(G|lambda, G') * P(lambda)
 @gen (static) function dbn_model(reference_adj::Vector{Vector{Bool}}, 
 				 Xminus_stacked::Vector{Array{Float64,2}}, 
 				 Xplus::Vector{Vector{Float64}},
-				 regression_deg::Float64)
+				 lambda_prior_param::Float64,
+				 regression_deg::Float64,
+				 phi_ratio::Float64)
 
-    lambda = @trace(Gen.geometric(0.125), :lambda)
+    lambda = @trace(Gen.exponential(lambda_prior_param), :lambda)
 
     adj = @trace(graph_edge_prior(reference_adj, lambda), :adjacency)
-    ps = adj_to_parentvec(adj)
+    adj = convert_to_vec(adj) 
 
     V = length(Xplus)
     Xpl = @trace(generate_Xplus(Xminus_stacked, collect(1:V),
-                                ps, fill(regression_deg, V)), :Xplus)
+                                adj, fill(regression_deg, V), fill(phi_ratio, V)), :Xplus)
     return Xpl
 
 end
