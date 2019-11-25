@@ -203,7 +203,8 @@ function dbn_vertexwise_inference(reference_adj::Vector{Vector{Bool}},
                                   n_samples::Int64,
                                   burnin::Int64, thinning::Int64,
 				  lambda_r::Float64, 
-				  median_degs::Vector{Float64})
+				  median_degs::Vector{Float64},
+				  update_lambda::Bool)
 
     # Some preprocessing for the data
     Xminus, Xplus  = combine_X(X)
@@ -235,7 +236,7 @@ function dbn_vertexwise_inference(reference_adj::Vector{Vector{Bool}},
     lambda_accs = 0
 
     for i=1:burnin
-        tr, la, psa = dbn_gibbs_loop(tr, lambda_r, V, t; update_lambda=true) 
+        tr, la, psa = dbn_gibbs_loop(tr, lambda_r, V, t; update_lambda=update_lambda) 
         lambda_accs += la
         ps_accs .+= psa
     end
@@ -244,7 +245,7 @@ function dbn_vertexwise_inference(reference_adj::Vector{Vector{Bool}},
 
     for j=1:n_samples-1
         for k=1:thinning
-            tr, la, psa = dbn_gibbs_loop(tr, lambda_r, V, t; update_lambda=true)
+            tr, la, psa = dbn_gibbs_loop(tr, lambda_r, V, t; update_lambda=update_lambda)
 	    lambda_accs += la
 	    ps_accs .+= psa
 	end
@@ -395,5 +396,61 @@ function dbn_edgeind_gibbs_inference(reference_adj::Vector{Vector{Bool}},
     return posterior_edge_probs,  edge_accs
 
 end
+
+
+
+"""
+    compute_bic(ols_path, lasso_path, n::Int64, ols_df::Int64)
+
+Compute a vector of Bayesian Information Criterion values for a
+GLMNet path.
+"""
+function compute_bic(ols_path, lasso_path, n::Int64, ols_df::Int64) 
+    
+    ols_ssr = (1.0 - ols_path.dev_ratio[1]) # *null deviation
+    ssr_vec = (1.0 .- lasso_path.dev_ratio) # *null deviation
+    df_vec = sum(lasso_path.betas .!= 0.0, dims=1)[1,:]
+    
+    bic_vec = ((n - ols_df).*ssr_vec./ols_ssr  .+  log(n).*df_vec) ./n # null deviations cancel out
+    
+    return bic_vec
+end
+
+
+"""
+    adalasso_edge_recovery(X::Matrix{Float64}, y::Vector{Float64}, prior_parents::Vector{Bool})
+Use Adaptive LASSO (informed by prior knowledge of edge existence)
+and a Bayesian Information Criterion to get a set of regression coefficients;
+nonzero coefficients imply the existence of an edge in the MAP graph.
+Note that we assume normally-distributed variables.
+"""
+function adalasso_edge_recovery(X::Matrix{Float64}, y::Vector{Float64}, prior_parents::Vector{Bool})
+    
+    n = size(y,1)
+    yp = y .* n ./ (n+1)
+    ols_result = GLMNet.glmnet(X, yp, lambda=[0.0])
+
+    ada_weights = 1.0 .- prior_parents;
+    adaptive_penalties = abs.(ada_weights ./ ols_result.betas)[:,1]
+    
+    lasso_path = GLMNet.glmnet(X, yp, penalty_factor=adaptive_penalties)
+    
+    bic_vec = compute_bic(ols_result, lasso_path, n, size(X,2))
+    
+    minloss_idx = argmin(bic_vec)
+    
+    return lasso_path.betas[:,minloss_idx]
+
+end
+
+
+"""
+    adalasso_parents(Xminus::Matrix{Float64}, Xplus::Matrix{Float64},
+                     reference_parents::Vector{
+
+A Metropolis-Hastings inference strategy which uses adaptive LASSO
+to initialize the markov chain at a reasonable place.
+"""
+
 
 

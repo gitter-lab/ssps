@@ -77,15 +77,18 @@ function combine_X(X::Vector{Array{Float64,2}})
         l_ind = r_ind + 1
     end
 
-    mus = Statistics.mean(Xminus, dims=1)
-    sigmas = Statistics.std(Xminus, dims=1)
-
-    Xminus = (Xminus .- mus) ./ sigmas
-    Xplus = (Xplus .- mus) ./ sigmas
-
     return Xminus, Xplus
 end
 
+function standardize_X(X_arr)
+
+    mus = Statistics.mean(X_arr, dims=1)
+    sigmas = Statistics.std(X_arr, dims=1)
+
+    X_arr =  (X_arr .- mus) ./ sigmas
+
+    return X_arr, mus, sigmas
+end
 
 function vectorize_X(Xminus::Array{Float64,2}, 
 		     Xplus::Array{Float64,2})
