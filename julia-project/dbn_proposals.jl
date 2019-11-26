@@ -444,6 +444,56 @@ function parentvec_involution(cur_tr, fwd_choices, fwd_ret, prop_args)
 end
 
 
+"""
+Proposal distribution for updating the parent set of a vertex.
+
+This proposal prioritizes "swap" moves: rather than adding or removing
+and edge, just move it to a different parent. 
+
+"swap" moves preserve in-degree. This is a good thing, since our 
+posterior varies _strongly_ with in-degree.
+"""
+@gen function parentvec_swp_proposal(tr, vertex::Int64, V::Int64, t::Float64)
+
+    parent_vec = [tr[:adjacency => :edges => vertex => j => :z] for j=1:V]
+    in_degree = sum(parent_vec)
+    remove_edge = @trace(Gen.bernoulli( (convert(Float64, in_degree)/V)^t ), :remove_edge)
+
+    if remove_edge
+        parent = @trace(Gen.uniform_discrete(1, in_degree), :parent)
+	idx = findall(x->x, parent_vec)[parent]
+    else
+        nonparent = @trace(Gen.uniform_discrete(1, V - in_degree), :nonparent)
+	idx = findall(x->!x, parent_vec)[nonparent]
+    end
+
+    return idx, parent_vec
+end
+
+function parentvec_involution(cur_tr, fwd_choices, fwd_ret, prop_args)
+    
+    vertex = prop_args[1]
+    idx, parent_vec = fwd_ret
+    parent_vec[idx] = !parent_vec[idx]
+    update_constraints = Gen.choicemap()
+    k = :adjacency => :edges => vertex => idx => :z
+    update_constraints[k] = !cur_tr[k]
+
+    new_tr, weight, _, _ = Gen.update(cur_tr, Gen.get_args(cur_tr),
+                                      (), update_constraints)
+
+    bwd_choices = Gen.choicemap()
+    bwd_choices[:remove_edge] = !fwd_choices[:remove_edge]
+    if Gen.has_value(fwd_choices, :parent)
+        bwd_choices[:nonparent] = indexin([idx], findall(x->!x, parent_vec))[1]
+    elseif Gen.has_value(fwd_choices, :nonparent)
+        bwd_choices[:parent] = indexin([idx], findall(x->x, parent_vec))[1]
+    end
+
+    return new_tr, bwd_choices, weight 
+end
+
+
 @gen function lambda_proposal(tr, radius::Int64)
 
     @trace(Gen.normal(tr[:lambda], radius), :lambda)

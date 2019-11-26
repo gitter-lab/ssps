@@ -60,14 +60,19 @@ end
 # DBN MARGINAL LIKELIHOOD HELPER FUNCTIONS
 ###########################################
 function compute_B_col(inds::Vector{Int64}, Xminus)
-    return prod(Xminus[:,inds], dims=2)[:,1]
+    
+    # Multiply the columns together
+    col = prod(Xminus[:,inds], dims=2)[:,1]
+    
+    # The result ought to be standardized.
+    col = (col .- mean(col)) ./std(col)
+    return col
 end
 
 
 function construct_B(parent_inds::Vector{Bool}, Xminus::Array{Float64,2}, regression_deg::Int64)
 
     n_cols = sum([binomial(sum(parent_inds), k) for k=1:min(regression_deg,sum(parent_inds))])
-    #println("N_COLS: ", n_cols)
     B = zeros(size(Xminus)[1], n_cols)
 
     col = 1
@@ -130,6 +135,7 @@ function compute_lml_ingredients(parent_inds::Vector{Bool},
     return (n, f1, f2, f3)
 
 end
+
 
 """
 This log marginal likelihood is used by the "vertex-specific" model

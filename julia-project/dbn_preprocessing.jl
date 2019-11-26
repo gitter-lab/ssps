@@ -8,17 +8,32 @@ using CSV
 using DataFrames
 using Statistics
 
-function timeseries_preprocess!(timeseries_df)
+
+function hill_timeseries_preprocess!(timeseries_df)
+    
+    # Extract identifier information from the text column
     timeseries_df.condition = [ split(s, " ")[2] for s in timeseries_df[!, :Column1] ]
     timeseries_df.time = [ parse(Float64, split(s, " ")[4][2:end]) for s in timeseries_df[!, :Column1]]
     timeseries_df.replicate = [tryparse(Int64, split(s, " ")[6][2:end-1]) for s in timeseries_df[!, :Column1]]
 
-    gp = DataFrames.groupby( timeseries_df, [:condition; :replicate])
-    ts_vec = [convert(Matrix, g)[:,2:end-3] for g in gp]
-    ts_vec = [convert(Matrix{Float64}, m) for m in ts_vec]
+    # group by condition and timestep; take the mean over the replicates.
+    ts_vec = Vector{Matrix{Float64}}()
+    condition_gps = DataFrames.groupby(timeseries_df, [:condition])
+    for c_g in condition_gps
+        ts_gps = DataFrames.groupby(c_g, [:time])
+        ts = zeros(length(ts_gps), size(timeseries_df,2)-4)
+        for (i, t_g) in enumerate(ts_gps)
+            ts[i,:] = mean(convert(Matrix{Float64}, t_g[:,2:end-3]), dims=1)
+        end
+        push!(ts_vec, ts)
+    end
+    
+    # It turns out this timeseries data needs to be log-transformed for normality
+    ts_vec = [log.(m) for m in ts_vec]
 
     return ts_vec
 end
+
 
 function build_reference_graph(vertices::Vector{T}, reference_adj::Array{Int,2}) where T
     dg = PSDiGraph{T}()
@@ -44,7 +59,7 @@ function hill_2012_preprocess(timeseries_data_path,
                               timesteps_path)
 
     timeseries_data = CSV.read(timeseries_data_path)
-    timeseries_vec = timeseries_preprocess!(timeseries_data)
+    timeseries_vec = hill_timeseries_preprocess!(timeseries_data)
 
     protein_names = CSV.read(protein_names_path)
     protein_vec = convert(Matrix, protein_names)[:,1]
@@ -77,7 +92,7 @@ function combine_X(X::Vector{Array{Float64,2}})
         l_ind = r_ind + 1
     end
 
-    return Xminus, Xplus
+    return Xminus, standardize_X(Xplus)[1]
 end
 
 function standardize_X(X_arr)

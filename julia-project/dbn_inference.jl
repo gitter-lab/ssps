@@ -204,6 +204,7 @@ function dbn_vertexwise_inference(reference_adj::Vector{Vector{Bool}},
                                   burnin::Int64, thinning::Int64,
 				  lambda_r::Float64, 
 				  median_degs::Vector{Float64},
+				  fixed_lambda::Float64,
 				  update_lambda::Bool)
 
     # Some preprocessing for the data
@@ -215,6 +216,103 @@ function dbn_vertexwise_inference(reference_adj::Vector{Vector{Bool}},
     for (i, Xp) in enumerate(Xplus)
         observations[:Xplus => i => :Xp] = Xp
     end
+    # Initialize the lambda value
+    observations[:lambda] = fixed_lambda
+    # Initialize the parent sets using Adaptive LASSO
+    parents = adalasso_parents(Xminus, Xplus, reference_adj)
+    for (c,ps) in enumerate(parents)
+        for p=1:length(ps)
+            observations[:adjacency => :edges => c => p => :z] = ps[p]
+        end
+    end
+
+
+    tr, _ = Gen.generate(dbn_model, (reference_adj, 
+				     Xminus_stacked, 
+                                     Xplus, 
+				     lambda_prior_param,
+				     regression_deg,
+				     phi_ratio),
+			 observations)
+    
+    # Some useful parameters
+    V = length(Xplus) 
+    t = 1.0 ./ log2.(V./median_degs)
+
+    # The results we care about
+    edge_counts = zeros((V,V))
+    lambdas = zeros(n_samples)
+
+    ps_accs = zeros(V)
+    lambda_accs = 0
+
+    for i=1:burnin
+        tr, la, psa = dbn_gibbs_loop(tr, lambda_r, V, t; update_lambda=update_lambda) 
+        lambda_accs += la
+        ps_accs .+= psa
+    end
+    increment_counts!(edge_counts, tr)
+    lambdas[1] = tr[:lambda]
+
+    for j=1:n_samples-1
+        for k=1:thinning
+            tr, la, psa = dbn_gibbs_loop(tr, lambda_r, V, t; update_lambda=update_lambda)
+	    lambda_accs += la
+	    ps_accs .+= psa
+	end
+	increment_counts!(edge_counts, tr)
+	lambdas[j+1] = tr[:lambda]
+    end
+
+    n_props = burnin + (n_samples-1)*thinning
+    lambda_accs = lambda_accs / n_props
+    ps_accs = ps_accs ./ n_props
+
+    edge_probs = convert(Matrix{Float64}, edge_counts)./n_samples
+
+    return edge_probs, lambdas, lambda_accs, ps_accs
+
+end
+
+
+"""
+Inference program for the DBN pathway reconstruction task.
+
+Performs Metropolis-Hastings on parent sets; the proposal
+distribution includes "parent swapping" in addition to 
+the additions and removals.
+"""
+function dbn_vx_ps_swapping(reference_adj::Vector{Vector{Bool}},
+			    X::Vector{Array{Float64,2}},
+                            regression_deg::Int64,
+			    phi_ratio::Float64,
+			    lambda_prior_param::Float64,
+                            n_samples::Int64,
+                            burnin::Int64, thinning::Int64,
+			    lambda_r::Float64, 
+			    median_degs::Vector{Float64},
+			    fixed_lambda::Float64,
+			    update_lambda::Bool)
+
+    # Some preprocessing for the data
+    Xminus, Xplus  = combine_X(X)
+    Xminus_stacked, Xplus = vectorize_X(Xminus, Xplus)
+
+    # Condition the model on the data
+    observations = Gen.choicemap()
+    for (i, Xp) in enumerate(Xplus)
+        observations[:Xplus => i => :Xp] = Xp
+    end
+    # Initialize the lambda value
+    observations[:lambda] = fixed_lambda
+    # Initialize the parent sets using Adaptive LASSO
+    parents = adalasso_parents(Xminus, Xplus, reference_adj)
+    for (c,ps) in enumerate(parents)
+        for p=1:length(ps)
+            observations[:adjacency => :edges => c => p => :z] = ps[p]
+        end
+    end
+
 
     tr, _ = Gen.generate(dbn_model, (reference_adj, 
 				     Xminus_stacked, 
@@ -297,7 +395,116 @@ function dbn_edgeind_annealing_inference(reference_adj::Vector{Vector{Bool}},
     for (i, Xp) in enumerate(Xplus)
         observations[:Xplus => i => :Xp] = Xp
     end
+    # Initialize the lambda value
     observations[:lambda] = fixed_lambda
+    # Initialize the parent sets using Adaptive LASSO
+    parents = adalasso_parents(Xminus, Xplus, reference_adj)
+    for (c,ps) in enumerate(parents)
+        for p=1:length(ps)
+            observations[:adjacency => :edges => c => p => :z] = ps[p]
+        end
+    end
+    
+    tr, _ = Gen.generate(dbn_model, (reference_adj, 
+				     Xminus_stacked, 
+                                     Xplus, 
+				     1.0,
+				     regression_deg,
+				     0.0),
+			 observations)
+    
+    # Some useful parameters
+    V = length(Xplus) 
+    t = 1.0 ./ log2.(V./median_degs)
+
+    # The results we care about
+    edge_counts = zeros((V,V))
+    ps_accs = zeros(V)
+
+    for j=1:n_samples-1
+        for k=1:thinning
+        
+	    pr = phi_ratio_schedule(1.0*k/thinning)
+	    newargs = tuple(Gen.get_args(tr)[1:end-1]..., pr)
+	    argdiffs = tuple([[Gen.NoChange() for i=1:length(newargs)-1]; [Gen.UnknownChange()]]...)
+	    tr, _ = Gen.update(tr, newargs, argdiffs, Gen.choicemap())
+            tr, la, psa = dbn_gibbs_loop(tr, lambda_r, V, t; update_lambda=false)
+	    ps_accs .+= psa
+	end
+	increment_counts!(edge_counts, tr)
+    end
+
+    n_props = n_samples*thinning
+    ps_accs = ps_accs ./ n_props
+
+    edge_probs = convert(Matrix{Float64}, edge_counts)./n_samples
+
+    return edge_probs,  ps_accs
+
+end
+
+
+
+function dbn_edgeind_gibbs_inference(reference_adj::Vector{Vector{Bool}},
+				     X::Vector{Array{Float64,2}},
+                                     regression_deg::Int64,
+				     phi_ratio::Float64,
+				     fixed_lambda::Float64,
+                                     n_samples::Int64,
+				     burnin::Int64,
+                                     thinning::Int64)
+
+    # Some preprocessing for the data
+    Xminus, Xplus  = combine_X(X)
+    Xminus_stacked, Xplus = vectorize_X(Xminus, Xplus)
+
+    # Condition the model on the data
+    observations = Gen.choicemap()
+
+
+"""
+Inference program for the DBN pathway reconstruction task.
+
+Uses annealing to address the challenge of low acceptance probabilities.
+
+`phi_ratio_schedule` should be a function with the following signature:
+    
+    phi_ratio = phi_ratio_schedule(t::Float64)
+
+where `t` \\in [0,1] represents the fraction of thinning steps completed thus far.
+A good choice of schedule might be a sigmoid function.
+
+For sake of comparison against Hill et al.'s method, we'll give lambda a fixed
+value in this inference task.
+"""
+function dbn_edgeind_annealing_inference(reference_adj::Vector{Vector{Bool}},
+				         X::Vector{Array{Float64,2}},
+                                         regression_deg::Int64,
+				         phi_ratio_schedule::Function,
+				         fixed_lambda::Float64,
+                                         n_samples::Int64,
+                                         thinning::Int64,
+				         median_degs::Vector{Float64})
+
+    # Some preprocessing for the data
+    Xminus, Xplus  = combine_X(X)
+    Xminus_stacked, Xplus = vectorize_X(Xminus, Xplus)
+
+    # Condition the model on the data
+    observations = Gen.choicemap()
+    for (i, Xp) in enumerate(Xplus)
+        observations[:Xplus => i => :Xp] = Xp
+    end
+    # Initialize the lambda value
+    observations[:lambda] = fixed_lambda
+    # Initialize the parent sets using Adaptive LASSO
+    parents = adalasso_parents(Xminus, Xplus, reference_adj)
+    for (c,ps) in enumerate(parents)
+        for p=1:length(ps)
+            observations[:adjacency => :edges => c => p => :z] = ps[p]
+        end
+    end
+    
     tr, _ = Gen.generate(dbn_model, (reference_adj, 
 				     Xminus_stacked, 
                                      Xplus, 
@@ -446,11 +653,20 @@ end
 
 """
     adalasso_parents(Xminus::Matrix{Float64}, Xplus::Matrix{Float64},
-                     reference_parents::Vector{
+                     reference_parents::Vector{Vector{Bool}})
 
 A Metropolis-Hastings inference strategy which uses adaptive LASSO
 to initialize the markov chain at a reasonable place.
 """
-
-
+function adalasso_parents(Xminus, Xplus, reference_parents)
+   
+    #println("XMINUS: ", typeof(Xminus))
+    #println("XPLUS: ", typeof(Xplus))
+    parents = []
+    for i=1:size(Xplus,2)
+        betas = adalasso_edge_recovery(Xminus, Xplus[i], reference_parents[i])
+	push!(parents, betas .!= 0.0)
+    end
+    return parents
+end
 
