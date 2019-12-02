@@ -1,0 +1,3 @@
+[submodule "p-granger-causality"]
+	path = p-granger-causality
+	url = git@github.com:dpmerrell/prophetic-granger-causality

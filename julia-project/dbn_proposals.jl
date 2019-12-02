@@ -450,15 +450,22 @@ Proposal distribution for updating the parent set of a vertex.
 This proposal prioritizes "swap" moves: rather than adding or removing
 and edge, just move it to a different parent. 
 
-"swap" moves preserve in-degree. This is a good thing, since our 
+"swap" proposals preserve in-degree. This is a good thing, since our 
 posterior varies _strongly_ with in-degree.
 """
 @gen function parentvec_swp_proposal(tr, vertex::Int64, V::Int64, t::Float64)
 
     parent_vec = [tr[:adjacency => :edges => vertex => j => :z] for j=1:V]
-    in_degree = sum(parent_vec)
-    remove_edge = @trace(Gen.bernoulli( (convert(Float64, in_degree)/V)^t ), :remove_edge)
+    in_degree = convert(Float64, sum(parent_vec))
+    p = in_degree/V
 
+    do_swap = @trace(Gen.bernoulli( p^t * (1-p)^(1-t)), :do_swap)
+
+    if do_swap
+        parents = findall(x->x, parent_vec)
+        parent = @trace(Gen.uniform_discrete(1,in_degree), :parent)
+	nonparent = @trace(Gen.uniform_discrete(1,V-in_degree), :nonparent)
+    end
     if remove_edge
         parent = @trace(Gen.uniform_discrete(1, in_degree), :parent)
 	idx = findall(x->x, parent_vec)[parent]
