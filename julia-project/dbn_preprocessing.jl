@@ -35,6 +35,42 @@ function hill_timeseries_preprocess!(timeseries_df)
 end
 
 
+function standard_timeseries_preprocess!(timeseries_df)
+
+    result = Vector{Matrix{Float64}}()
+
+    N = convert(Int64, maximum(timeseries_df.timeseries))
+
+    for i=1:N
+        ts = timeseries_df[timeseries_df.timeseries .== i, :]
+        sort!(ts, [:timestep])
+        push!(result, convert(Matrix{Float64}, ts[:,3:end]))
+    end
+
+    return result
+end
+
+
+"""
+
+Receive a dataframe containing an adjacency matrix,
+and return a Vector{Vector{Bool}} representing the 
+parent sets of the graph.
+"""
+function standard_adjacency_preprocess!(adjacency_df)
+
+    parent_sets = Vector{Vector{Bool}}()
+
+    adj_mat = convert(Matrix{Bool}, adjacency_df)
+    for j=1:size(adj_mat,2)
+        push!(parent_sets, adj_mat[:,j])
+    end
+
+    return parent_sets
+end
+
+
+
 function build_reference_graph(vertices::Vector{T}, reference_adj::Array{Int,2}) where T
     dg = PSDiGraph{T}()
     for i=1:size(reference_adj)[1]
@@ -47,12 +83,15 @@ function build_reference_graph(vertices::Vector{T}, reference_adj::Array{Int,2})
     return dg
 end
 
+"""
+hill_2012_preprocess(timeseries_data_path,
+                     protein_names_path,
+                     prior_graph_path,
+                     timesteps_path)
 
-function vectorize_reference_adj(reference_adj)
-    return [convert(Vector{Bool}, reference_adj[:,i]) for i=1:size(reference_adj)[1]]
-end
-
-
+Load and preprocess the data from the Hill et al. 2012
+paper.
+"""
 function hill_2012_preprocess(timeseries_data_path,
                               protein_names_path,
                               prior_graph_path,
@@ -66,13 +105,39 @@ function hill_2012_preprocess(timeseries_data_path,
     protein_vec = [name[3:length(name)-2] for name in protein_vec]
 
     reference_adjacency = CSV.read(prior_graph_path)
-    adj_mat = convert(Matrix, reference_adjacency)
-    #ref_dg = build_reference_graph(protein_vec, adj_mat)
-    reference_adj = vectorize_reference_adj(adj_mat)
+    reference_adj = standard_adjacency_preprocess!(reference_adjacency)
 
     timesteps = CSV.read(timesteps_path)
 
     return (timeseries_vec, protein_vec, reference_adj, timesteps)
+end
+
+
+"""
+    load_simulated_data(timeseries_data_path::String,
+                        reference_graph_path::String,
+		        true_graph_path::String)
+
+Load data from files and convert to the types requisite
+for our probabilistic program.
+
+This function assumes the data (time series and adjacency matrices)
+are stored in text-delimited files of the standard format.
+"""
+function load_simulated_data(timeseries_data_path::String,
+		             reference_graph_path::String,
+		             true_graph_path::String)
+
+    timeseries_df = CSV.read(timeseries_data_path)
+    ts_vec = standard_timeseries_preprocess!(timeseries_df)
+
+    ref_adj_df = CSV.read(reference_graph_path)
+    ref_ps = standard_adjacency_preprocess!(ref_adj_df)
+    
+    true_adj_df = CSV.read(true_graph_path)
+    true_ps = standard_adjacency_preprocess!(true_adj_df)
+
+    return ts_vec, ref_ps, true_ps
 end
 
 

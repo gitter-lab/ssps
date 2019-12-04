@@ -460,7 +460,7 @@ function dbn_edgeind_gibbs_inference(reference_adj::Vector{Vector{Bool}},
 
     # Condition the model on the data
     observations = Gen.choicemap()
-
+end
 
 """
 Inference program for the DBN pathway reconstruction task.

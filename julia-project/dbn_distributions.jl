@@ -93,7 +93,8 @@ end
 
 function construct_B2invconj(parent_inds::Vector{Bool}, Xminus::Array{Float64,2}, regression_deg::Int64)
     if sum(parent_inds) == 0
-        return Matrix{Float64}(I, size(Xminus)[1], size(Xminus)[1])
+        #return Matrix{Float64}(I, size(Xminus)[1], size(Xminus)[1])
+        return zeros(size(Xminus)[1], size(Xminus)[1])
     end
     B = construct_B(parent_inds, Xminus, regression_deg)
     B2inv = LinearAlgebra.inv(LinearAlgebra.Symmetric(transpose(B) * B + 0.001*I))
@@ -151,8 +152,13 @@ function log_marg_lik(ind::Int64, parent_inds::Vector{Bool},
     end
 
     phi = n*phi_ratio
+
+    #println("\tMarg. Like. PART 1:\t", exp(f1*log(1.0+phi)))
+    #println("\t\t", (1.0+phi), "\t^\t", f1)
+    #println("\tMarg. Like. PART 2:\t", exp(- 0.5*n*log( f2 - (phi/(phi+1.0))*f3)))
+    #println("\t\t", f2 - (phi/(phi+1.0))*f3, "\t^\t", -0.5*n) 
+    #println("\tMarg. Like. TOTAL:\t", exp(f1*log(1.0 + phi) - 0.5*n*log( f2 - (phi/(phi+1.0))*f3 )))
     return f1*log(1.0 + phi) - 0.5*n*log( f2 - (phi/(phi+1.0))*f3 )
-    
 end
 
 function get_parent_vecs(graph::PSDiGraph, vertices)
