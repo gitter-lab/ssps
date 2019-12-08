@@ -450,54 +450,146 @@ Proposal distribution for updating the parent set of a vertex.
 This proposal prioritizes "swap" moves: rather than adding or removing
 and edge, just move it to a different parent. 
 
-"swap" proposals preserve in-degree. This is a good thing, since our 
-posterior varies _strongly_ with in-degree.
+"Swap" proposals preserve in-degree. This is a good thing, since our 
+model's posterior distribution varies pretty strongly with in-degree.
 """
-@gen function parentvec_swp_proposal(tr, vertex::Int64, V::Int64, t::Float64)
+@gen function parentvec_swp_proposal(tr, vertex::Int64, V::Int64)
 
-    parent_vec = [tr[:adjacency => :edges => vertex => j => :z] for j=1:V]
-    in_degree = convert(Float64, sum(parent_vec))
-    p = in_degree/V
+    v1_idx = @trace(Gen.uniform_discrete(1,V), :v1_idx)
+    v1 = tr[:adjacency => :edges => vertex => v1_idx => :z]
+    
+    v2_idx = @trace(Gen.uniform_discrete(1,V), :v2_idx)
+    v2 = tr[:adjacency => :edges => vertex => v2_idx => :z]
 
-    do_swap = @trace(Gen.bernoulli( p^t * (1-p)^(1-t)), :do_swap)
-
-    if do_swap
-        parents = findall(x->x, parent_vec)
-        parent = @trace(Gen.uniform_discrete(1,in_degree), :parent)
-	nonparent = @trace(Gen.uniform_discrete(1,V-in_degree), :nonparent)
-    end
-    if remove_edge
-        parent = @trace(Gen.uniform_discrete(1, in_degree), :parent)
-	idx = findall(x->x, parent_vec)[parent]
+    if v1 != v2
+        return "swap"
     else
-        nonparent = @trace(Gen.uniform_discrete(1, V - in_degree), :nonparent)
-	idx = findall(x->!x, parent_vec)[nonparent]
+        return "negate"
     end
-
-    return idx, parent_vec
 end
 
-function parentvec_involution(cur_tr, fwd_choices, fwd_ret, prop_args)
+
+function parentvec_swp_involution(cur_tr, fwd_choices, fwd_ret, prop_args)
     
     vertex = prop_args[1]
-    idx, parent_vec = fwd_ret
-    parent_vec[idx] = !parent_vec[idx]
+    V = prop_args[2]
+    v1_idx = fwd_choices[:v1_idx]
+    v2_idx = fwd_choices[:v2_idx]
+    action = fwd_ret
+    
     update_constraints = Gen.choicemap()
-    k = :adjacency => :edges => vertex => idx => :z
-    update_constraints[k] = !cur_tr[k]
+    k1 = :adjacency => :edges => vertex => v1_idx => :z
+    k2 = :adjacency => :edges => vertex => v2_idx => :z
+
+    bwd_choices = Gen.choicemap()
+    if action == "swap"
+        update_constraints[k1] = cur_tr[k2]
+        update_constraints[k2] = cur_tr[k1]
+	bwd_choices[:v1_idx] = v1_idx
+	bwd_choices[:v2_idx] = v2_idx
+    else
+        update_constraints[k1] = !(cur_tr[k1])
+	bwd_choices[:v1_idx] = v1_idx
+	bwd_choices[:v2_idx] = v1_idx
+    end
 
     new_tr, weight, _, _ = Gen.update(cur_tr, Gen.get_args(cur_tr),
                                       (), update_constraints)
 
+    return new_tr, bwd_choices, weight 
+end
+
+
+
+function compute_move_probs(indeg::Int64, params::Tuple)
+
+    return p_add_swp_rem
+end
+
+
+function ith_nonparent(i, parents::Vector{Int64})
+    p = 1
+    while parents[p] - p < i
+        p += 1
+    end
+    return i + p - 1
+end
+
+
+"""
+Proposal distribution for updating the parent set of a vertex.
+
+This proposal prioritizes "swap" moves: rather than adding or removing
+and edge, just move it to a different parent. 
+
+"Swap" proposals preserve in-degree. This is a good thing, since our 
+model's posterior distribution varies pretty strongly with in-degree.
+"""
+@gen function parentvec_smart_swp_proposal(tr, vertex::Int64, 
+					   compute_move_probs::Function,
+					   params::Tuple,
+					   V::Int64)
+
+    parents = [i for i=1:V if tr[:adjacency => :edges => vertex => i => :z]]
+    indeg = length(parents)
+    p_add_swp_rem = compute_move_probs(indeg, params)
+    action = @trace(Gen.categorical(p_add_swp_rem), :action)
+
+    if action == 1
+        to_add = @trace(Gen.uniform_discrete(1, V-indeg), :to_add)
+        return (parents, action, to_add)
+    elseif action == 2
+        to_swp_add = @trace(Gen.uniform_discrete(1, V-indeg), :to_swp_add)
+        to_swp_rem = @trace(Gen.uniform_discrete(1, indeg), :to_swp_rem)
+	return (parents, action, to_swp_add, to_swp_rem)
+    else
+        to_rem = @trace(Gen.uniform_discrete(1, indeg), :to_rem)
+	return (parents, action, to_rem)
+    end
+end
+
+
+function parentvec_smart_swp_involution(cur_tr, fwd_choices, fwd_ret, prop_args)
+
+    parents = fwd_ret[1]
+    action = fwd_ret[2]
+    vertex = prop_args[1]
+
+    update_choices = Gen.choicemap()
     bwd_choices = Gen.choicemap()
-    bwd_choices[:remove_edge] = !fwd_choices[:remove_edge]
-    if Gen.has_value(fwd_choices, :parent)
-        bwd_choices[:nonparent] = indexin([idx], findall(x->!x, parent_vec))[1]
-    elseif Gen.has_value(fwd_choices, :nonparent)
-        bwd_choices[:parent] = indexin([idx], findall(x->x, parent_vec))[1]
+
+    if action == 1
+        to_add = fwd_ret[3]
+	add_idx = ith_nonparent(to_add, parents) 
+	update_choices[:adjacency => :edges => vertex => add_idx => :z] = true
+	bwd_choices[:action] = 3
+	bwd_choices[:to_rem] = searchsorted(parents, add_idx).stop
+    
+    elseif action == 2
+        to_swp_add = fwd_ret[3]
+	to_swp_rem = fwd_ret[4]
+	add_idx = ith_nonparent(to_swp_add, parents)
+	rem_idx = parents[to_swp_rem]
+	update_choices[] = !update_choices[]
+        update_choices[] = !update_choices[]
+	bwd_choices[:action] = 2
+	bwd_rem_idx = searchsorted(TODO)
+	bwd_add_idx = searchsorted(TODO)
+	bwd_choices[:to_swp_add] = bwd_add_idx
+	bwd_choices[:to_swp_rem] = bwd_rem_idx
+
+    else
+        to_rem = fwd_ret[3]
+	rem_idx = parents[to_rem]
+	update_choices[:adjacency => :edges => vertex => rem_idx => :z] = false
+        bwd_choices[:action] = 1
+	bwd_choices[:to_add] = TODO 
     end
 
-    return new_tr, bwd_choices, weight 
+    new_tr, weight, _, _ = Gen.update(cur_tr, Gen.get_args(cur_tr),
+                                      (), update_choices)
+
+    return new_tr, bwd_choices, weight
 end
 
 

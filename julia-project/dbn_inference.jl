@@ -157,6 +157,28 @@ end
 
 
 """
+
+"""
+function dbn_ps_swp_gibbs_loop(tr, lambda_r, V; update_lambda=true)
+
+    lambda_acc = false
+    if update_lambda
+        tr, lambda_acc = Gen.mh(tr, lambda_proposal, (lambda_r,))
+    end
+
+    acc_vec = zeros(V)
+    for i=1:V
+        tr, acc_vec[i] = Gen.mh(tr, parentvec_swp_proposal,
+				(i, V),
+				parentvec_swp_involution)#; check_round_trip=true)
+
+    end
+
+    return tr, lambda_acc, acc_vec
+end
+
+
+"""
 Loop through the edges of the graph.
 Use the prior distribution to propose a flip. 
 """
@@ -282,17 +304,17 @@ Performs Metropolis-Hastings on parent sets; the proposal
 distribution includes "parent swapping" in addition to 
 the additions and removals.
 """
-function dbn_vx_ps_swapping(reference_adj::Vector{Vector{Bool}},
-			    X::Vector{Array{Float64,2}},
-                            regression_deg::Int64,
-			    phi_ratio::Float64,
-			    lambda_prior_param::Float64,
-                            n_samples::Int64,
-                            burnin::Int64, thinning::Int64,
-			    lambda_r::Float64, 
-			    median_degs::Vector{Float64},
-			    fixed_lambda::Float64,
-			    update_lambda::Bool)
+function dbn_ps_swapping(reference_adj::Vector{Vector{Bool}},
+			 X::Vector{Array{Float64,2}},
+                         regression_deg::Int64,
+			 phi_ratio::Float64,
+			 lambda_prior_param::Float64,
+                         n_samples::Int64,
+                         burnin::Int64, thinning::Int64,
+			 lambda_r::Float64, 
+			 median_degs::Vector{Float64},
+			 fixed_lambda::Float64,
+			 update_lambda::Bool)
 
     # Some preprocessing for the data
     Xminus, Xplus  = combine_X(X)
@@ -324,17 +346,17 @@ function dbn_vx_ps_swapping(reference_adj::Vector{Vector{Bool}},
     
     # Some useful parameters
     V = length(Xplus) 
-    t = 1.0 ./ log2.(V./median_degs)
 
     # The results we care about
     edge_counts = zeros((V,V))
+    in_degrees = zeros((V,V))
     lambdas = zeros(n_samples)
 
     ps_accs = zeros(V)
     lambda_accs = 0
 
     for i=1:burnin
-        tr, la, psa = dbn_gibbs_loop(tr, lambda_r, V, t; update_lambda=update_lambda) 
+        tr, la, psa = dbn_ps_swp_gibbs_loop(tr, lambda_r, V; update_lambda=update_lambda) 
         lambda_accs += la
         ps_accs .+= psa
     end
@@ -343,7 +365,7 @@ function dbn_vx_ps_swapping(reference_adj::Vector{Vector{Bool}},
 
     for j=1:n_samples-1
         for k=1:thinning
-            tr, la, psa = dbn_gibbs_loop(tr, lambda_r, V, t; update_lambda=update_lambda)
+            tr, la, psa = dbn_ps_swp_gibbs_loop(tr, lambda_r, V; update_lambda=update_lambda)
 	    lambda_accs += la
 	    ps_accs .+= psa
 	end
