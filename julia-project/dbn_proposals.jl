@@ -515,6 +515,12 @@ function ith_nonparent(i, parents::Vector{Int64})
     return i + p - 1
 end
 
+"""
+Return the index of x in the *complement* of a;
+that is, the index of x in the array [N] setminus a.
+"""
+function searchsorted_exclude(a::Vector{Int64}, N, x::Int64)
+end
 
 """
 Proposal distribution for updating the parent set of a vertex.
@@ -570,10 +576,10 @@ function parentvec_smart_swp_involution(cur_tr, fwd_choices, fwd_ret, prop_args)
 	to_swp_rem = fwd_ret[4]
 	add_idx = ith_nonparent(to_swp_add, parents)
 	rem_idx = parents[to_swp_rem]
-	update_choices[] = !update_choices[]
-        update_choices[] = !update_choices[]
+	update_choices[:adjacency => :edges => vertex => add_idx => :z] = true
+        update_choices[:adjacency => :edges => vertex => rem_idx => :z] = false
 	bwd_choices[:action] = 2
-	bwd_rem_idx = searchsorted(TODO)
+	bwd_rem_idx = searchsorted(parents, add_idx).stop
 	bwd_add_idx = searchsorted(TODO)
 	bwd_choices[:to_swp_add] = bwd_add_idx
 	bwd_choices[:to_swp_rem] = bwd_rem_idx
