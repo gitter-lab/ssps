@@ -502,24 +502,45 @@ end
 
 
 function compute_move_probs(indeg::Int64, params::Tuple)
-
-    return p_add_swp_rem
+    degmax = params[1]
+    t = params[2]
+    frac = (indeg/degmax)^t
+    comp = 1.0 - frac
+    swp = 2.0 * frac * comp
+    return [comp; swp; frac] ./ (frac + swp + comp)
 end
 
 
 function ith_nonparent(i, parents::Vector{Int64})
+    
+    n = length(parents)
+    if n == 0
+        return i
+    end
+    
     p = 1
-    while parents[p] - p < i
-        p += 1
+    while p <= n
+	if (parents[p] - p) >= i
+	    break
+        end
+	p += 1
     end
     return i + p - 1
 end
 
 """
 Return the index of x in the *complement* of a;
-that is, the index of x in the array [N] setminus a.
+that is, the index of x in the array [1,2,...] setminus a.
+If x is in a, then we return the index it *would* have
+if it were moved into a.
 """
-function searchsorted_exclude(a::Vector{Int64}, N, x::Int64)
+function searchsorted_exclude(a::Vector{Int64}, x::Int64)
+    r = searchsorted(a, x)
+    if r.stop < r.start
+        return x - r.stop
+    else
+        return x - r.stop + 1
+    end
 end
 
 """
@@ -532,13 +553,12 @@ and edge, just move it to a different parent.
 model's posterior distribution varies pretty strongly with in-degree.
 """
 @gen function parentvec_smart_swp_proposal(tr, vertex::Int64, 
-					   compute_move_probs::Function,
-					   params::Tuple,
+					   compute_prob_params::Tuple,
 					   V::Int64)
 
     parents = [i for i=1:V if tr[:adjacency => :edges => vertex => i => :z]]
     indeg = length(parents)
-    p_add_swp_rem = compute_move_probs(indeg, params)
+    p_add_swp_rem = compute_move_probs(indeg, compute_prob_params)
     action = @trace(Gen.categorical(p_add_swp_rem), :action)
 
     if action == 1
@@ -569,7 +589,7 @@ function parentvec_smart_swp_involution(cur_tr, fwd_choices, fwd_ret, prop_args)
 	add_idx = ith_nonparent(to_add, parents) 
 	update_choices[:adjacency => :edges => vertex => add_idx => :z] = true
 	bwd_choices[:action] = 3
-	bwd_choices[:to_rem] = searchsorted(parents, add_idx).stop
+	bwd_choices[:to_rem] = searchsorted(parents, add_idx).start
     
     elseif action == 2
         to_swp_add = fwd_ret[3]
@@ -579,8 +599,13 @@ function parentvec_smart_swp_involution(cur_tr, fwd_choices, fwd_ret, prop_args)
 	update_choices[:adjacency => :edges => vertex => add_idx => :z] = true
         update_choices[:adjacency => :edges => vertex => rem_idx => :z] = false
 	bwd_choices[:action] = 2
-	bwd_rem_idx = searchsorted(parents, add_idx).stop
-	bwd_add_idx = searchsorted(TODO)
+	bwd_rem_idx = searchsorted(parents, add_idx).start
+	bwd_add_idx = searchsorted_exclude(parents, rem_idx)
+	if rem_idx < add_idx
+            bwd_rem_idx -= 1
+        else
+            bwd_add_idx -= 1
+	end
 	bwd_choices[:to_swp_add] = bwd_add_idx
 	bwd_choices[:to_swp_rem] = bwd_rem_idx
 
@@ -589,7 +614,7 @@ function parentvec_smart_swp_involution(cur_tr, fwd_choices, fwd_ret, prop_args)
 	rem_idx = parents[to_rem]
 	update_choices[:adjacency => :edges => vertex => rem_idx => :z] = false
         bwd_choices[:action] = 1
-	bwd_choices[:to_add] = TODO 
+	bwd_choices[:to_add] = searchsorted_exclude(parents, rem_idx)
     end
 
     new_tr, weight, _, _ = Gen.update(cur_tr, Gen.get_args(cur_tr),

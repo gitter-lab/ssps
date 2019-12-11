@@ -144,21 +144,13 @@ formulation. `Xp` is a single column of forward-time data values.
 """
 function log_marg_lik(ind::Int64, parent_inds::Vector{Bool},
 		      Xminus::Array{Float64,2}, Xp::Vector{Float64}, 
-		      regression_deg::Int64,
-		      phi_ratio::Float64)
+		      regression_deg::Int64)
 
     (n, f1, f2, f3) = get!(lml_ingredient_cache, [[ind]; parent_inds]) do
         compute_lml_ingredients(parent_inds, Xminus, Xp, regression_deg)
     end
 
-    phi = n*phi_ratio
-
-    #println("\tMarg. Like. PART 1:\t", exp(f1*log(1.0+phi)))
-    #println("\t\t", (1.0+phi), "\t^\t", f1)
-    #println("\tMarg. Like. PART 2:\t", exp(- 0.5*n*log( f2 - (phi/(phi+1.0))*f3)))
-    #println("\t\t", f2 - (phi/(phi+1.0))*f3, "\t^\t", -0.5*n) 
-    #println("\tMarg. Like. TOTAL:\t", exp(f1*log(1.0 + phi) - 0.5*n*log( f2 - (phi/(phi+1.0))*f3 )))
-    return f1*log(1.0 + phi) - 0.5*n*log( f2 - (phi/(phi+1.0))*f3 )
+    return f1*log(1.0 + n) - 0.5*n*log( f2 - (n/(n+1.0))*f3 )
 end
 
 function get_parent_vecs(graph::PSDiGraph, vertices)
@@ -250,13 +242,13 @@ cpdmarginal(Xminus, ind, parents, regression_deg) = random(cpdmarginal,
 The random function does nothing -- we will always observe these values.
 """
 function random(cpdm::CPDMarginal, Xminus::Array{Float64,2},
-		ind::Int64, parents::Vector{Bool}, regression_deg::Int64, phi_ratio::Float64)
+		ind::Int64, parents::Vector{Bool}, regression_deg::Int64)
     return zeros(size(Xminus)[1])
 end
 
 
 function logpdf(cpdm::CPDMarginal, Xp::Vector{Float64}, Xminus::Array{Float64,2},
-		ind::Int64, parents::Vector{Bool}, regression_deg::Int64, phi_ratio::Float64)
-    return log_marg_lik(ind, parents, Xminus, Xp, regression_deg, phi_ratio)
+		ind::Int64, parents::Vector{Bool}, regression_deg::Int64)
+    return log_marg_lik(ind, parents, Xminus, Xp, regression_deg)
 end
 

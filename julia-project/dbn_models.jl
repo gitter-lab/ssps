@@ -34,14 +34,14 @@ end
 """
 Sample z_ij, a variable representing the existence of edge i-->j.
 """
-@gen function sample_edge(ref_adj_entry::Bool, probs::Float64)
+@gen function sample_edge(ref_adj_entry::Bool, prob::Float64)
 
     # If this edge is *in* the reference graph:
     if ref_adj_entry != 0
         z = @trace(Gen.bernoulli(0.5), :z)
     # If this edge is not in the reference graph:
     else
-        z = @trace(Gen.bernoulli(probs), :z)
+        z = @trace(Gen.bernoulli(prob), :z)
     end
 
     return z
@@ -49,6 +49,7 @@ end
 
 # Two `Map` applications generate an
 # entire adjacency matrix of sampled edges.
+# The first Map creates a single parent set.
 sample_parents = Gen.Map(sample_edge)
 sample_children = Gen.Map(sample_parents)
 
@@ -72,10 +73,10 @@ end
 """
 
 """
-@gen (static) function generate_Xp(Xminus, ind, parents, regression_deg, phi_ratio)
+@gen (static) function generate_Xp(Xminus, ind, parents, regression_deg)
     return @trace(cpdmarginal(Xminus, ind, 
                               parents, 
-			      regression_deg, phi_ratio), :Xp)
+			      regression_deg), :Xp)
 end
 
 generate_Xplus = Gen.Map(generate_Xp)
@@ -91,18 +92,17 @@ P(X,G,lambda | G') = P(X|G) * P(G|lambda, G') * P(lambda)
 @gen (static) function dbn_model(reference_adj::Vector{Vector{Bool}}, 
 				 Xminus_stacked::Vector{Array{Float64,2}}, 
 				 Xplus::Vector{Vector{Float64}},
-				 lambda_prior_param::Float64,
-				 regression_deg::Float64,
-				 phi_ratio::Float64)
+				 lambda_max::Float64,
+				 regression_deg::Float64)
 
-    lambda = @trace(Gen.exponential(lambda_prior_param), :lambda)
+    lambda = @trace(Gen.uniform(0.0, lambda_max), :lambda)
 
     adj = @trace(graph_edge_prior(reference_adj, lambda), :adjacency)
     adj = convert_to_vec(adj) 
 
     V = length(Xplus)
     Xpl = @trace(generate_Xplus(Xminus_stacked, collect(1:V),
-                                adj, fill(regression_deg, V), fill(phi_ratio, V)), :Xplus)
+                                adj, fill(regression_deg, V)), :Xplus)
     return Xpl
 
 end
