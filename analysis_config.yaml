@@ -1,0 +1,31 @@
+simulation_study:
+        # the grid of simulated datasets
+        simulation_grid:
+                V: [20, 100, 500, 1000]     # number of variables
+                D: [0.1, 0.25, 0.5, 0.75]   # graph modification distance
+                T: [0.5, 1.0, 2.0, 4.0]     # length of time series 
+                                            #     (fraction of V)
+        # Number of simulations at each grid point
+        N: 100
+
+sensitivity_analysis:
+        # the grid of MCMC hyperparameters
+        hyperparam_grid:
+                burnin: [10, 100, 200]
+                thinning: [10, 20, 30, 40]
+                n_samples: [100, 200, 500, 1000]
+                prior:
+                        lambda:
+                                uniform:
+                                        max: [10.0]
+                                exponential:
+                                        rate: [0.01, 0.05, 0.1, 0.5]
+                        graph:
+                                D: [0.1, 0.25, 0.5, 0.75] 
+        N: 100
+
+
+real_datasets:
+        - "data/hill2012_egfr/"
+        - "data/koksal2018_yeast/"
+
