@@ -71,17 +71,17 @@ end
 
 
 
-function build_reference_graph(vertices::Vector{T}, reference_adj::Array{Int,2}) where T
-    dg = PSDiGraph{T}()
-    for i=1:size(reference_adj)[1]
-        for j=1:size(reference_adj)[2]
-            if reference_adj[i,j] == 1
-                add_edge!(dg, vertices[i], vertices[j])
-            end
-        end
-    end
-    return dg
-end
+#function build_reference_graph(vertices::Vector{T}, reference_adj::Array{Int,2}) where T
+#    dg = PSDiGraph{T}()
+#    for i=1:size(reference_adj)[1]
+#        for j=1:size(reference_adj)[2]
+#            if reference_adj[i,j] == 1
+#                add_edge!(dg, vertices[i], vertices[j])
+#            end
+#        end
+#    end
+#    return dg
+#end
 
 """
 hill_2012_preprocess(timeseries_data_path,
@@ -115,8 +115,7 @@ end
 
 """
     load_simulated_data(timeseries_data_path::String,
-                        reference_graph_path::String,
-		        true_graph_path::String)
+                        reference_graph_path::String)
 
 Load data from files and convert to the types requisite
 for our probabilistic program.
@@ -125,19 +124,15 @@ This function assumes the data (time series and adjacency matrices)
 are stored in text-delimited files of the standard format.
 """
 function load_simulated_data(timeseries_data_path::String,
-		             reference_graph_path::String,
-		             true_graph_path::String)
+		             reference_graph_path::String)
 
     timeseries_df = CSV.read(timeseries_data_path)
     ts_vec = standard_timeseries_preprocess!(timeseries_df)
 
-    ref_adj_df = CSV.read(reference_graph_path)
+    ref_adj_df = CSV.read(reference_graph_path, header=false)
     ref_ps = standard_adjacency_preprocess!(ref_adj_df)
-    
-    true_adj_df = CSV.read(true_graph_path)
-    true_ps = standard_adjacency_preprocess!(true_adj_df)
-
-    return ts_vec, ref_ps, true_ps
+   
+    return ts_vec, ref_ps
 end
 
 

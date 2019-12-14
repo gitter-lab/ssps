@@ -5,29 +5,29 @@ using Combinatorics
 using LinearAlgebra
 import Gen: Distribution, random, logpdf
 
-"""
-    GraphPrior
+#"""
+#    GraphPrior
+#
+#Implementation of the graph prior described in
+#Hill et al. 2012:
+#    P(G) ~ exp(-lambda * |G \\ G'|)
+#"""
+#struct GraphPrior <: Distribution{PSDiGraph} end
+#const graphprior = GraphPrior()
+#
+#random(gp::GraphPrior, lambda::Float64, reference_graph::PSDiGraph) = reference_graph
+#
+#function graph_edge_diff(g::PSDiGraph, g_ref::PSDiGraph)
+#    e1 = edges(g)
+#    eref = edges(g_ref)
+#    #e1 = Set([g.edges[i,:] for i=1:size(g.edges)[1]])
+#    #e_ref = Set([g_ref.edges[i,:] for i=1:size(g_ref.edges)[1]])
+#    return length(setdiff(e1, eref))
+#end
 
-Implementation of the graph prior described in
-Hill et al. 2012:
-    P(G) ~ exp(-lambda * |G \\ G'|)
-"""
-struct GraphPrior <: Distribution{PSDiGraph} end
-const graphprior = GraphPrior()
+#logpdf(gp::GraphPrior, graph::PSDiGraph, lambda::Float64, reference_graph::PSDiGraph) = -lambda * graph_edge_diff(graph, reference_graph)
 
-random(gp::GraphPrior, lambda::Float64, reference_graph::PSDiGraph) = reference_graph
-
-function graph_edge_diff(g::PSDiGraph, g_ref::PSDiGraph)
-    e1 = edges(g)
-    eref = edges(g_ref)
-    #e1 = Set([g.edges[i,:] for i=1:size(g.edges)[1]])
-    #e_ref = Set([g_ref.edges[i,:] for i=1:size(g_ref.edges)[1]])
-    return length(setdiff(e1, eref))
-end
-
-logpdf(gp::GraphPrior, graph::PSDiGraph, lambda::Float64, reference_graph::PSDiGraph) = -lambda * graph_edge_diff(graph, reference_graph)
-
-graphprior(lambda::Float64, reference_graph::PSDiGraph) = random(graphprior, lambda, reference_graph);
+#graphprior(lambda::Float64, reference_graph::PSDiGraph) = random(graphprior, lambda, reference_graph);
 
 
 
@@ -153,9 +153,9 @@ function log_marg_lik(ind::Int64, parent_inds::Vector{Bool},
     return f1*log(1.0 + n) - 0.5*n*log( f2 - (n/(n+1.0))*f3 )
 end
 
-function get_parent_vecs(graph::PSDiGraph, vertices)
-    return [convert(Vector{Int64}, sort([indexin([n], vertices)[1] for n in in_neighbors(graph, v)])) for v in vertices]
-end
+#function get_parent_vecs(graph::PSDiGraph, vertices)
+#    return [convert(Vector{Int64}, sort([indexin([n], vertices)[1] for n in in_neighbors(graph, v)])) for v in vertices]
+#end
 
 #######################
 # END HELPER FUNCTIONS

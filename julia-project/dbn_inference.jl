@@ -24,17 +24,25 @@ function dbn_mcmc_inference(reference_adj::Vector{Vector{Bool}},
                             burnin::Int64, thinning::Int64,
 			    update_loop_fn::Function,
 			    update_results!::Function,
-			    lambda_prop_args::Tuple, 
-			    ps_prop_args::Tuple;
+			    lambda_prop_std::Float64;
 			    fixed_lambda::Float64=1.0,
 			    update_lambda::Bool=true,
 			    track_acceptance::Bool=false,
-			    update_acceptances!::Function=identity)
+			    update_acc_fn!::Function=identity)
 
     # Some data preprocessing
     Xminus, Xplus  = combine_X(X)
     Xminus_stacked, Xplus = vectorize_X(Xminus, Xplus)
 
+    # prepare some useful parameters
+    V = length(Xplus)
+    avg_parents = 1.0*sum([sum(ps) for ps in reference_adj]) / V
+    t = 1.0 / log2(V / avg_parents)
+    ps_prop_args = ((V, t), V)
+    lambda_prop_args = (lambda_prop_std,)
+    if regression_deg == -1
+        regression_deg = V
+    end
 
     # Condition the model on the data
     observations = Gen.choicemap()
@@ -54,11 +62,10 @@ function dbn_mcmc_inference(reference_adj::Vector{Vector{Bool}},
 				     lambda_max,
 				     regression_deg),
 			 observations)
-    
+   
     # The results we care about
     results = nothing
     acceptances = nothing
-    V = length(Xplus)
 
     # Burn in the Markov chain
     for i=1:burnin
@@ -155,14 +162,37 @@ function update_results_z_lambda!(results, tr, V)
     return results
 end
 
+
+function update_results_store_samples!(results, tr, V)
+
+    if results == nothing
+#        results = Dict("parent_sets" => Vector{Vector{Vector{Bool}}}(), 
+#		       "lambdas" => Vector{Float64}()
+#		       )
+        results = Dict("parent_sets" => [], 
+		       "lambdas" => []
+		       )
+    end
+    ps = [[tr[:adjacency => :edges => c => p => :z] for c=1:V] for p=1:V]
+    push!(results["parent_sets"], ps)
+    push!(results["lambdas"], tr[:lambda])
+
+    return results
+end
+
+
 function update_acc_z_lambda!(acceptances, acc, V)
 
     if acceptances == nothing
-        acceptances = ([0.0], zeros(V))
+        acceptances = Dict("lambdas" => 0, 
+			   "parent_sets" => zeros(V),
+			   "n_proposals" => 0
+			   )
     end
 
-    acceptances[1] .+= acc[1]
-    acceptances[2] .+= acc[2]
+    acceptances["n_proposals"] += 1
+    acceptances["lambdas"] += acc[1]
+    acceptances["parent_sets"] .+= acc[2]
 
     return acceptances
 end

@@ -1,3 +1,8 @@
+__precompile__()
+
+
+module DBNDataSim
+
 using Statistics
 using Distributions
 using Random
@@ -6,6 +11,7 @@ import LinearAlgebra: dot
 using CSV
 using DataFrames
 
+export generate_random_digraph, modify_and_simulate, save_dataset, save_graph 
 
 """
     generate_random_digraph(V::Int64, p::Float64)
@@ -54,7 +60,7 @@ end
 
 Modify a given graph
 """
-function modify_digraph!(ps::Vector{Vector{Bool}}, keep::Int64, add::Int64)
+function modify_digraph!(ps::Vector{Vector{Bool}}, remove::Float64, add::Float64)
 
     # get the indices of the original edges
     ps_idx = []
@@ -71,6 +77,7 @@ function modify_digraph!(ps::Vector{Vector{Bool}}, keep::Int64, add::Int64)
         
     # Randomly remove edges from the graph
     n_edges = length(ps_idx)
+    keep = Int64(round((1.0 - remove)*n_edges))
     to_remove = Random.randperm(n_edges)[1:max(n_edges - keep, 0)]
     for rm_idx in to_remove
         (i,j) = ps_idx[rm_idx]
@@ -79,7 +86,8 @@ function modify_digraph!(ps::Vector{Vector{Bool}}, keep::Int64, add::Int64)
     
     # Randomly add edges (from the complement)
     n_not_edges = length(not_ps_idx)
-    to_add = Random.randperm(n_not_edges)[1:add]
+    add = Int64(round(add*n_edges))
+    to_add = Random.randperm(n_not_edges)[1:min(add, n_not_edges)]
     for add_idx in to_add
         (i,j) = not_ps_idx[add_idx]
         ps[i][j] = true
@@ -221,16 +229,20 @@ end
 """
     modify_and_simulate(ref_ps::Vector{Vector{Bool}}, remove::Int64, add::Int64)
 
-Given a reference graph, create a modified version of it and then simulate a dataset
-from that modified graph.
+Given a reference graph, create a modified version of it 
+and then simulate a dataset from that modified graph.
+
+Modify the graph via `remove`ing a fraction of the current edges 
+and `add`ing a fraction of new edges.
 """
-function modify_and_simulate(ref_ps::Vector{Vector{Bool}}, keep::Int64, add::Int64, 
+function modify_and_simulate(ref_ps::Vector{Vector{Bool}}, remove::Float64, add::Float64, 
                              T::Int64, N::Int64,
                              coeff_std::Float64, 
                              regression_deg::Int64, regression_std::Float64)
-    
+   
+    V = size(ref_ps, 1)
     ref_ps_copy = [copy(ps) for ps in ref_ps]
-    modify_digraph!(ref_ps_copy, keep, add)
+    modify_digraph!(ref_ps_copy, remove, add)
     
     ds = generate_dataset(T, N, ref_ps_copy, coeff_std, regression_deg, regression_std) 
     
@@ -243,9 +255,10 @@ end
 function save_dataset(dataset::Vector{Array{Float64,2}}, file_name::String)
 
     V = size(dataset[1],2)
-    
+    ndigs = length(string(V))
+
     df = DataFrames.DataFrame(Dict([:timeseries=>Int[]; :timestep=>Int[]; 
-                                   [(Symbol("var",i)=>Float64[]) for i=1:V]]))    
+				    [(Symbol("var",lpad(i,ndigs,"0"))=>Float64[]) for i=1:V]]))    
     
     for (i, timeseries) in enumerate(dataset)
         for t=1:size(timeseries,1)
@@ -266,4 +279,6 @@ function save_graph(parent_sets::Vector{Vector{Bool}}, file_name::String)
               DataFrame(convert(Matrix{Int64}, hcat(parent_sets...)));
               delim=",", writeheader=false)
     
+end
+
 end
