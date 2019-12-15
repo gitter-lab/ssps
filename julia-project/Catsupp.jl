@@ -11,7 +11,7 @@ export dbn_mcmc_inference, load_simulated_data, update_results_z_lambda!,
        update_results_store_samples!, update_acc_z_lambda!, 
        adalasso_edge_recovery, clear_caches, ps_smart_swp_update_loop
 
-include("dbn_preprocessing.jl")
+include("dbn_preprocess.jl")
 include("dbn_models.jl")
 include("dbn_proposals.jl")
 include("dbn_inference.jl")
