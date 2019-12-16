@@ -194,6 +194,7 @@ function generate_time_series(parent_sets::Vector{Vector{Bool}},
     
     result = zeros(T, length(parent_sets))
     result[1,:] = initialize_time_series(length(parent_sets); init_std=regression_std)
+    #result[1,:] = initialize_time_series(length(parent_sets))
     
     for t=2:T
         result[t,:] = generate_next_timestep_data(result[t-1,:], parent_sets,

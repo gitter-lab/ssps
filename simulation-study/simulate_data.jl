@@ -12,8 +12,8 @@ regression_deg = parse(Int64, ARGS[6])
 ref_dg_filename = ARGS[7]
 true_dg_filename = ARGS[8]
 timeseries_filename = ARGS[9]
-coeff_std = 1.0/V
-regression_std = 1.0/V
+coeff_std = 1.0/sqrt(V)
+regression_std = 1.0/sqrt(T)
 
 ref_dg = generate_random_digraph(V,p)
 
