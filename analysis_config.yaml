@@ -2,28 +2,27 @@ simulation_study:
         # the grid of simulated datasets
         simulation_grid:
                 V: [20, 100, 500, 1000]     # number of variables
-                D: [0.1, 0.25, 0.5, 0.75]   # graph modification distance
-                T: [0.5, 1.0, 2.0, 4.0]     # length of time series 
-                                            #     (fraction of V)
+                R: [0.1, 0.25, 0.5]   # fraction of edges to remove
+                A: [0.1, 0.25, 0.5]   # fraction of new edges to add
+                T: [50, 100]                # length of time series 
         # Number of simulations at each grid point
         N: 100
 
-sensitivity_analysis:
-        # the grid of MCMC hyperparameters
-        hyperparam_grid:
-                burnin: [10, 100, 200]
-                thinning: [10, 20, 30, 40]
-                n_samples: [100, 200, 500, 1000]
-                prior:
-                        lambda:
-                                uniform:
-                                        max: [10.0]
-                                exponential:
-                                        rate: [0.01, 0.05, 0.1, 0.5]
-                        graph:
-                                D: [0.1, 0.25, 0.5, 0.75] 
-        N: 100
+# the grid of MCMC hyperparameters
+MCMC_hyperparams:
+    burnin: [10, 100, 200]
+    thinning: [10, 20, 30, 40]
+    n_samples: [100, 200, 500, 1000]
+    prior:
+        lambda:
+            uniform:
+                max: [10.0]
+            exponential:
+                rate: [0.01, 0.05, 0.1, 0.5]
 
+# the grid of Hill hyperparams
+Hill_hyperparams:
+    reg_mode: [1, 2, "full"] 
 
 real_datasets:
         - "data/hill2012_egfr/"

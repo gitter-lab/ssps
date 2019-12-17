@@ -9,8 +9,7 @@
 
 
 include("Catsupp.jl")
-import .Catsupp: parse_script_arguments, 
-                 perform_inference, make_output_json 
+using .Catsupp
  
 arg_vec = parse_script_arguments()
 perform_inference(arg_vec...)

@@ -12,9 +12,9 @@ Generic MCMC inference wrapper for DBN model.
 Some important arguments:
 * update_loop_fn: a function with signature
     (trace, acceptances) = update_loop_fn(trace, lambda_prop_args, ps_prop_args, fixed_lambda, update_lambda)
-* update_results!: a function with the signature
-    update_results!(results, trace)
-* update_results!    
+* update_results: a function with the signature
+    update_results(results, trace)
+* update_results    
 """
 function dbn_mcmc_inference(reference_adj::Vector{Vector{Bool}},
 			    X::Vector{Array{Float64,2}},
@@ -23,12 +23,12 @@ function dbn_mcmc_inference(reference_adj::Vector{Vector{Bool}},
                             n_samples::Int64,
                             burnin::Int64, thinning::Int64,
 			    update_loop_fn::Function,
-			    update_results!::Function,
+			    update_results::Function,
 			    lambda_prop_std::Float64;
 			    fixed_lambda::Float64=1.0,
 			    update_lambda::Bool=true,
 			    track_acceptance::Bool=false,
-			    update_acc_fn!::Function=identity)
+			    update_acc_fn::Function=identity)
 
     # Some data preprocessing
     Xminus, Xplus  = combine_X(X)
@@ -71,21 +71,21 @@ function dbn_mcmc_inference(reference_adj::Vector{Vector{Bool}},
     for i=1:burnin
         tr, acc = update_loop_fn(tr, lambda_prop_args, ps_prop_args, update_lambda) 
         if track_acceptance
-            acceptances = update_acceptances!(acceptances, acc, V)
+            acceptances = update_acceptances(acceptances, acc, V)
 	end
     end
-    results = update_results!(results, tr, V)
 
     # Perform sampling
+    results = update_results(results, tr, V, n_samples)
     for j=1:n_samples-1
 	# (with thinning)
         for k=1:thinning
             tr, acc = update_loop_fn(tr, lambda_prop_args, ps_prop_args, update_lambda)
             if track_acceptance
-                acceptances = update_acceptances!(acceptances, acc, V)
+                acceptances = update_acceptances(acceptances, acc, V)
 	    end
         end
-	results = update_results!(results, tr, V)
+	results = update_results(results, tr, V, n_samples)
     end
 
     return results, acceptances 
@@ -150,7 +150,7 @@ end
 """
 
 """
-function update_results_z_lambda!(results, tr, V)
+function update_results_z_lambda(results, tr, V, n_samples)
 
     if results == nothing
         results = (zeros(Float64, V, V), Vector{Float64}())
@@ -163,12 +163,35 @@ function update_results_z_lambda!(results, tr, V)
 end
 
 
-function update_results_store_samples!(results, tr, V)
+function update_results_split(results, tr, V, n_samples)
 
     if results == nothing
-#        results = Dict("parent_sets" => Vector{Vector{Vector{Bool}}}(), 
-#		       "lambdas" => Vector{Float64}()
-#		       )
+        results = Dict("i" => 1,
+		       "n_samples" => n_samples,
+		       "first_half" => Dict("parent_sets" => zeros(Float64, V, V),                                            "lambdas" => Vector{Float64}()
+					    ),
+		       "second_half" => Dict("parent_sets" => zeros(Float64, V, V),                                            "lambdas" => Vector{Float64}()
+					    )
+		       )
+    end
+
+    if results["i"] <= div(n_samples,2)
+	increment_counts!(results["first_half"]["parent_sets"], tr)
+	push!(results["first_half"]["lambdas"], tr[:lambda])
+    else
+	increment_counts!(results["second_half"]["parent_sets"], tr)
+	push!(results["second_half"]["lambdas"], tr[:lambda])
+    end
+
+    results["i"] += 1
+
+    return results
+end
+
+
+function update_results_store_samples(results, tr, V, n_samples)
+
+    if results == nothing
         results = Dict("parent_sets" => [], 
 		       "lambdas" => []
 		       )
@@ -181,7 +204,7 @@ function update_results_store_samples!(results, tr, V)
 end
 
 
-function update_acc_z_lambda!(acceptances, acc, V)
+function update_acc_z_lambda(acceptances, acc, V)
 
     if acceptances == nothing
         acceptances = Dict("lambdas" => 0, 

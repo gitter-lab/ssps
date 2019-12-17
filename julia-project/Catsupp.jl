@@ -7,9 +7,7 @@ using GLMNet
 using ArgParse
 using JSON
 
-export dbn_mcmc_inference, load_simulated_data, update_results_z_lambda!,
-       update_results_store_samples!, update_acc_z_lambda!, 
-       adalasso_edge_recovery, clear_caches, ps_smart_swp_update_loop
+export parse_script_arguments, perform_inference, make_output_json 
 
 include("dbn_preprocess.jl")
 include("dbn_models.jl")
@@ -142,24 +140,25 @@ function perform_inference(timeseries_filename::String,
     ts_vec, ref_ps = load_simulated_data(timeseries_filename, 
 					 ref_graph_filename) 
    
-    update_loop_fn = ps_smart_swp_update_loop 
 
     clear_caches()
-    
-    println("Invoking Catsupp on input files:\n\t", timeseries_filename, "\n\t", ref_graph_filename)
+    println("Invoking Catsupp on input files:\n\t", 
+	    timeseries_filename, "\n\t", ref_graph_filename)
+
     start_time = time()
     results, acc = dbn_mcmc_inference(ref_ps, ts_vec, 
 				      regression_deg, lambda_param,
                                       n_samples, burnin, thinning,
-			              update_loop_fn,
-			              update_results_store_samples!,
+			              ps_smart_swp_update_loop,
+			              update_results_split,
 				      lambda_prop_std;
 			              fixed_lambda=fixed_lambda,
 			              update_lambda=update_lambda,
 			              track_acceptance=track_acceptance,
-			              update_acc_fn! =update_acc_z_lambda!)
+			              update_acc_fn=update_acc_z_lambda)
     end_time = time()
     elapsed = end_time - start_time
+    
     js_string = make_output_json(results, acc, elapsed)
     f = open(output_json, "w")
     write(f, js_string)

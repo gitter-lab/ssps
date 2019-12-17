@@ -3,8 +3,10 @@
 # David Merrell
 #
 # Functions for postprocessing MCMC results.
-# We usually assume the results reside in a JSON
-# file.
+# We assume the results reside in a JSON
+# file. Samples are segregated into a "first_half"
+# and "second_half" for purposes of computing
+# R statistics (assessing mixing & stationarity).
 
 using JSON
 
@@ -18,11 +20,14 @@ function extract_samples(json_filename::String)
     close(f)
     d = JSON.parse(str)
 
-    ps_samples = [[[Bool(v) for v in row] for row in mat ] for mat in d["parent_sets"]]
-    
-    lambda_samples = [Float64(v) for v in d["lambdas"]]
+    ps_samples_1 = [[[Bool(v) for v in row] for row in mat ] for mat in d["first_half"]["parent_sets"]]
+    ps_samples_2 = [[[Bool(v) for v in row] for row in mat ] for mat in d["first_half"]["parent_sets"]]
+    lambda_samples_1 = [Float64(v) for v in d["first_half"]["lambdas"]]
+    lambda_samples_2 = [Float64(v) for v in d["second_half"]["lambdas"]]
 
-    return ps_samples, lambda_samples
+    n_samples = d["n_samples"]
+
+    return ps_samples_1, ps_samples_2, lambda_samples_1, lambda_samples_2, n_samples
 end
 
 
@@ -79,6 +84,26 @@ Compute the sample averages over a vector of MCMC results
 """
 function sample_mean(sample_vec::Vector)
     return myreduce(v->1.0*sum(v)/length(v), sample_vec) 
+end
+
+"""
+Compute a sample average from *counts*
+"""
+function count_mean(count_vec_1::Vector, count_vec_2::Vector,
+		    n_total::Int64)
+    return mymap(x->x/n_total, my_binop(+, count_vec_1, count_vec_2))
+end
+
+"""
+Compute a sample variance from *counts*
+"""
+function count_variance(count_vec_1::Vector, count_vec_2::Vector,
+			n_total::Int64)
+    n_plus = my_binop(+, count_vec_1, count_vec_2)
+    
+    return my_binop(*, mymap(x->1.0 - x/n_total, n_plus),
+		       mymap(x->x/(n_total-1.0), n_plus)
+		    )
 end
 
 """
