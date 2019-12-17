@@ -89,22 +89,10 @@ end
 """
 Compute a sample average from *counts*
 """
-function count_mean(count_vec_1::Vector, count_vec_2::Vector,
-		    n_total::Int64)
-    return mymap(x->x/n_total, my_binop(+, count_vec_1, count_vec_2))
+function count_mean(count_vec::Vector, n_total::Int64)
+    return mymap(x->x/n_total, count_vec)
 end
 
-"""
-Compute a sample variance from *counts*
-"""
-function count_variance(count_vec_1::Vector, count_vec_2::Vector,
-			n_total::Int64)
-    n_plus = my_binop(+, count_vec_1, count_vec_2)
-    
-    return my_binop(*, mymap(x->1.0 - x/n_total, n_plus),
-		       mymap(x->x/(n_total-1.0), n_plus)
-		    )
-end
 
 """
 Compute the sample variances over a vector of MCMC results
@@ -114,6 +102,17 @@ function sample_variance(sample_vec::Vector)
     centered = [mybinop(-, s, mu) for s in sample_vec]
     return myreduce(x->sum(abs2.(x))/(length(centered)-1.0), centered)
 end
+
+
+"""
+Compute a sample variance from *counts*
+"""
+function count_variance(count_vec::Vector, n_total::Int64)
+    return my_binop(*, mymap(x->1.0 - x/n_total, count_vec),
+		       mymap(x->x/(n_total-1.0), count_vec)
+		    )
+end
+
 
 """
 Split a vector of samples into first/second halves
@@ -133,11 +132,29 @@ function B_statistic(sequences::Vector{T}) where T
 end
 
 """
+Compute Between-sequence variance from *counts*
+"""
+function count_B_statistic(seq_counts::Vector{T}, seq_ns::Vector{Int64}) where T
+
+    seq_means = [count_mean(c, seq_ns[i]) for (i,c) in enumerate(seq_counts)]
+    return sample_variance(seq_means)    
+end
+
+"""
 Compute the Within-sequence variance (precursor to R statistic)
 """
 function W_statistic(sequences::Vector{T}) where T
     
     seq_vars = [sample_variance(s) for s in sequences]
+    return sample_mean(seq_vars)
+end
+
+"""
+Compute the Within-sequence variance (precursor to R statistic) using *counts*
+"""
+function count_W_statistic(seq_counts::Vector{T}, seq_ns::Vector{Int64}) where T
+
+    seq_vars = [count_variance(c, seq_ns[i]) for (i,c) in enumerate(seq_counts)]
     return sample_mean(seq_vars)
 end
 
@@ -154,6 +171,20 @@ function _R_stat(sequences::Vector{T}) where T
     return mymap(x-> sqrt(1.0 - 1.0/n + x),
 		     mybinop(/, B, W)
 		 )
+end
+
+
+"""
+Compute the R statistic for a collection of sequences -- from *counts*.
+"""
+function _count_R_stat(seq_counts::Vector{T}, seq_ns::Vector{Float64}) where T
+
+    B = count_B_statistic(seq_counts, seq_ns)
+    W = count_W_statistic(seq_counts, seq_ns)
+    n = seq_ns[1]
+    return mymap(x-> sqrt(1.0 - 1.0/n + x),
+                     mybinop(/, B, W)
+                 )
 end
 
 
