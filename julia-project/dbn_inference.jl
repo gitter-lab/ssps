@@ -71,7 +71,7 @@ function dbn_mcmc_inference(reference_adj::Vector{Vector{Bool}},
     for i=1:burnin
         tr, acc = update_loop_fn(tr, lambda_prop_args, ps_prop_args, update_lambda) 
         if track_acceptance
-            acceptances = update_acceptances(acceptances, acc, V)
+            acceptances = update_acc_fn(acceptances, acc, V)
 	end
     end
 
@@ -82,7 +82,7 @@ function dbn_mcmc_inference(reference_adj::Vector{Vector{Bool}},
         for k=1:thinning
             tr, acc = update_loop_fn(tr, lambda_prop_args, ps_prop_args, update_lambda)
             if track_acceptance
-                acceptances = update_acceptances(acceptances, acc, V)
+                acceptances = update_acc_fn(acceptances, acc, V)
 	    end
         end
 	results = update_results(results, tr, V, n_samples)
@@ -168,9 +168,11 @@ function update_results_split(results, tr, V, n_samples)
     if results == nothing
         results = Dict("i" => 1,
 		       "n_samples" => n_samples,
-		       "first_half" => Dict("parent_sets" => zeros(Float64, V, V),                                            "lambdas" => Vector{Float64}()
+		       "first_half" => Dict("parent_sets" => zeros(Float64, V, V),
+                                    "lambdas" => Vector{Float64}()
 					    ),
-		       "second_half" => Dict("parent_sets" => zeros(Float64, V, V),                                            "lambdas" => Vector{Float64}()
+		       "second_half" => Dict("parent_sets" => zeros(Float64, V, V),
+                                     "lambdas" => Vector{Float64}()
 					    )
 		       )
     end

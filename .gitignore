@@ -18,6 +18,9 @@
 
 # bulky stuff
 *.zip
+*.csv
+*.tsv
 
 # Julia stuff
 *Manifest.toml
+

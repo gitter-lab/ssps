@@ -29,15 +29,12 @@ function make_output_json(results, acc, elapsed)
 		   )
     end
 
-    d = Dict("parent_sets"=> results["parent_sets"],
-             "lambdas"=> results["lambdas"],
-	     "parent_sets_acc" => acc["parent_sets"],
-	     "lambdas_acc" => acc["lambdas"],
-	     "n_proposals" => acc["n_proposals"],
-             "time"=> elapsed
-	     )
+    results["parent_sets_acc"] = acc["parent_sets"]
+	results["lambdas_acc"] = acc["lambdas"]
+	results["n_proposals"] = acc["n_proposals"]
+    results["time"] = elapsed
 
-    return JSON.json(d)
+    return JSON.json(results)
 end
 
 
@@ -69,31 +66,31 @@ function parse_script_arguments()
             help = "number of thinning proposals to make"
     	    arg_type = Int
     	    required = true
-        "--fixed_lambda"
+        "--fixed-lambda"
             help = "If we give lambda a fixed value, this is that value."
     	    arg_type = Float64
     	    default = -1.0
-        "--lambda_prior"
+        "--lambda-prior"
             help = "kind of prior distribution for lambda variable"
     	    default = "uniform"
-	    range_tester = x -> x in ["uniform"; "exponential"]
-        "--lambda_param"
+	        range_tester = x -> x in ["uniform"; "exponential"]
+        "--lambda-param"
             help = "hyperparameter for lambda prior"
     	    default = 10.0
-        "--regression_deg"
-	    help = "regression polynomial degree in Gaussian DBN (default: full)"
-	    arg_type = Int64
+        "--regression-deg"
+	        help = "regression polynomial degree in Gaussian DBN (default: full)"
+	        arg_type = Int64
     	    default = -1 
-        "--lambda_prop_std"
+        "--lambda-prop-std"
             help = "standard deviation of lambda's proposal distribution"
     	    default = 0.5
-        "--parent_prop"
+        "--parent-prop"
             help = "the kind of proposal distribution to use for parent sets"
     	    default = "smart"
-	    range_tester = x -> x in ["smart", "dumb"]
-	"--track_acceptance"
-	    help = "flag: track proposal acceptance rates during MCMC"
-	    action = :store_true
+	        range_tester = x -> x in ["smart", "dumb"]
+	    "--track-acceptance"
+	        help = "flag: track proposal acceptance rates during MCMC"
+	        action = :store_true
     end
 
     args = parse_args(s)
