@@ -20,6 +20,7 @@
 *.zip
 *.csv
 *.tsv
+*.json
 
 # Julia stuff
 *Manifest.toml

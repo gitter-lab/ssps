@@ -38,13 +38,13 @@ discretize_time_series <- function(ts_df){
     ncols = dim(ts_df)[2]
     for (i in 1:ncols){
 
-	# Use Mclust to estimate a number of quantization levels
+    # Use Mclust to estimate a number of quantization levels
         mcl_result = Mclust(ts_df[,i])
         quanta = ifelse(mcl_result$G == 1, 3, mcl_result$G)
 
         # Use Ckmeans.1d.dp to discretize each column
-	ckm_result = Ckmeans.1d.dp(ts_df[,i], k=quanta)
-	ts_df[,i] = ckm_result$cluster
+    ckm_result = Ckmeans.1d.dp(ts_df[,i], k=quanta)
+    ts_df[,i] = ckm_result$cluster
     }
 
     ts_df
@@ -64,19 +64,20 @@ run_funchisq <- function(discretized_df){
     for (parent in 1:nvars){
         for (child in 1:nvars){
             contingency = table(discretized_df[,parent],
-				discretized_df[,child])
+                                discretized_df[,child])
 
             fcsq_result = fun.chisq.test(contingency, method="nfchisq")
 
-	    fcsq_statistics[parent,child] = fcsq_result$statistic
-	    fcsq_p_values[parent,child] = fcsq_result$p.value
+            fcsq_statistics[parent,child] = fcsq_result$statistic
+            fcsq_p_values[parent,child] = fcsq_result$p.value
             fcsq_estimates[parent,child] = fcsq_result$estimate
-	}
+    }
     }
 
     return(list("statistic"=fcsq_statistics, 
-		"value"=fcsq_p_values, 
-		"estimate"=fcsq_estimates))
+                "value"=fcsq_p_values, 
+                "edge_conf_key"="value",
+                "estimate"=fcsq_estimates))
 
 }
 

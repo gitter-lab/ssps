@@ -164,8 +164,12 @@ function perform_inference(timeseries_filename::String,
 
 end
 
-
-
-
+# main function -- for purposes of static compilation
+Base.@ccallable function julia_main(args::Vector{String})::Cint
+    arg_vec = parse_script_arguments()
+    perform_inference(arg_vec...)
+    return 0
 end
 
+# END MODULE
+end

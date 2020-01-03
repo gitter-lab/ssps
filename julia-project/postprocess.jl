@@ -270,6 +270,7 @@ function postprocessor(args::Vector{String})
     # compute the means of posterior estimands
     postprocessed["ps_mean"] = count_mean(summed_ps, summed_ns)
     postprocessed["lambda_mean"] = summed_lambdas / summed_ns
+    postprocessed["edge_conf_key"] = "ps_mean"
 
     # compute the variances of posterior estimands
     if !arg_dict["skip-var"]

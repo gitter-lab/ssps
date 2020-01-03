@@ -42,8 +42,8 @@ end
 
 function write_to_file(output_filename, edge_probs, sign_mat, chosen_lambda, elapsed)
 
-    m = containers.Map({'edges', 'signs', 'lambda', 'time'},...
-                       {edge_probs, sign_mat, chosen_lambda, elapsed});
+    m = containers.Map({'edges', 'signs', 'lambda', 'time', 'edge_conf_key'},...
+                       {edge_probs, sign_mat, chosen_lambda, elapsed, 'edges'});
     
     js = jsonencode(m);
     fid = fopen(output_filename, 'w');

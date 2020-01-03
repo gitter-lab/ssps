@@ -1,18 +1,30 @@
 simulation_study:
         # the grid of simulated datasets
         simulation_grid:
-                V: [20, 100, 500, 1000]     # number of variables
-                R: [0.1, 0.25, 0.5]   # fraction of edges to remove
-                A: [0.1, 0.25, 0.5]   # fraction of new edges to add
-                T: [50, 100]                # length of time series 
+                V: [20, 100, 1000]     # number of variables
+                R: [0.1, 0.25, 0.5]         # fraction of edges to remove
+                A: [0.1, 0.25, 0.5]         # fraction of new edges to add
+                M: [4]                      # number of time series
+                T: [10, 100]                # length of each time series 
         # Number of simulations at each grid point
-        N: 100
+        N: 10
+        # directory structure for the files generated during the study
+        dirs:
+            timeseries: "simulation-study/timeseries"
+            true_adj: "simulation-study/true_adj"
+            ref_adj: "simulation-study/ref_adj"
+            mcmc_raw_preds: "simulation-study/mcmc_raw"
+            mcmc_preds: "simulation-study/mcmc"
+            funchisq_preds: "simulation-study/funchisq"
+            hill_preds: "simulation-study/hill"
+            lasso_preds: "simulation-study/lasso"
+
 
 # the grid of MCMC hyperparameters
 MCMC_hyperparams:
-    burnin: [10, 100, 200]
-    thinning: [10, 20, 30, 40]
-    n_samples: [100, 200, 500, 1000]
+    burnin: [10, 100]
+    thinning: [10, 100]
+    n_samples: [100, 1000]
     prior:
         lambda:
             uniform:
