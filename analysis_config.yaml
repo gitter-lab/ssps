@@ -29,8 +29,8 @@ MCMC_hyperparams:
         lambda:
             uniform:
                 max: [10.0]
-            exponential:
-                rate: [0.01, 0.05, 0.1, 0.5]
+                #            exponential:
+                #rate: [0.01, 0.05, 0.1, 0.5]
 
 # the grid of Hill hyperparams
 Hill_hyperparams:
@@ -39,4 +39,7 @@ Hill_hyperparams:
 real_datasets:
         - "data/hill2012_egfr/"
         - "data/koksal2018_yeast/"
+
+timeout: 1800 #seconds == 30 minutes
+
 

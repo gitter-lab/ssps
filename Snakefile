@@ -1,5 +1,5 @@
 # Snakefile
-# 2019-01
+# 2019-12
 # David Merrell
 #
 # This snakemake file manages the execution of all 
@@ -31,6 +31,7 @@ JULIAC_PATH = glob.glob(os.path.join(os.environ["HOME"],
 SIM_REPLICATES = list(range(config["simulation_study"]["N"]))
 SIM_GRID = config["simulation_study"]["simulation_grid"]
 SIM_DIRS = config["simulation_study"]["dirs"]
+M = SIM_GRID["M"]
 
 #############################
 # HELPER FUNCTIONS
@@ -52,11 +53,13 @@ get_scoring_preds = lambda wildcards, dirpath: get_scoring_inputs(wildcards, dir
 rule simulation_study:
     input:
         expand("simulation-study/scores/mcmc/{v}_{r}_{a}_{t}.json", 
-                v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]) 
+                v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]), 
         expand("simulation-study/scores/funchisq/{v}_{r}_{a}_{t}.json",
+                v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
+        expand("simulation-study/scores/hill/{v}_{r}_{a}_{t}.json",   
                 v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"])
-        #expand("simulation-study/scores/hill/{}_{}_{}_{}.json")   # TODO hill scores
-        #expand("simulation-study/scores/lasso/{}_{}_{}_{}.json"), # TODO lasso scores
+        expand("simulation-study/scores/lasso/{v}_{r}_{a}_{t}.json",
+                v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"])
 
 rule simulate_data:
     input:
@@ -74,19 +77,18 @@ rule score_sim_mcmc:
     input:
         "builddir/scoring",
         tr_dg_fs=lambda wildcards: get_scoring_inputs(wildcards, "simulation-study/true_dags", "csv"), 
-        pp_res=lambda wildcards: get_scoring_inputs(wildcards, "simulation-study/mcmc_postprocess", "json"), 
+        pp_res=lambda wildcards: get_scoring_inputs(wildcards, "simulation-study/pred/mcmc", "json"), 
     output:
-        out="simulation-study/scores/mcmc/{v}_{r}_{a}_{t}.json" # TODO MCMC scores
+        out="simulation-study/scores/mcmc/{v}_{r}_{a}_{t}.json" 
     shell:
         "builddir/scoring --truths {input.tr_dg_fs} --preds {input.pp_res} --out {output.out}"
-
 
 rule postprocess_sim_mcmc:
     input:
         "builddir/postprocess",
-        raw="simulation-study/raw_mcmc/{v}_{r}_{a}_{t}_{n}.json"
+        raw="simulation-study/raw/mcmc/{v}_{r}_{a}_{t}_{n}.json"
     output:
-        out=temp("simulation-study/mcmc_postprocess/{v}_{r}_{a}_{t}_{n}.json")
+        out=temp("simulation-study/pred/mcmc/{v}_{r}_{a}_{t}_{n}.json")
     shell:
         "builddir/postprocess {input.raw} {output.out}"
 
@@ -96,7 +98,7 @@ rule perform_sim_mcmc:
         ts_file="simulation-study/timeseries/{v}_{r}_{a}_{t}_{n}.tsv",
         ref_dg="simulation-study/ref_dags/{v}_{r}_{a}_{t}_{n}.csv",
     output:
-        out=temp("simulation-study/raw_mcmc/{v}_{r}_{a}_{t}_{n}.json")
+        out=temp("simulation-study/raw/mcmc/{v}_{r}_{a}_{t}_{n}.json")
     shell:
         "{input.method} {input.ts_file} {input.ref_dg} {output.out}"
 
@@ -106,15 +108,23 @@ rule perform_sim_mcmc:
 #####################
 # FUNCHISQ JOBS
 rule score_sim_funchisq:
-    input:
+    input: 
+        "builddir/scoring",
+        tr_dg_fs=lambda wildcards: get_scoring_inputs(wildcards, "simulation-study/true_dags", "csv"), 
+        pp_res=lambda wildcards: get_scoring_inputs(wildcards, "simulation-study/pred/funchisq", "json"), 
     output:
         "simulation-study/scores/funchisq/{v}_{r}_{a}_{t}.json"
     shell:
+        "builddir/scoring --truths {input.tr_dg_fs} --preds {input.pp_res} --out {output.out}"
 
-rule perform_funchisq:
-    input:
+rule perform_sim_funchisq:
+    input: 
+        "funchisq/funchisq_wrapper.R",
+        ts_file="simulation-study/timeseries/{v}_{r}_{a}_{t}_{n}.tsv",
     output:
+        temp("simulation-study/pred/funchisq/{v}_{r}_{a}_{t}_{n}.json")
     shell:
+        "Rscript funchisq/funchisq_wrapper.R {ts_file} {output}"
 
 # END FUNCHISQ JOBS
 #####################
@@ -123,16 +133,22 @@ rule perform_funchisq:
 # HILL JOBS
 rule score_sim_hill:
     input:
+        "builddir/scoring",
+        tr_dg_fs=lambda wildcards: get_scoring_inputs(wildcards, "simulation-study/true_dags", "csv"), 
+        pp_res=lambda wildcards: get_scoring_inputs(wildcards, "simulation-study/pred/hill", "json"), 
     output:
         "simulation-study/scores/hill/{v}_{r}_{a}_{t}.json"
     shell:
-        ""
+        "builddir/scoring --truths {input.tr_dg_fs} --preds {input.pp_res} --out {output.out}"
 
 rule perform_hill:
     input:
+        "hill-method/hill_dbn_wrapper.m"
+        ts_file="simulation-study/timeseries/{v}_{r}_{a}_{t}_{n}.tsv",
     output:
+        temp("simulation-study/pred/hill/{v}_{r}_{a}_{t}_{n}.json")
     shell:
-        ""
+        "matlab hill-method/hill_dbn_wrapper.m {input.ts_file} {input.ref_dg}"
 
 # END HILL JOBS
 #####################
@@ -147,7 +163,7 @@ rule score_sim_lasso:
     shell:
         ""
 
-rule perform_hill:
+rule perform_lasso:
     input:
         ""
     output:
