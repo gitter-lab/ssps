@@ -1,4 +1,4 @@
-function hill_dbn_wrapper(timeseries_filename, ref_graph_filename, output_filename, max_indegree, reg_mode)
+function hill_dbn_wrapper(timeseries_filename, ref_graph_filename, output_filename, max_indegree, reg_mode, timeout)
 %hill_dbn_wrapper Wraps around the dynamic_network_inference code from Hill
 %et al. 2012.
 %   Detailed explanation goes here
@@ -8,12 +8,12 @@ function hill_dbn_wrapper(timeseries_filename, ref_graph_filename, output_filena
     lambdas = 0.5:0.5:10.0;
     
     tic;
-    [edge_probs, sign_mat, chosen_lambda] = dynamic_network_inference(ts_mat,...
+    [edge_probs, sign_mat, chosen_lambda, timed_out] = dynamic_network_inference(ts_mat,...
                                                        max_indegree, ref_adj,... 
-                                                       lambdas, reg_mode, 1, 0);
+                                                       lambdas, reg_mode, 1, 0, timeout);
     elapsed = toc;
-    
-    write_to_file(output_filename, edge_probs, sign_mat, chosen_lambda, elapsed)
+
+    write_to_file(output_filename, edge_probs, sign_mat, chosen_lambda, elapsed, write_to_file)
 
 end
 
@@ -40,10 +40,10 @@ function ref_adj = read_graph_file(graph_filename)
 end
 
 
-function write_to_file(output_filename, edge_probs, sign_mat, chosen_lambda, elapsed)
+function write_to_file(output_filename, edge_probs, sign_mat, chosen_lambda, elapsed, timed_out)
 
-    m = containers.Map({'edges', 'signs', 'lambda', 'time', 'edge_conf_key'},...
-                       {edge_probs, sign_mat, chosen_lambda, elapsed, 'edges'});
+    m = containers.Map({'edges', 'signs', 'lambda', 'time', 'edge_conf_key', 'timed_out'},...
+                       {edge_probs, sign_mat, chosen_lambda, elapsed, 'edges', timed_out});
     
     js = jsonencode(m);
     fid = fopen(output_filename, 'w');
