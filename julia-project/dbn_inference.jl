@@ -20,15 +20,19 @@ function dbn_mcmc_inference(reference_adj::Vector{Vector{Bool}},
 			    X::Vector{Array{Float64,2}},
                             regression_deg::Int64,
 			    lambda_max::Float64,
-                            n_samples::Int64,
-                            burnin::Int64, thinning::Int64,
+                            n_samples_v::Vector{Int64},
+                            burnin_v::Vector{Int64}, thinning_v::Vector{Int64},
 			    update_loop_fn::Function,
 			    update_results::Function,
 			    lambda_prop_std::Float64;
 			    fixed_lambda::Float64=1.0,
 			    update_lambda::Bool=true,
 			    track_acceptance::Bool=false,
-			    update_acc_fn::Function=identity)
+			    update_acc_fn::Function=identity,
+                            timeout::Float64=Inf)
+
+    # start the timer
+    t_start = time()
 
     # Some data preprocessing
     Xminus, Xplus  = combine_X(X)
@@ -67,25 +71,24 @@ function dbn_mcmc_inference(reference_adj::Vector{Vector{Bool}},
     results = nothing
     acceptances = nothing
 
-    # Burn in the Markov chain
-    for i=1:burnin
-        tr, acc = update_loop_fn(tr, lambda_prop_args, ps_prop_args, update_lambda) 
+    # Run the markov chain
+    while true
+
+        # update the variables    
+        tr, acc = update_loop_fn(tr, lambda_prop_args, ps_prop_args, update_lambda)
         if track_acceptance
             acceptances = update_acc_fn(acceptances, acc, V)
-	end
-    end
-
-    # Perform sampling
-    results = update_results(results, tr, V, n_samples)
-    for j=1:n_samples-1
-	# (with thinning)
-        for k=1:thinning
-            tr, acc = update_loop_fn(tr, lambda_prop_args, ps_prop_args, update_lambda)
-            if track_acceptance
-                acceptances = update_acc_fn(acceptances, acc, V)
-	    end
         end
-	results = update_results(results, tr, V, n_samples)
+
+        # update the results
+        t_elapsed = time() - t_start
+        results = update_results(results, tr, V, n_samples_v, burnin_v, thinning_v, t_elapsed)
+        
+        # check for termination
+        if results["is_finished"] || (t_elapsed > timeout)
+            results["elapsed"] = t_elapsed
+            break
+        end
     end
 
     return results, acceptances 
@@ -140,7 +143,6 @@ function ps_smart_swp_update_loop(tr, lambda_prop_args::Tuple, # (lambda_step,)
         tr, acc_vec[i] = Gen.mh(tr, parentvec_smart_swp_proposal,
 				(i, ps_prop_args...),
 				parentvec_smart_swp_involution)
-				#check_round_trip=true)
     end
 
     return tr, (lambda_acc, acc_vec)
@@ -163,33 +165,67 @@ function update_results_z_lambda(results, tr, V, n_samples)
 end
 
 
-function update_results_split(results, tr, V, n_samples)
+function update_results_split(results, tr, V, n_samples_v, burnin_v, thinning_v, t_elapsed)
 
+    # Initialize the results 
+    # (if they haven't been already)
     if results == nothing
-        results = Dict("i" => 1,
-		       "n_samples" => n_samples,
-		       "first_half" => Dict("parent_sets" => zeros(Float64, V, V),
-                                    "lambdas" => Vector{Float64}()
-					    ),
-		       "second_half" => Dict("parent_sets" => zeros(Float64, V, V),
-                                     "lambdas" => Vector{Float64}()
-					    )
-		       )
+        results = initialize_results_split(V, n_samples_v, burnin_v, thinning_v)
     end
 
-    if results["i"] <= div(n_samples,2)
-	increment_counts!(results["first_half"]["parent_sets"], tr)
-	push!(results["first_half"]["lambdas"], tr[:lambda])
-    else
-	increment_counts!(results["second_half"]["parent_sets"], tr)
-	push!(results["second_half"]["lambdas"], tr[:lambda])
-    end
+    # for each combination of N, burnin, and thinning, update the results
+    for (n,b,t) in keys(results["splits"])
+        if (results["steps"] % t == 0) && (results["steps"] >= b) && (results["steps"] < results["splits"][(n,b,t)]["max_steps"])
+            if results["splits"][(n,b,t)][1]["n"] < div(n,2)
+                increment_counts!(results["splits"][(n,b,t)][1]["parent_sets"], tr)
+                push!(results["splits"][(n,b,t)][1]["lambdas"], tr[:lambda])
+                results["splits"][(n,b,t)][1]["n"] += 1
+            else
+                increment_counts!(results["splits"][(n,b,t)][2]["parent_sets"], tr)
+                push!(results["splits"][(n,b,t)][2]["lambdas"], tr[:lambda])
+                results["splits"][(n,b,t)][2]["n"] += 1
+            end
+            results["splits"][(n,b,t)]["time"] = t_elapsed
+        end
 
-    results["i"] += 1
+    end
+    results["steps"] += 1
+    
+    if results["steps"] >= results["max_steps"]
+        results["is_finished"] = true
+    end
 
     return results
 end
 
+function initialize_results_split(V, n_samples_v, burnin_v, thinning_v)
+   
+   results = Dict()
+   results["steps"] = 0
+   results["is_finished"] = false
+   results["max_steps"] = maximum(n_samples_v)*maximum(thinning_v) + maximum(burnin_v)
+   results["splits"] = Dict()
+
+   for n in n_samples_v
+       for b in burnin_v
+           for t in thinning_v
+               results["splits"][(n,b,t)] = Dict(
+                                          1 => Dict("parent_sets" => zeros(Float64, V, V),
+                                                    "lambdas" => Vector{Float64}(),
+                                                    "n" => 0
+   	                             		    ),
+   	                                  2 => Dict("parent_sets" => zeros(Float64, V, V),
+                                                     "lambdas" => Vector{Float64}(),
+                                                     "n" => 0
+   	                             		    ),
+                                          "max_steps" => n*t + b,
+                                          "time" => 0.0
+   	                                         )
+           end
+       end
+   end
+   return results
+end
 
 function update_results_store_samples(results, tr, V, n_samples)
 

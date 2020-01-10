@@ -5,35 +5,22 @@ simulation_study:
                 R: [0.1, 0.25, 0.5]         # fraction of edges to remove
                 A: [0.1, 0.25, 0.5]         # fraction of new edges to add
                 M: [4]                      # number of time series
-                T: [10, 100]                # length of each time series 
+                T: [8, 20]                # length of each time series 
         # Number of simulations at each grid point
-        N: 10
-        # directory structure for the files generated during the study
-        dirs:
-            timeseries: "simulation-study/timeseries"
-            true_adj: "simulation-study/true_adj"
-            ref_adj: "simulation-study/ref_adj"
-            mcmc_raw_preds: "simulation-study/mcmc_raw"
-            mcmc_preds: "simulation-study/mcmc"
-            funchisq_preds: "simulation-study/funchisq"
-            hill_preds: "simulation-study/hill"
-            lasso_preds: "simulation-study/lasso"
-
+        N: 1
 
 # the grid of MCMC hyperparameters
-MCMC_hyperparams:
-    burnin: [10, 100]
-    thinning: [10, 100]
+mcmc_hyperparams:
     n_samples: [100, 1000]
-    prior:
-        lambda:
-            uniform:
-                max: [10.0]
-                #            exponential:
-                #rate: [0.01, 0.05, 0.1, 0.5]
+    thinning: [10,100]
+    burnin: [1000]
+    n_chains: 4
+    regression_deg: [1,2]
+    # we should plan on reporting the number of estimands
+    # with bad R-hat values.
 
 # the grid of Hill hyperparams
-Hill_hyperparams:
+hill_hyperparams:
     reg_mode: [1, 2, "full"] 
 
 real_datasets:
