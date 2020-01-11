@@ -86,11 +86,11 @@ rule simulate_data:
     input:
         simulator="builddir/simulate_data"
     output:
-        "simulation-study/timeseries/v={v}_r={r}_a={a}_t={t}_replicate={rep}.tsv",
-        "simulation-study/ref_dags/v={v}_r={r}_a={a}_t={t}_replicate={rep}.csv",
-        "simulation-study/true_dags/v={v}_r={r}_a={a}_t={t}_replicate={rep}.csv"
+        ts="simulation-study/timeseries/v={v}_r={r}_a={a}_t={t}_replicate={rep}.tsv",
+        ref="simulation-study/ref_dags/v={v}_r={r}_a={a}_t={t}_replicate={rep}.csv",
+        true="simulation-study/true_dags/v={v}_r={r}_a={a}_t={t}_replicate={rep}.csv"
     shell:
-        "{input.simulator} {wildcards.v} {wildcards.r} {wildcards.a} {wildcards.t}"
+        "{input.simulator} {wildcards.v} {wildcards.t} "+str(M)+" {wildcards.r} {wildcards.a} 3 {output.ref} {output.true} {output.ts}"
 
 ######################
 # MCMC JOBS
@@ -116,15 +116,21 @@ rule postprocess_sim_mcmc:
 rule perform_sim_mcmc:
     input:
         method="builddir/Catsupp",
-        ts_file="simulation-study/timeseries/v={v}_r={r}_a={a}_t={t}_replicate={rep}.tsv",
-        ref_dg="simulation-study/ref_dags/v={v}_r={r}_a={a}_t={t}_replicate={rep}.csv",
+        ts_file="simulation-study/timeseries/{replicate}.tsv",
+        ref_dg="simulation-study/ref_dags/{replicate}.csv",
     output:
         out=list(["simulation-study/raw/mcmc_d={d}_n="\
 			+str(n)+"_b="+str(b)+"_th="+str(th)\
-			+"/v={v}_r={r}_a={a}_t={t}_replicate={rep}_chain={c}.json"\
+			+"/{replicate}_chain={c}.json"\
 			for n in N_SAMPLES for b in BURNINS for th in THINNINGS])
     shell:
-        "{input.method} {input.ts_file} {input.ref_dg} simulation-study/raw/ --n_samples "+" ".join([str(i) for i in N_SAMPLES])+" --burnin "+" ".join([str(b) for b in BURNINS])+" --thinning "+" ".join([str(th) for th in THINNINGS])+" --regression-deg {wildcards.d}"
+        "{input.method} {input.ts_file} {input.ref_dg} simulation-study/raw/"\ 
+        +" {wildcards.replicate}_chain={wildcards.c}.json"\
+        +" --n-samples " + " ".join([str(i) for i in N_SAMPLES])\
+        +" --burnin "+ " ".join([str(b) for b in BURNINS])\
+        +" --thinning "+" ".join([str(th) for th in THINNINGS])\
+        +" --regression-deg {wildcards.d}"\
+        +" --timeout "+str(TIMEOUT)
         
 
 # END MCMC JOBS

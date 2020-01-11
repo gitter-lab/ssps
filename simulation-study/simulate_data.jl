@@ -10,8 +10,8 @@ Base.@ccallable function julia_main(ARGS::Vector{String})::Cint
 
     V = parse(Int64, ARGS[1])
     T = parse(Int64, ARGS[2])
-    p = parse(Float64, ARGS[3])
-    N = 1
+    p = 5.0/V # 5 parents on average
+    N = parse(Int64, ARGS[3]) 
     remove = parse(Float64, ARGS[4])
     add = parse(Float64, ARGS[5])
     regression_deg = parse(Int64, ARGS[6])

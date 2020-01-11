@@ -1,19 +1,19 @@
 simulation_study:
         # the grid of simulated datasets
         simulation_grid:
-                V: [20, 100, 1000]     # number of variables
+                V: [20, 100]     # number of variables
                 R: [0.1, 0.25, 0.5]         # fraction of edges to remove
                 A: [0.1, 0.25, 0.5]         # fraction of new edges to add
-                M: [4]                      # number of time series
+                M: 4                      # number of time series
                 T: [8, 20]                # length of each time series 
         # Number of simulations at each grid point
         N: 1
 
 # the grid of MCMC hyperparameters
 mcmc_hyperparams:
-    n_samples: [100, 1000]
-    thinning: [10,100]
-    burnin: [1000]
+    n_samples: [10, 100]
+    thinning: [1,10]
+    burnin: [10]
     n_chains: 4
     regression_deg: [1,2]
     # we should plan on reporting the number of estimands
@@ -27,6 +27,7 @@ real_datasets:
         - "data/hill2012_egfr/"
         - "data/koksal2018_yeast/"
 
-timeout: 1800 #seconds == 30 minutes
+#timeout: 1800 #seconds == 30 minutes
+timeout: 60
 
 
