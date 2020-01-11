@@ -1,4 +1,4 @@
-function [edge_prob_matrix interaction_sign_matrix chosen_lambda] = dynamic_network_inference(D,max_in_degree,prior_graph,lambdas,reg_mode,stdise,silent)
+function [edge_prob_matrix interaction_sign_matrix chosen_lambda timed_out] = dynamic_network_inference(D,max_in_degree,prior_graph,lambdas,reg_mode,stdise,silent,timeout)
 % [edge_prob_matrix interaction_sign_matrix chosen_lambda] = ...
 %       dynamic_network_inference(D,max_in_degree,prior_graph,lambdas,reg_mode,stdise,silent)
 %
@@ -23,6 +23,7 @@ function [edge_prob_matrix interaction_sign_matrix chosen_lambda] = dynamic_netw
 %         Defaults to 1 if left empty ([]) or not input.
 % silent: Binary value. If 0, progress is displayed on command window.
 %         Defaults to 0 if left empty ([]) or not input.
+% timeout: numeric value -- number of seconds of runtime permitted.
 %
 % Outputs:
 % edge_prob_matrix: p x p matrix or cell array of p x p matrices. Entry (i,j) is exact posterior edge probability for edge
@@ -35,6 +36,17 @@ function [edge_prob_matrix interaction_sign_matrix chosen_lambda] = dynamic_netw
 %
 % version date: 31/7/12
 % � Steven Hill and Sach Mukherjee, 2012
+
+% Minor modifications made by David Merrell: 11/2019-01/2020
+
+% set some default return values (in case of timeout)
+edge_prob_matrix = cell(1,n_datasets);
+interaction_sign_matrix = cell(1,n_datasets);
+chosen_lambda = -1.0;
+timed_out = false;
+
+% start the clock
+t_start = cputime;
 
 % set default values and perform checks
 if nargin<7 || isempty(silent)
@@ -136,8 +148,13 @@ if do_EB
                 disp(txt{1})
             end
         end
-        EB_data{i} = empirical_Bayes(D{i},max_in_degree,prior_graph,lambdas,reg_mode,stdise,silent);
-        
+        EB_data{i}, tout = empirical_Bayes(D{i},max_in_degree,prior_graph,lambdas,reg_mode,stdise,silent, t_start, timeout);
+
+        if tout
+            timed_out = true;
+            return
+        end        
+
         EB_score = EB_score + EB_data{i}.EB_score;
     end
     idx = (EB_score==max(EB_score));
@@ -152,7 +169,13 @@ if do_EB
                 disp('Calculating posterior distribution over parent sets ...')
             end
         end
-        scores = posterior_scores(D{i},max_in_degree,prior_graph,chosen_lambda,reg_mode,stdise,silent,EB_data{i}.models,EB_data{i}.LL,EB_data{i}.Lpr_f);
+        scores, tout = posterior_scores(D{i},max_in_degree,prior_graph,chosen_lambda,reg_mode,stdise,silent,EB_data{i}.models,EB_data{i}.LL,EB_data{i}.Lpr_f, t_start, timeout);
+        
+        if tout
+            timed_out = true;
+            return
+        end        
+
         if ~silent
             if n_datasets>1
                 txt = strcat({'Calculating posterior edge probabilities for dataset '},int2str(i),{'...'});
@@ -161,7 +184,12 @@ if do_EB
                 disp('Calculating posterior edge probabilities...')
             end
         end
-        edge_prob_matrix{i} = edge_probabilities(scores,silent);
+        edge_prob_matrix{i}, tout = edge_probabilities(scores,silent,t_start, timeout);
+        if tout
+            timed_out = true;
+            return
+        end        
+
     end
     
 else
@@ -176,7 +204,11 @@ else
                 disp(strcat('Calculating posterior distribution over parent sets...'))
             end
         end
-        scores = posterior_scores(D{i},max_in_degree,prior_graph,chosen_lambda,reg_mode,stdise,silent,[],[],[]);
+        scores, tout = posterior_scores(D{i},max_in_degree,prior_graph,chosen_lambda,reg_mode,stdise,silent,[],[],[], t_start, timeout);
+        if tout
+            timed_out = true;
+            return
+        end        
         
         if ~silent
             if n_datasets>1
@@ -186,7 +218,12 @@ else
                 disp(strcat('Calculating posterior edge probabilities...'))
             end
         end
-        edge_prob_matrix{i} = edge_probabilities(scores,silent);
+        edge_prob_matrix{i}, tout = edge_probabilities(scores,silent, t_start, timeout);
+        
+        if tout
+            timed_out = true;
+            return
+        end        
     end
 end 
 
@@ -204,7 +241,9 @@ end
 
 end
 
-function EB_data = empirical_Bayes(D,max_in_degree,prior_graph,lambdas,reg_mode,stdise,silent)
+function EB_data, tout = empirical_Bayes(D,max_in_degree,prior_graph,lambdas,reg_mode,stdise,silent, t_start, timeout)
+
+tout = false;
 
 p = size(D,1)/2;
 n = size(D,2);
@@ -280,7 +319,13 @@ for i=1:n_models
             fprintf('%d %%..', completenew); completeold=completenew;
         end
     end
-    
+
+    % Check for timeout (DPM 2020)   
+    if cputime - t_start > timeout
+        tout = true;
+        return
+    end
+
 end
 
 
@@ -313,9 +358,10 @@ EB_data.models = models;  % parent sets
 fprintf('\n')
 end
 
-function scores = posterior_scores(D,max_in_degree,prior_graph,lambda,reg_mode,stdise,silent,models,LL,Lpr)
+function scores, tout = posterior_scores(D,max_in_degree,prior_graph,lambda,reg_mode,stdise,silent,models,LL,Lpr, t_start, timeout)
 % calculates posterior scores over parent sets for each variable
 
+tout = false;
 p = size(D,1)/2;
 n = size(D,2);
 
@@ -392,7 +438,14 @@ if isempty(models)
                 if rem(completenew,10)==0 && completeold~=completenew
                     fprintf('%d %%..', completenew); completeold=completenew;
                 end
-            end 
+            end
+ 
+            % Check for timeout (DPM 2020)   
+            if cputime - t_start > timeout
+                tout = true;
+                return
+            end
+
         end
     else
         for i=1:n_models
@@ -422,7 +475,15 @@ if isempty(models)
                 if rem(completenew,10)==0 && completeold~=completenew
                     fprintf('%d %%..', completenew); completeold=completenew;
                 end
-            end 
+            end
+
+            % Check for timeout (DPM 2020)   
+            if cputime - t_start > timeout
+                tout = true;
+                return
+            end
+
+ 
         end
     end
         
@@ -558,8 +619,9 @@ else
 end
 end
 
-function edge_prob_matrix = edge_probabilities(scores,silent)
+function edge_prob_matrix, tout = edge_probabilities(scores,silent, t_start, timeout)
 
+tout = false;
 p = size(scores.LL,2);
 
 edge_prob_matrix = zeros(p);
@@ -585,6 +647,11 @@ for s=1:p
         if rem(completenew,10)==0 && completeold~=completenew
             fprintf('%d %%..', completenew); completeold=completenew;
         end
+    end
+    % Check for timeout (DPM 2020)   
+    if cputime - t_start > timeout
+        tout = true;
+        return
     end
 end
 if ~silent
