@@ -21,6 +21,7 @@ mcmc_hyperparams:
 
 # the grid of Hill hyperparams
 hill_hyperparams:
+    max_indeg: [2, 5]
     reg_mode: [1, 2, "full"] 
 
 real_datasets:

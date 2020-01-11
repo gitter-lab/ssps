@@ -174,7 +174,8 @@ rule perform_hill:
     output:
         "simulation-study/pred/hill/v={v}_r={r}_a={a}_t={t}_replicate={rep}.json"
     shell:
-        "matlab hill-method/hill_dbn_wrapper.m {input.ts_file} {input.ref_dg}"
+        "matlab hill-method/hill_dbn_wrapper.m {input.ts_file} {input.ref_dg} {output}"\
+        +" "+str(HILL_MAX_INDEG)+" "str(HILL_REG_MODE)+" "+str(TIMEOUT)
 
 # END HILL JOBS
 #####################
