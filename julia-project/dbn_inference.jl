@@ -36,7 +36,7 @@ function dbn_mcmc_inference(reference_adj::Vector{Vector{Bool}},
 
     # Some data preprocessing
     Xminus, Xplus  = combine_X(X)
-    Xminus_stacked, Xplus = vectorize_X(Xminus, Xplus)
+    Xminus, Xplus = vectorize_X(Xminus, Xplus)
 
     # prepare some useful parameters
     V = length(Xplus)
@@ -61,7 +61,7 @@ function dbn_mcmc_inference(reference_adj::Vector{Vector{Bool}},
 
     # Generate an initial trace
     tr, _ = Gen.generate(dbn_model, (reference_adj, 
-				     Xminus_stacked, 
+				     Xminus, 
                                      Xplus, 
 				     lambda_max,
 				     regression_deg),

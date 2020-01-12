@@ -7,23 +7,6 @@
 include("dbn_distributions.jl")
 
 
-#@gen (static) function dbn_single_context(X::Vector{Array{Float64,2}}, reference_graph::PSDiGraph, deg_max::Int64)
-#
-#    V = sort(collect(vertices(reference_graph)))
-#    lambda = @trace(Gen.gamma(1,1), :lambda)
-#
-#    G = @trace(graphprior(lambda, reference_graph), :G)
-#
-#    parent_vecs = get_parent_vecs(G, V)
-#    Xcomb = combine_X(X)
-#    Xminus = Xcomb[1]
-#    Xplus = Xcomb[2]
-#
-#    @trace(dbnmarginal(parent_vecs, Xminus, Xplus, deg_max), :X)
-#
-#end
-
-
 ######################################
 # IMPLEMENTATION OF GRAPH PRIOR
 ######################################
@@ -31,78 +14,96 @@ include("dbn_distributions.jl")
 # P(G) \propto exp(-lambda * sum( z_ij, ij not in reference graph ))
 #
 
-"""
-Sample z_ij, a variable representing the existence of edge i-->j.
-"""
-@gen function sample_edge(ref_adj_entry::Bool, prob::Float64)
+#"""
+#Sample z_ij, a variable representing the existence of edge i-->j.
+#"""
+#@gen function sample_edge(ref_adj_entry::Bool, prob::Float64)
+#
+#    # If this edge is *in* the reference graph:
+#    if ref_adj_entry != 0
+#        z = @trace(Gen.bernoulli(0.5), :z)
+#    # If this edge is not in the reference graph:
+#    else
+#        z = @trace(Gen.bernoulli(prob), :z)
+#    end
+#
+#    return z
+#end
+#
+## Two `Map` applications generate an
+## entire adjacency matrix of sampled edges.
+## The first Map creates a single parent set.
+#sample_parents = Gen.Map(sample_edge)
+#sample_children = Gen.Map(sample_parents)
+#
+#
+#"""
+#Sample an adjacency matrix from the graph prior:
+#
+#P(G) propto exp(-lambda * sum( z_ij, ij not in reference graph ))
+#"""
+#@gen (static) function graph_edge_prior(reference_adj::Vector{Vector{Bool}}, lambda::Float64)
+#
+#    V = size(reference_adj)[1]
+#    enl = exp(-1.0*lambda)
+#    probs = fill(fill(enl/(1.0 + enl), V), V)
+#    edges = @trace(sample_children(reference_adj, probs), :edges)
+#
+#    return edges 
+#
+#end
 
-    # If this edge is *in* the reference graph:
-    if ref_adj_entry != 0
-        z = @trace(Gen.bernoulli(0.5), :z)
-    # If this edge is not in the reference graph:
-    else
-        z = @trace(Gen.bernoulli(prob), :z)
-    end
-
-    return z
+@gen (static) function sample_parents(V::Int64, ref_parents::Vector{Int64},
+                                                lambda::Float64)
+    parents = @trace(parentprior(V, ref_parents, lambda), :parents)
+    return parents
 end
-
-# Two `Map` applications generate an
-# entire adjacency matrix of sampled edges.
-# The first Map creates a single parent set.
-sample_parents = Gen.Map(sample_edge)
-sample_children = Gen.Map(sample_parents)
-
-"""
-Sample an adjacency matrix from the graph prior:
-
-P(G) propto exp(-lambda * sum( z_ij, ij not in reference graph ))
-"""
-@gen (static) function graph_edge_prior(reference_adj::Vector{Vector{Bool}}, lambda::Float64)
-
-    V = size(reference_adj)[1]
-    enl = exp(-1.0*lambda)
-    probs = fill(fill(enl/(1.0 + enl), V), V)
-    edges = @trace(sample_children(reference_adj, probs), :edges)
-
-    return edges 
-
-end
+graph_prior = Gen.Map(sample_parents)
 
 
 """
 
 """
-@gen (static) function generate_Xp(Xminus, ind, parents, regression_deg)
+@gen (static) function generate_Xp(ind, Xp_prev, Xminus, adj, regression_deg)
     return @trace(cpdmarginal(Xminus, ind, 
-                              parents, 
+                              adj[ind], 
 			      regression_deg), :Xp)
 end
+generate_Xplus = Gen.Unfold(generate_Xp)
 
-generate_Xplus = Gen.Map(generate_Xp)
+#function convert_to_vec(adj)::Vector{Vector{Bool}}
+#	return [[Bool(u) for u in v] for v in adj] 
+#end
 
-function convert_to_vec(adj)::Vector{Vector{Bool}}
-	return [[Bool(u) for u in v] for v in adj] 
+import Base: getindex, length
+
+mutable struct SingletonVec{T}
+    item::T
+    len::Int64
 end
+
+getindex(sa::SingletonVec, idx) = sa.item
+length(sa::SingletonVec) = sa.len
 
 """
 Model the data-generating process:
 P(X,G,lambda | G') = P(X|G) * P(G|lambda, G') * P(lambda)
 """
 @gen (static) function dbn_model(reference_adj::Vector{Vector{Bool}}, 
-				 Xminus_stacked::Vector{Array{Float64,2}}, 
+				 Xminus::Array{Float64,2}, 
 				 Xplus::Vector{Vector{Float64}},
 				 lambda_max::Float64,
 				 regression_deg::Int64)
 
     lambda = @trace(Gen.uniform(0.0, lambda_max), :lambda)
 
-    adj = @trace(graph_edge_prior(reference_adj, lambda), :adjacency)
-    adj = convert_to_vec(adj) 
-
     V = length(Xplus)
-    Xpl = @trace(generate_Xplus(Xminus_stacked, collect(1:V),
-                                adj, fill(regression_deg, V)), :Xplus)
+    Vvec = SingletonVec(V,V)
+    lambda_vec = SingletonVec(lambda,V)
+
+    parent_sets = @trace(graph_edge_prior(Vvec, reference_adj, lambda_vec), :parent_sets)
+
+    Xpl = @trace(generate_Xplus(V, Vector{Float64}(), Xminus, parent_sets, regression_deg), :Xplus)
     return Xpl
 
 end

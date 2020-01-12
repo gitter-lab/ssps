@@ -169,9 +169,8 @@ function vectorize_X(Xminus::Array{Float64,2},
 		     Xplus::Array{Float64,2})
     
     Xplus_v = [Xplus[:,i] for i=1:size(Xplus)[2]]
-    Xminus_stacked = fill(Xminus,size(Xminus)[2])
 
-    return Xminus_stacked, Xplus_v
+    return Xminus, Xplus_v
 
 end
 
