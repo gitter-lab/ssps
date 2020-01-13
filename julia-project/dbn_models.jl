@@ -64,24 +64,20 @@ graph_prior = Gen.Map(sample_parents)
 """
 
 """
-@gen (static) function generate_Xp(ind, Xp_prev, Xminus, adj, regression_deg)
+@gen (static) function generate_Xp(ind, Xp_prev, Xminus, parents, regression_deg)
     return @trace(cpdmarginal(Xminus, ind, 
-                              adj[ind], 
+                              parents[ind], 
 			      regression_deg), :Xp)
 end
 generate_Xplus = Gen.Unfold(generate_Xp)
 
-#function convert_to_vec(adj)::Vector{Vector{Bool}}
-#	return [[Bool(u) for u in v] for v in adj] 
-#end
 
+# This type helps us use the `Map` combinator efficiently
 import Base: getindex, length
-
 mutable struct SingletonVec{T}
     item::T
     len::Int64
 end
-
 getindex(sa::SingletonVec, idx) = sa.item
 length(sa::SingletonVec) = sa.len
 
@@ -89,7 +85,7 @@ length(sa::SingletonVec) = sa.len
 Model the data-generating process:
 P(X,G,lambda | G') = P(X|G) * P(G|lambda, G') * P(lambda)
 """
-@gen (static) function dbn_model(reference_adj::Vector{Vector{Bool}}, 
+@gen (static) function dbn_model(reference_adj::Vector{Vector{Int64}}, 
 				 Xminus::Array{Float64,2}, 
 				 Xplus::Vector{Vector{Float64}},
 				 lambda_max::Float64,
@@ -98,11 +94,13 @@ P(X,G,lambda | G') = P(X|G) * P(G|lambda, G') * P(lambda)
     lambda = @trace(Gen.uniform(0.0, lambda_max), :lambda)
 
     V = length(Xplus)
-    Vvec = SingletonVec(V,V)
-    lambda_vec = SingletonVec(lambda,V)
+    Vvec = SingletonVec(V, V)
+    lambda_vec = SingletonVec(lambda, V)
 
-    parent_sets = @trace(graph_edge_prior(Vvec, reference_adj, lambda_vec), :parent_sets)
+    parent_sets = @trace(graph_prior(Vvec, reference_adj, lambda_vec), :parent_sets)
 
+    #Xminus_vec = SingletonVec(Xminus, V)
+    #regdeg_vec = SingletonVec(regression_deg, V)
     Xpl = @trace(generate_Xplus(V, Vector{Float64}(), Xminus, parent_sets, regression_deg), :Xplus)
     return Xpl
 

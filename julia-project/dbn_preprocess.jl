@@ -54,19 +54,24 @@ end
 """
 
 Receive a dataframe containing an adjacency matrix,
-and return a Vector{Vector{Bool}} representing the 
+and return a Vector{Vector{Int64}} representing the 
 parent sets of the graph.
 """
 function standard_adjacency_preprocess!(adjacency_df)
 
-    parent_sets = Vector{Vector{Bool}}()
-
+    parent_vecs = Vector{Vector{Int64}}()
     adj_mat = convert(Matrix{Bool}, adjacency_df)
-    for j=1:size(adj_mat,2)
-        push!(parent_sets, adj_mat[:,j])
-    end
 
-    return parent_sets
+    for j=1:size(adj_mat,2)
+        ps = Vector{Int64}()
+        for i=1:size(adj_mat,1)
+            if adj_mat[i,j]
+                push!(ps, i)
+            end
+        end
+        push!(parent_vecs, ps)
+    end
+    return parent_vecs
 end
 
 

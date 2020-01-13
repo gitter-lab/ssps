@@ -16,12 +16,13 @@ Some important arguments:
     update_results(results, trace)
 * update_results    
 """
-function dbn_mcmc_inference(reference_adj::Vector{Vector{Bool}},
+function dbn_mcmc_inference(reference_parents::Vector{Vector{Int64}},
 			    X::Vector{Array{Float64,2}},
                             regression_deg::Int64,
 			    lambda_max::Float64,
                             n_samples_v::Vector{Int64},
-                            burnin_v::Vector{Int64}, thinning_v::Vector{Int64},
+                            burnin_v::Vector{Int64}, 
+                            thinning_v::Vector{Int64},
 			    update_loop_fn::Function,
 			    update_results::Function,
 			    lambda_prop_std::Float64;
@@ -40,10 +41,8 @@ function dbn_mcmc_inference(reference_adj::Vector{Vector{Bool}},
 
     # prepare some useful parameters
     V = length(Xplus)
-    avg_parents = 1.0*sum([sum(ps) for ps in reference_adj]) / V
-    t = 1.0 / log2(V / avg_parents)
-    ps_prop_args = ((V, t), V)
-    lambda_prop_args = (lambda_prop_std,)
+    ref_parent_counts = [max(length(ps),1) for ps in reference_parents]
+    proposal_param_vec = 1.0 ./ log2.(V ./ ref_parent_counts)
     if regression_deg == -1
         regression_deg = V
     end
@@ -60,7 +59,7 @@ function dbn_mcmc_inference(reference_adj::Vector{Vector{Bool}},
     end
 
     # Generate an initial trace
-    tr, _ = Gen.generate(dbn_model, (reference_adj, 
+    tr, _ = Gen.generate(dbn_model, (reference_parents, 
 				     Xminus, 
                                      Xplus, 
 				     lambda_max,
@@ -75,7 +74,7 @@ function dbn_mcmc_inference(reference_adj::Vector{Vector{Bool}},
     while true
 
         # update the variables    
-        tr, acc = update_loop_fn(tr, lambda_prop_args, ps_prop_args, update_lambda)
+        tr, acc = update_loop_fn(tr, lambda_prop_std, proposal_param_vec, update_lambda)
         if track_acceptance
             acceptances = update_acc_fn(acceptances, acc, V)
         end
@@ -98,50 +97,25 @@ end
 """
 Loop through the model variables and perform
 Metropolis-Hastings updates on them.
-Use a simple proposal that adds/removes vertices 
-from parent sets.
-"""
-function ps_update_loop(tr, lambda_prop_args::Tuple, ps_prop_args::Tuple, 
-			update_lambda::Bool)
-
-    lambda_acc = false
-    if update_lambda
-        tr, lambda_acc = Gen.mh(tr, lambda_proposal, lambda_prop_args)
-    end
-
-    V = ps_prop_args[1]
-    t_vec = ps_prop_args[2]
-    acc_vec = zeros(V)
-    for i=1:V
-        tr, acc_vec[i] = Gen.mh(tr, parentvec_proposal, 
-				(i, V, t_vec[i]), 
-                                parentvec_involution)
-    end
-
-    return tr, (lambda_acc, acc_vec)
-end
-
-
-"""
-Loop through the model variables and perform
-Metropolis-Hastings updates on them.
 Use a proposal distribution with add, remove, 
 and "parent swap" moves.
 """
-function ps_smart_swp_update_loop(tr, lambda_prop_args::Tuple, # (lambda_step,)
-				      ps_prop_args::Tuple, # ((V, t), V) 
+function ps_smart_swp_update_loop(tr, lambda_prop_std::Float64, 
+				      proposal_param_vec::Vector{Float64},
 				      update_lambda::Bool)
 
-    V = ps_prop_args[2]
+    #println("PROPOSAL_PARAM_VEC: ", proposal_param_vec)
+    V = length(proposal_param_vec)
+    #println("V: ", V)
     lambda_acc = false
     if update_lambda
-        tr, lambda_acc = Gen.mh(tr, lambda_proposal, lambda_prop_args)
+        tr, lambda_acc = Gen.mh(tr, lambda_proposal, (lambda_prop_std,))
     end
 
     acc_vec = zeros(V)
     for i=1:V
         tr, acc_vec[i] = Gen.mh(tr, parentvec_smart_swp_proposal,
-				(i, ps_prop_args...),
+				(i, proposal_param_vec[i], V),
 				parentvec_smart_swp_involution)
     end
 
@@ -227,21 +201,21 @@ function initialize_results_split(V, n_samples_v, burnin_v, thinning_v)
    return results
 end
 
-function update_results_store_samples(results, tr, V, n_samples)
-
-    if results == nothing
-        results = Dict("parent_sets" => [], 
-		       "lambdas" => []
-		       )
-    end
-    ps = [[tr[:adjacency => :edges => c => p => :z] for c=1:V] for p=1:V]
-    push!(results["parent_sets"], ps)
-    push!(results["lambdas"], tr[:lambda])
-
-    return results
-end
-
-
+#function update_results_store_samples(results, tr, V, n_samples)
+#
+#    if results == nothing
+#        results = Dict("parent_sets" => [], 
+#		       "lambdas" => []
+#		       )
+#    end
+#    ps = [[tr[:adjacency => :edges => c => p => :z] for c=1:V] for p=1:V]
+#    push!(results["parent_sets"], ps)
+#    push!(results["lambdas"], tr[:lambda])
+#
+#    return results
+#end
+#
+#
 function update_acc_z_lambda(acceptances, acc, V)
 
     if acceptances == nothing
@@ -269,9 +243,12 @@ indicates existence of edge j --> i
 So this matrix should be read "row = child; column = parent"
 """
 function increment_counts!(edge_counts, tr)
-    for i=1:size(edge_counts)[1] # Child
-        for j=1:size(edge_counts)[2] # Parent
-            edge_counts[i,j] += tr[:adjacency => :edges => i => j => :z]
+   
+    for i=1:size(edge_counts, 1) # for each vertex
+        # increment the parents
+        ps = tr[:parent_sets => i => :parents]
+        for p in ps
+            edge_counts[i,p] += 1
 	end
     end
 end

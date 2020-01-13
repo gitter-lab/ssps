@@ -5,10 +5,8 @@
 #
 
 
-function compute_move_probs(indeg::Int64, params::Tuple)
-    degmax = params[1]
-    t = params[2]
-    frac = (indeg/degmax)^t
+function compute_move_probs(indeg::Int64, degmax::Int64, prob_param::Float64)
+    frac = (indeg/degmax)^prob_param
     comp = 1.0 - frac
     swp = 2.0 * frac * comp
     return [comp; swp; frac] ./ (frac + swp + comp)
@@ -57,14 +55,16 @@ and edge, just move it to a different parent.
 model's posterior distribution varies pretty strongly with in-degree.
 """
 @gen function parentvec_smart_swp_proposal(tr, vertex::Int64, 
-					   compute_prob_params::Tuple,
+					   prob_param::Float64,
 					   V::Int64)
 
-    #parents = [i for i=1:V if tr[:adjacency => :edges => vertex => i => :z]]
-    parents = tr[:parent_sets => vertex]
+    parents = copy(tr[:parent_sets => vertex => :parents])
+    #println("PARENTS: ", parents)
     indeg = length(parents)
-    p_add_swp_rem = compute_move_probs(indeg, compute_prob_params)
-    action = @trace(Gen.categorical(p_add_swp_rem), :action)
+    #println("INDEG: ", indeg)
+    action_probs = compute_move_probs(indeg, V, prob_param)
+    #println("ACTION PROBS: ", action_probs)
+    action = @trace(Gen.categorical(action_probs), :action)
 
     if action == 1
         to_add = @trace(Gen.uniform_discrete(1, V-indeg), :to_add)
@@ -79,7 +79,7 @@ model's posterior distribution varies pretty strongly with in-degree.
     end
 end
 
-# TODO: MODIFY INVOLUTION FUNCTION
+
 function parentvec_smart_swp_involution(cur_tr, fwd_choices, fwd_ret, prop_args)
 
     parents = fwd_ret[1]
@@ -91,35 +91,36 @@ function parentvec_smart_swp_involution(cur_tr, fwd_choices, fwd_ret, prop_args)
 
     if action == 1
         to_add = fwd_ret[3]
-	add_idx = ith_nonparent(to_add, parents) 
-	update_choices[:adjacency => :edges => vertex => add_idx => :z] = true
+	add_parent = ith_nonparent(to_add, parents)
+        insert_idx = searchsortedfirst(parents, add_parent)
+        insert!(parents, insert_idx, add_parent)
+        update_choices[:parent_sets => vertex => :parents] = parents
 	bwd_choices[:action] = 3
-	bwd_choices[:to_rem] = searchsorted(parents, add_idx).start
+	bwd_choices[:to_rem] = insert_idx 
     
     elseif action == 2
         to_swp_add = fwd_ret[3]
 	to_swp_rem = fwd_ret[4]
-	add_idx = ith_nonparent(to_swp_add, parents)
-	rem_idx = parents[to_swp_rem]
-	update_choices[:adjacency => :edges => vertex => add_idx => :z] = true
-        update_choices[:adjacency => :edges => vertex => rem_idx => :z] = false
-	bwd_choices[:action] = 2
-	bwd_rem_idx = searchsorted(parents, add_idx).start
-	bwd_add_idx = searchsorted_exclude(parents, rem_idx)
-	if rem_idx < add_idx
-            bwd_rem_idx -= 1
-        else
-            bwd_add_idx -= 1
-	end
-	bwd_choices[:to_swp_add] = bwd_add_idx
-	bwd_choices[:to_swp_rem] = bwd_rem_idx
+	add_parent = ith_nonparent(to_swp_add, parents)
+	rem_parent = parents[to_swp_rem]
+        
+        deleteat!(parents, to_swp_rem)
+        insert_idx = searchsortedfirst(parents, add_parent)
+        insert!(parents, insert_idx, add_parent) 
+        
+        update_choices[:parent_sets => vertex => :parents] = parents
+	
+        bwd_choices[:action] = 2
+	bwd_choices[:to_swp_add] = searchsorted_exclude(parents, rem_parent)
+	bwd_choices[:to_swp_rem] = insert_idx
 
     else
         to_rem = fwd_ret[3]
-	rem_idx = parents[to_rem]
-	update_choices[:adjacency => :edges => vertex => rem_idx => :z] = false
+	rem_parent = parents[to_rem]
+        deleteat!(parents, to_rem)
+	update_choices[:parent_sets => vertex => :parents] = parents
         bwd_choices[:action] = 1
-	bwd_choices[:to_add] = searchsorted_exclude(parents, rem_idx)
+	bwd_choices[:to_add] = searchsorted_exclude(parents, rem_parent)
     end
 
     new_tr, weight, _, _ = Gen.update(cur_tr, Gen.get_args(cur_tr),
@@ -142,3 +143,4 @@ end
     @trace(Gen.bernoulli(prob), 
            :adjacency => :edges => child_idx => parent_idx => :z)
 end
+
