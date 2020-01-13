@@ -5,7 +5,7 @@
 # Contains functions relevant for inference
 # in our network reconstruction setting.
 
-
+import DataStructures: DefaultDict
 
 """
 Generic MCMC inference wrapper for DBN model.
@@ -72,7 +72,6 @@ function dbn_mcmc_inference(reference_parents::Vector{Vector{Int64}},
 
     # Run the markov chain
     while true
-
         # update the variables    
         tr, acc = update_loop_fn(tr, lambda_prop_std, proposal_param_vec, update_lambda)
         if track_acceptance
@@ -104,9 +103,7 @@ function ps_smart_swp_update_loop(tr, lambda_prop_std::Float64,
 				      proposal_param_vec::Vector{Float64},
 				      update_lambda::Bool)
 
-    #println("PROPOSAL_PARAM_VEC: ", proposal_param_vec)
     V = length(proposal_param_vec)
-    #println("V: ", V)
     lambda_acc = false
     if update_lambda
         tr, lambda_acc = Gen.mh(tr, lambda_proposal, (lambda_prop_std,))
@@ -184,13 +181,13 @@ function initialize_results_split(V, n_samples_v, burnin_v, thinning_v)
        for b in burnin_v
            for t in thinning_v
                results["splits"][(n,b,t)] = Dict(
-                                          1 => Dict("parent_sets" => zeros(Float64, V, V),
+                                          1 => Dict("parent_sets" => [DefaultDict{Int64,Int64}(0) for i=1:V],
                                                     "lambdas" => Vector{Float64}(),
                                                     "n" => 0
    	                             		    ),
-   	                                  2 => Dict("parent_sets" => zeros(Float64, V, V),
-                                                     "lambdas" => Vector{Float64}(),
-                                                     "n" => 0
+   	                                  2 => Dict("parent_sets" => [DefaultDict{Int64,Int64}(0) for i=1:V],
+                                                    "lambdas" => Vector{Float64}(),
+                                                    "n" => 0
    	                             		    ),
                                           "max_steps" => n*t + b,
                                           "time" => 0.0
@@ -244,11 +241,11 @@ So this matrix should be read "row = child; column = parent"
 """
 function increment_counts!(edge_counts, tr)
    
-    for i=1:size(edge_counts, 1) # for each vertex
+    for i=1:length(edge_counts) # for each vertex
         # increment the parents
         ps = tr[:parent_sets => i => :parents]
         for p in ps
-            edge_counts[i,p] += 1
+            edge_counts[i][p] += 1
 	end
     end
 end

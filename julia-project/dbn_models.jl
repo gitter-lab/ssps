@@ -64,12 +64,12 @@ graph_prior = Gen.Map(sample_parents)
 """
 
 """
-@gen (static) function generate_Xp(ind, Xp_prev, Xminus, parents, regression_deg)
+@gen (static) function generate_Xp(ind, Xminus, parents, regression_deg)
     return @trace(cpdmarginal(Xminus, ind, 
-                              parents[ind], 
+                              parents, 
 			      regression_deg), :Xp)
 end
-generate_Xplus = Gen.Unfold(generate_Xp)
+generate_Xplus = Gen.Map(generate_Xp)
 
 
 # This type helps us use the `Map` combinator efficiently
@@ -99,9 +99,9 @@ P(X,G,lambda | G') = P(X|G) * P(G|lambda, G') * P(lambda)
 
     parent_sets = @trace(graph_prior(Vvec, reference_adj, lambda_vec), :parent_sets)
 
-    #Xminus_vec = SingletonVec(Xminus, V)
-    #regdeg_vec = SingletonVec(regression_deg, V)
-    Xpl = @trace(generate_Xplus(V, Vector{Float64}(), Xminus, parent_sets, regression_deg), :Xplus)
+    Xminus_vec = SingletonVec(Xminus, V)
+    regdeg_vec = SingletonVec(regression_deg, V)
+    Xpl = @trace(generate_Xplus(1:V, Xminus_vec, parent_sets, regdeg_vec), :Xplus)
     return Xpl
 
 end
