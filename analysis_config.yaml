@@ -1,7 +1,7 @@
 simulation_study:
         # the grid of simulated datasets
         simulation_grid:
-                V: [20, 100]     # number of variables
+                V: [20, 100, 1000]     # number of variables
                 R: [0.1, 0.25, 0.5]         # fraction of edges to remove
                 A: [0.1, 0.25, 0.5]         # fraction of new edges to add
                 M: 4                      # number of time series
@@ -13,7 +13,7 @@ simulation_study:
 mcmc_hyperparams:
     n_samples: [10, 100]
     thinning: [1,10]
-    burnin: [10]
+    burnin: [0, 10]
     n_chains: 4
     regression_deg: [1,2]
     # we should plan on reporting the number of estimands
@@ -21,8 +21,8 @@ mcmc_hyperparams:
 
 # the grid of Hill hyperparams
 hill_hyperparams:
-    max_indeg: [2, 5]
-    reg_mode: [1, 2, "full"] 
+    max_indeg: [5]
+    reg_mode: ["linear", "quadratic", "full"] 
 
 real_datasets:
         - "data/hill2012_egfr/"

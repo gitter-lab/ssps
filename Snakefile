@@ -24,6 +24,9 @@ configfile: "analysis_config.yaml"
 ###########################
 # DEFINE SOME VARIABLES 
 ###########################
+
+TIMEOUT = config["timeout"]
+
 # Get the path of the Julia PackageCompiler
 JULIAC_PATH = glob.glob(os.path.join(os.environ["HOME"],
                                      ".julia/packages/PackageCompiler/*/juliac.jl")
@@ -31,13 +34,17 @@ JULIAC_PATH = glob.glob(os.path.join(os.environ["HOME"],
 SIM_REPLICATES = list(range(config["simulation_study"]["N"]))
 SIM_GRID = config["simulation_study"]["simulation_grid"]
 M = SIM_GRID["M"]
+
 MC_PARAMS = config["mcmc_hyperparams"]
 REG_DEGS = MC_PARAMS["regression_deg"]
 CHAINS = list(range(MC_PARAMS["n_chains"]))
 N_SAMPLES = MC_PARAMS["n_samples"]
 THINNINGS = MC_PARAMS["thinning"]
 BURNINS = MC_PARAMS["burnin"]
-TIMEOUT = config["timeout"]
+
+HILL_PARAMS = config["hill_hyperparams"]
+HILL_MAX_INDEG = HILL_PARAMS["max_indeg"][0] 
+HILL_REG_MODE = HILL_PARAMS["reg_mode"][1] 
 
 #############################
 # HELPER FUNCTIONS
@@ -181,7 +188,7 @@ rule perform_hill:
         "simulation-study/pred/hill/v={v}_r={r}_a={a}_t={t}_replicate={rep}.json"
     shell:
         "matlab hill-method/hill_dbn_wrapper.m {input.ts_file} {input.ref_dg} {output}"\
-        +" "+str(HILL_MAX_INDEG)+" "str(HILL_REG_MODE)+" "+str(TIMEOUT)
+        +" "+str(HILL_MAX_INDEG)+" "+str(HILL_REG_MODE)+" "+str(TIMEOUT)
 
 # END HILL JOBS
 #####################
@@ -219,6 +226,7 @@ rule compile_simulator:
 
 rule compile_postprocessor:
     input:
+        "builddir/Catsupp",
         "julia-project/postprocess.jl"
     output:
         "builddir/postprocess"
@@ -228,7 +236,8 @@ rule compile_postprocessor:
 
 rule compile_scoring:
     input:
-        "julia-project/scoring.jl"
+        "julia-project/scoring.jl",
+        "builddir/postprocess"
     output:
         "builddir/scoring"
     shell:
@@ -236,6 +245,7 @@ rule compile_scoring:
 
 rule compile_mcmc:
     input:
+        "builddir/simulate_data",
         "julia-project/Catsupp.jl"
     output:
         "builddir/Catsupp"
@@ -244,7 +254,8 @@ rule compile_mcmc:
 
 rule compile_lasso:
     input:
-        "julia-project/lasso.jl"
+        "julia-project/lasso.jl",
+        "builddir/simulate_data"
     output:
         "builddir/lasso"
     shell:
