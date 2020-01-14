@@ -2,7 +2,7 @@
 # and final results for all of the analyses.
 # You need to change it to fit your circumstances,
 # e.g., "/scratch" or wherever you have plenty of disk available.
-results_dir: "~/projects/graph_ppl/analysis_results"
+results_dir: "/ua/dmerrell/projects/graph-ppl/analysis_results"
 
 # Define the simulation study
 simulation_study:

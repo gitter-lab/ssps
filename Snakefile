@@ -159,7 +159,7 @@ rule run_sim_hill:
     output:
         PRED_DIR+"/hill/{replicate}.json"
     shell:
-        "matlab -nodesktop -nosplash -nojvm -r \'cd(\"hill-method\"); try, \"{input.ts_file}\", \"{input.ref_dg}\", \"{output}\", -1, \"full\", "+str(SIM_TIMEOUT)+"), catch e, quit(1), end, quit\'"
+        "matlab -nodesktop -nosplash -nojvm -r \'cd(\"hill-method\"); try, hill_dbn_wrapper(\"{input.ts_file}\", \"{input.ref_dg}\", \"{output}\", -1, \"full\", "+str(SIM_TIMEOUT)+"), catch e, quit(1), end, quit\'"
 
 
 rule run_timetest_hill:
@@ -169,7 +169,7 @@ rule run_timetest_hill:
     output:
         PRED_DIR+"/hill_{deg}_{mode}/{replicate}.json"
     shell:
-        "matlab -nodesktop -nosplash -nojvm -r \'cd(\"hill-method\"); try, \"{input.ts}\", \"{input.ref}\", \"{output}\", {wildcards.deg}, \"{wildcards.mode}\", "+str(HILL_TIME_TIMEOUT)+"), catch e, quit(1), end, quit\'"
+        "matlab -nodesktop -nosplash -nojvm -r \'cd(\"hill-method\"); try, hill_dbn_wrapper(\"{input.ts}\", \"{input.ref}\", \"{output}\", {wildcards.deg}, \"{wildcards.mode}\", "+str(HILL_TIME_TIMEOUT)+"), catch e, quit(1), end, quit\'"
 
 
 rule figure_timetest_hill:
