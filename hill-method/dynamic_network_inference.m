@@ -40,13 +40,14 @@ function [edge_prob_matrix interaction_sign_matrix chosen_lambda timed_out] = dy
 % Minor modifications made by David Merrell: 11/2019-01/2020
 
 % set some default return values (in case of timeout)
+n_datasets = length(D);
 edge_prob_matrix = cell(1,n_datasets);
 interaction_sign_matrix = cell(1,n_datasets);
 chosen_lambda = -1.0;
 timed_out = false;
 
 % start the clock
-t_start = cputime;
+tic;
 
 % set default values and perform checks
 if nargin<7 || isempty(silent)
@@ -148,7 +149,7 @@ if do_EB
                 disp(txt{1})
             end
         end
-        EB_data{i}, tout = empirical_Bayes(D{i},max_in_degree,prior_graph,lambdas,reg_mode,stdise,silent, t_start, timeout);
+        [EB_data{i}, tout] = empirical_Bayes(D{i},max_in_degree,prior_graph,lambdas,reg_mode,stdise,silent, timeout);
 
         if tout
             timed_out = true;
@@ -169,7 +170,7 @@ if do_EB
                 disp('Calculating posterior distribution over parent sets ...')
             end
         end
-        scores, tout = posterior_scores(D{i},max_in_degree,prior_graph,chosen_lambda,reg_mode,stdise,silent,EB_data{i}.models,EB_data{i}.LL,EB_data{i}.Lpr_f, t_start, timeout);
+        [scores, tout] = posterior_scores(D{i},max_in_degree,prior_graph,chosen_lambda,reg_mode,stdise,silent,EB_data{i}.models,EB_data{i}.LL,EB_data{i}.Lpr_f, timeout);
         
         if tout
             timed_out = true;
@@ -184,7 +185,7 @@ if do_EB
                 disp('Calculating posterior edge probabilities...')
             end
         end
-        edge_prob_matrix{i}, tout = edge_probabilities(scores,silent,t_start, timeout);
+        [edge_prob_matrix{i}, tout] = edge_probabilities(scores,silent, timeout);
         if tout
             timed_out = true;
             return
@@ -204,7 +205,7 @@ else
                 disp(strcat('Calculating posterior distribution over parent sets...'))
             end
         end
-        scores, tout = posterior_scores(D{i},max_in_degree,prior_graph,chosen_lambda,reg_mode,stdise,silent,[],[],[], t_start, timeout);
+        [scores, tout] = posterior_scores(D{i},max_in_degree,prior_graph,chosen_lambda,reg_mode,stdise,silent,[],[],[], timeout);
         if tout
             timed_out = true;
             return
@@ -218,7 +219,7 @@ else
                 disp(strcat('Calculating posterior edge probabilities...'))
             end
         end
-        edge_prob_matrix{i}, tout = edge_probabilities(scores,silent, t_start, timeout);
+        [edge_prob_matrix{i}, tout] = edge_probabilities(scores,silent, timeout);
         
         if tout
             timed_out = true;
@@ -241,7 +242,14 @@ end
 
 end
 
-function EB_data, tout = empirical_Bayes(D,max_in_degree,prior_graph,lambdas,reg_mode,stdise,silent, t_start, timeout)
+function [EB_data, tout] = empirical_Bayes(D,max_in_degree,prior_graph,lambdas,reg_mode,stdise,silent, timeout)
+
+
+EB_data.EB_score = -1;
+EB_data.chosen_lambda = -1;
+EB_data.Lpr_f= -1; % prior concordance function scores
+EB_data.LL = -1;    % log marginal likelihood scores
+EB_data.models = -1;
 
 tout = false;
 
@@ -305,7 +313,7 @@ for i=1:n_models
         end
         
         % log marginal likelihood
-        [LL(i,s)  LLpart5 LLpart6] = log_marg_like(X,D(p+s,:)',LLpart1,LLpart2,LLpart3,LLpart4(s),LLpart5,LLpart6);
+        [LL(i,s),  LLpart5, LLpart6] = log_marg_like(X,D(p+s,:)',LLpart1,LLpart2,LLpart3,LLpart4(s),LLpart5,LLpart6);
         
         % prior concordance function f = - (# parents in parent set but not in prior graph)
         idx = prior_graph(:,s)==0;
@@ -321,7 +329,8 @@ for i=1:n_models
     end
 
     % Check for timeout (DPM 2020)   
-    if cputime - t_start > timeout
+    if toc > timeout
+        fprintf("TIMED OUT: %4.2f / %4.2f", toc, timeout)
         tout = true;
         return
     end
@@ -358,7 +367,7 @@ EB_data.models = models;  % parent sets
 fprintf('\n')
 end
 
-function scores, tout = posterior_scores(D,max_in_degree,prior_graph,lambda,reg_mode,stdise,silent,models,LL,Lpr, t_start, timeout)
+function [scores, tout] = posterior_scores(D,max_in_degree,prior_graph,lambda,reg_mode,stdise,silent,models,LL,Lpr, timeout)
 % calculates posterior scores over parent sets for each variable
 
 tout = false;
@@ -425,7 +434,7 @@ if isempty(models)
                 end
                     
                 % log marginal likelihood
-                [LL(i,s)  LLpart5 LLpart6] = log_marg_like(X,D(p+s,:)',LLpart1,LLpart2,LLpart3,LLpart4(s),LLpart5,LLpart6);
+                [LL(i,s),  LLpart5, LLpart6] = log_marg_like(X,D(p+s,:)',LLpart1,LLpart2,LLpart3,LLpart4(s),LLpart5,LLpart6);
                 
                 % prior concordance function f = - (# parents in parent set but not in prior graph)
                 idx = prior_graph(:,s)==0;
@@ -441,7 +450,8 @@ if isempty(models)
             end
  
             % Check for timeout (DPM 2020)   
-            if cputime - t_start > timeout
+            if toc > timeout
+                fprintf("TIMED OUT: %4.2f / %4.2f", toc, timeout)
                 tout = true;
                 return
             end
@@ -466,7 +476,7 @@ if isempty(models)
                 end
                     
                 % log marginal likelihood
-                [LL(i,s) LLpart5 LLpart6] = log_marg_like(X,D(p+s,:)',LLpart1,LLpart2,LLpart3,LLpart4(s),LLpart5,LLpart6);
+                [LL(i,s), LLpart5, LLpart6] = log_marg_like(X,D(p+s,:)',LLpart1,LLpart2,LLpart3,LLpart4(s),LLpart5,LLpart6);
             end
             
             % print progress
@@ -478,7 +488,8 @@ if isempty(models)
             end
 
             % Check for timeout (DPM 2020)   
-            if cputime - t_start > timeout
+            if toc > timeout
+                fprintf("TIMED OUT: %4.2f / %4.2f", toc, timeout)
                 tout = true;
                 return
             end
@@ -575,7 +586,7 @@ end
 X = X';
 end
 
-function [LL A cnt]= log_marg_like(X,Y,LLpart1,LLpart2,LLpart3,LLpart4,A,cnt)
+function [LL, A, cnt]= log_marg_like(X,Y,LLpart1,LLpart2,LLpart3,LLpart4,A,cnt)
 
 d = size(X,2);
 max_iterations = 1000;
@@ -619,7 +630,7 @@ else
 end
 end
 
-function edge_prob_matrix, tout = edge_probabilities(scores,silent, t_start, timeout)
+function [edge_prob_matrix, tout] = edge_probabilities(scores,silent, timeout)
 
 tout = false;
 p = size(scores.LL,2);
@@ -649,7 +660,8 @@ for s=1:p
         end
     end
     % Check for timeout (DPM 2020)   
-    if cputime - t_start > timeout
+    if toc > timeout
+        fprintf("TIMED OUT: %4.2f / %4.2f", toc, timeout)
         tout = true;
         return
     end

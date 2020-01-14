@@ -1,34 +1,47 @@
+# This directory will contain the intermediate
+# and final results for all of the analyses.
+# You may want to change it to fit your circumstances,
+# e.g., "/scratch" or wherever you have plenty of disk available.
+results_dir: "analysis_outputs"
+
+# Define the simulation study
 simulation_study:
-        # the grid of simulated datasets
-        simulation_grid:
-                V: [20, 100, 1000]     # number of variables
-                R: [0.1, 0.25, 0.5]         # fraction of edges to remove
-                A: [0.1, 0.25, 0.5]         # fraction of new edges to add
-                M: 4                      # number of time series
-                T: [8, 20]                # length of each time series 
+    # timeout for each method 
+    timeout: 60 # seconds
+    # the grid of simulated datasets
+    simulation_grid:
+        V: [20, 100, 1000]     # number of variables
+        R: [0.1, 0.25, 0.5]    # fraction of edges to remove
+        A: [0.1, 0.25, 0.5]    # fraction of new edges to add
+        M: 4                   # number of time series
+        T: [8, 20]             # length of each time series 
         # Number of simulations at each grid point
-        N: 1
+    N: 1
+    # the grid of MCMC hyperparameters
+    mcmc_hyperparams:
+        n_samples: [10, 100]
+        thinning: [1,10]
+        burnin: [0, 10]
+        n_chains: 4
+        regression_deg: [1,2]
+    # the grid of Hill hyperparameters
+    hill_hyperparams:
+        # Mapping from V to max in-degree, regression mode
+        max_indeg:
+            20: [5, "full"]     
+            100: [3, "full"]
+            1000: [2, "full"]
 
-# the grid of MCMC hyperparameters
-mcmc_hyperparams:
-    n_samples: [10, 100]
-    thinning: [1,10]
-    burnin: [0, 10]
-    n_chains: 4
-    regression_deg: [1,2]
-    # we should plan on reporting the number of estimands
-    # with bad R-hat values.
+    # (FunChisq and LASSO don't have hyperparameters)
 
-# the grid of Hill hyperparams
-hill_hyperparams:
-    max_indeg: [5]
-    reg_mode: ["linear", "quadratic", "full"] 
 
-real_datasets:
-        - "data/hill2012_egfr/"
-        - "data/koksal2018_yeast/"
+hill_timetest:
+    modes: ["linear", "quadratic", "full"]
+    deg_v_combs: [[1,20],[1,100],[1,1000],
+                  [2,20],[2,100],[2,1000], 
+                  [3,20],[3,100],
+                  [4,20],
+                  [5,20]]
 
-#timeout: 1800 #seconds == 30 minutes
-timeout: 60
 
 

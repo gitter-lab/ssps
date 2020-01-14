@@ -20,124 +20,112 @@ import os
 ###########################
 configfile: "analysis_config.yaml"
 
-
 ###########################
 # DEFINE SOME VARIABLES 
 ###########################
 
-TIMEOUT = config["timeout"]
+# directories
+RES_DIR = config["results_dir"]
+COMP_DIR = os.path.join(RES_DIR, "compiled")
 
-# Get the path of the Julia PackageCompiler
-JULIAC_PATH = glob.glob(os.path.join(os.environ["HOME"],
-                                     ".julia/packages/PackageCompiler/*/juliac.jl")
-                        )[0]
-SIM_REPLICATES = list(range(config["simulation_study"]["N"]))
-SIM_GRID = config["simulation_study"]["simulation_grid"]
-M = SIM_GRID["M"]
+SIM_DIR = os.path.join(RES_DIR, "simulation_study")
+SIMDAT_DIR = os.path.join(RES_DIR, "datasets")
+TS_DIR = os.path.join(SIMDAT_DIR, "timeseries")
+REF_DIR = os.path.join(SIMDAT_DIR, "ref_graphs")
+TRU_DIR = os.path.join(SIMDAT_DIR, "true_graph")
+RAW_DIR = os.path.join(SIMDAT_DIR, "raw")
+PRED_DIR = os.path.join(RES_DIR, "predictions")
+SCORE_DIR = os.path.join(RES_DIR, "scores")
 
-MC_PARAMS = config["mcmc_hyperparams"]
+# Simulation study parameters
+SIM_PARAMS = config["simulation_study"]
+SIM_TIMEOUT = SIM_PARAMS["timeout"]
+SIM_REPLICATES = list(range(SIM_PARAMS["N"]))
+SIM_GRID = SIM_PARAMS["simulation_grid"]
+SIM_M = SIM_GRID["M"]
+
+# MCMC hyperparameters (for simulation study)
+MC_PARAMS = SIM_PARAMS["mcmc_hyperparams"]
 REG_DEGS = MC_PARAMS["regression_deg"]
 CHAINS = list(range(MC_PARAMS["n_chains"]))
 N_SAMPLES = MC_PARAMS["n_samples"]
 THINNINGS = MC_PARAMS["thinning"]
 BURNINS = MC_PARAMS["burnin"]
 
-HILL_PARAMS = config["hill_hyperparams"]
-HILL_MAX_INDEG = HILL_PARAMS["max_indeg"][0] 
-HILL_REG_MODE = HILL_PARAMS["reg_mode"][1] 
-
-#############################
-# HELPER FUNCTIONS
-#############################
-
-
-def get_mcmc_sim_scoring_inputs(wildcards, dirpath, ext):
-    return ["{}_d={}_n={}_b={}_th={}/v={}_r={}_a={}_t={}_replicate={}.{}".format(dirpath,
-	                                     wildcards.d,
-					     wildcards.n,
-					     wildcards.b,
-					     wildcards.th,
-                                             wildcards.v,
-                                             wildcards.r,
-                                             wildcards.a,
-                                             wildcards.t,
-                                             rep,ext) for rep in SIM_REPLICATES]
-
-def get_scoring_inputs(wildcards, dirpath, ext):
-    return ["{}/v={}_r={}_a={}_t={}_replicate={}.{}".format(dirpath,
-                                          wildcards.v,
-                                          wildcards.r,
-                                          wildcards.a,
-                                          wildcards.t,
-                                          n,ext) for n in SIM_REPLICATES]
-
-get_scoring_adjs = lambda wildcards, dirpath: get_scoring_inputs(wildcards, dirpath, "csv")
-get_scoring_preds = lambda wildcards, dirpath: get_scoring_inputs(wildcards, dirpath, "json")
+# Hill hyperparameters
+HILL_PARAMS = SIM_PARAMS["hill_hyperparams"]
 
 #############################
 # RULES
 #############################
 rule simulation_study:
     input:
-        expand("simulation-study/scores/mcmc_d={d}_n={n}_b={b}_th={th}/v={v}_r={r}_a={a}_t={t}.json", 
-	        d=REG_DEGS, n=N_SAMPLES, b=BURNINS, th=THINNINGS, 
-		v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]), 
-	#expand("simulation-study/scores/funchisq/v={v}_r={r}_a={a}_t={t}.json",
-        #        v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
-        #expand("simulation-study/scores/hill/v={v}_r={r}_a={a}_t={t}.json",   
-        #        v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
-	#        expand("simulation-study/scores/lasso/v={v}_r={r}_a={a}_t={t}.json",
+        expand(SCORE_DIR+"/mcmc_d={d}_n={n}_b={b}_th={th}/v={v}_r={r}_a={a}_t={t}.json", 
+	       d=REG_DEGS, n=N_SAMPLES, b=BURNINS, th=THINNINGS, 
+	       v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]), 
+	expand(SCORE_DIR+"/funchisq/v={v}_r={r}_a={a}_t={t}.json",
+                v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
+        expand(SCORE_DIR+"/hill/v={v}_r={r}_a={a}_t={t}.json",   
+                v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
+	#expand("simulation-study/scores/lasso/v={v}_r={r}_a={a}_t={t}.json",
 	#        v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"])
+
 
 rule simulate_data:
     input:
         simulator="builddir/simulate_data"
     output:
-        ts="simulation-study/timeseries/v={v}_r={r}_a={a}_t={t}_replicate={rep}.tsv",
-        ref="simulation-study/ref_dags/v={v}_r={r}_a={a}_t={t}_replicate={rep}.csv",
-        true="simulation-study/true_dags/v={v}_r={r}_a={a}_t={t}_replicate={rep}.csv"
+        ts=TS_DIR+"/v={v}_r={r}_a={a}_t={t}_replicate={rep}.csv",
+        ref=REF_DIR+"/v={v}_r={r}_a={a}_t={t}_replicate={rep}.csv",
+        true=TRU_DIR+"/v={v}_r={r}_a={a}_t={t}_replicate={rep}.csv"
     shell:
-        "{input.simulator} {wildcards.v} {wildcards.t} "+str(M)+" {wildcards.r} {wildcards.a} 3 {output.ref} {output.true} {output.ts}"
+        "{input.simulator} {wildcards.v} {wildcards.t} {SIM_M} {wildcards.r} {wildcards.a} 3 {output.ref} {output.true} {output.ts}"
+
+rule score_predictions:
+    input:
+        "builddir/scoring",
+	tr_dg_fs=[TRU_DIR+"/{sim_gridpoint}_replicate="+str(rep)+".csv" for rep in SIM_REPLICATES],
+	pp_res=[PRED_DIR+"/{method}/{sim_gridpoint}_replicate="+str(rep)+".json" for rep in SIM_REPLICATES]
+    output:
+        out=SCORE_DIR+"/{method}/{sim_gridpoint}.json" 
+    shell:
+        "builddir/scoring --truth-files {input.tr_dg_fs} --pred-files {input.pp_res} --output-file {output.out}"
+
+
+rule hill_timetest:
+    input:
+        "figures/hill_execution_time.png"
+
 
 ######################
 # MCMC JOBS
-rule score_sim_mcmc:
-    input:
-        "builddir/scoring",
-        tr_dg_fs=lambda wildcards: get_scoring_inputs(wildcards, "simulation-study/true_dags", "csv"), 
-        pp_res=lambda wildcards: get_mcmc_sim_scoring_inputs(wildcards, "simulation-study/pred/mcmc", "json"), 
-    output:
-        out="simulation-study/scores/mcmc_d={d}_n={n}_b={b}_th={th}/v={v}_r={r}_a={a}_t={t}.json" 
-    shell:
-        "builddir/scoring --truth-files {input.tr_dg_fs} --pred-files {input.pp_res} --output-file {output.out}"
 
 rule postprocess_sim_mcmc:
     input:
         "builddir/postprocess",
-        raw=["simulation-study/raw/mcmc_d={d}_n={n}_b={b}_th={th}/v={v}_r={r}_a={a}_t={t}_replicate={rep}_chain="+str(c)+".json" for c in CHAINS]
+        raw=[RAW_DIR+"/mcmc_{mcmc_settings}/{replicate}_chain="+str(c)+".json" for c in CHAINS]
     output:
-        out="simulation-study/pred/mcmc_d={d}_n={n}_b={b}_th={th}/v={v}_r={r}_a={a}_t={t}_replicate={rep}.json"
+        out=PRED_DIR+"/mcmc_{mcmc_settings}/{replicate}.json"
     shell:
         "builddir/postprocess {input.raw} --output-file {output.out}"
 
-rule perform_sim_mcmc:
+rule run_sim_mcmc:
     input:
         method="builddir/Catsupp",
-        ts_file="simulation-study/timeseries/{replicate}.tsv",
-        ref_dg="simulation-study/ref_dags/{replicate}.csv",
+        ts_file=TS_DIR+"/{replicate}.csv",
+        ref_dg=REF_DIR+"/{replicate}.csv",
     output:
-        out=list(["simulation-study/raw/mcmc_d={d}_n="\
-			+str(n)+"_b="+str(b)+"_th="+str(th)\
+        out=list(["{RAW_DIR}/mcmc_d={d}_n="+str(n)+"_b="+str(b)+"_th="+str(th)\
 			+"/{replicate}_chain={c}.json"\
 			for n in N_SAMPLES for b in BURNINS for th in THINNINGS])
     shell:
-        "{input.method} {input.ts_file} {input.ref_dg} simulation-study/raw/"\ 
+        "{input.method} {input.ts_file} {input.ref_dg} "+RAW_DIR\ 
         +" {wildcards.replicate}_chain={wildcards.c}.json"\
         +" --n-samples " + " ".join([str(i) for i in N_SAMPLES])\
         +" --burnin "+ " ".join([str(b) for b in BURNINS])\
         +" --thinning "+" ".join([str(th) for th in THINNINGS])\
         +" --regression-deg {wildcards.d}"\
-        +" --timeout "+str(TIMEOUT)
+        +" --timeout {SIM_TIMEOUT}"
         
 
 # END MCMC JOBS
@@ -145,22 +133,13 @@ rule perform_sim_mcmc:
 
 #####################
 # FUNCHISQ JOBS
-rule score_sim_funchisq:
-    input: 
-        "builddir/scoring",
-        tr_dg_fs=lambda wildcards: get_scoring_inputs(wildcards, "simulation-study/true_dags", "csv"), 
-        pp_res=lambda wildcards: get_scoring_inputs(wildcards, "simulation-study/pred/funchisq", "json"), 
-    output:
-        "simulation-study/scores/funchisq/v={v}_r={r}_a={a}_t={t}.json"
-    shell:
-        "builddir/scoring --truths {input.tr_dg_fs} --preds {input.pp_res} --out {output}"
 
-rule perform_sim_funchisq:
+rule run_sim_funchisq:
     input: 
         "funchisq/funchisq_wrapper.R",
-        ts_file="simulation-study/timeseries/v={v}_r={r}_a={a}_t={t}_replicate={rep}.tsv"
+        ts_file=TS_DIR+"/{replicate}.csv"
     output:
-        "simulation-study/pred/funchisq/v={v}_r={r}_a={a}_t={t}_replicate={rep}.json"
+        PRED_DIR+"/funchisq/{replicate}.json"
     shell:
         "Rscript funchisq/funchisq_wrapper.R {input.ts_file} {output}"
 
@@ -169,26 +148,27 @@ rule perform_sim_funchisq:
 
 #####################
 # HILL JOBS
-rule score_sim_hill:
-    input:
-        "builddir/scoring",
-        tr_dg_fs=lambda wildcards: get_scoring_inputs(wildcards, "simulation-study/true_dags", "csv"), 
-        pp_res=lambda wildcards: get_scoring_inputs(wildcards, "simulation-study/pred/hill", "json"), 
-    output:
-        "simulation-study/scores/hill/v={v}_r={r}_a={a}_t={t}.json"
-    shell:
-        "builddir/scoring --truths {input.tr_dg_fs} --preds {input.pp_res} --out {output}"
 
-rule perform_hill:
+rule run_sim_hill:
     input:
-        "hill-method/hill_dbn_wrapper.m",
-        ts_file="simulation-study/timeseries/v={v}_r={r}_a={a}_t={t}_replicate={rep}.tsv",
-        ref_dg="simulation-study/ref_dags/v={v}_r={r}_a={a}_t={t}_replicate={rep}.csv"
+        ts_file=TS_DIR+"/{replicate}.csv",
+        ref_dg=REF_DIR+"/{replicate}.csv"
     output:
-        "simulation-study/pred/hill/v={v}_r={r}_a={a}_t={t}_replicate={rep}.json"
+        PRED_DIR+"/hill/{replicate}.json"
     shell:
-        "matlab hill-method/hill_dbn_wrapper.m {input.ts_file} {input.ref_dg} {output}"\
-        +" "+str(HILL_MAX_INDEG)+" "+str(HILL_REG_MODE)+" "+str(TIMEOUT)
+        "matlab -nodesktop -nosplash -nojvm -r \'cd(\"hill-method\"); try, \"hill_dbn_wrapg_ts.csv\", \"../julia-project/big_ref_dg.csv\", \"dumb_hill_test.json\", 2, \"full\", 60.0), catch e, quit(1), end, quit\'"
+	#"matlab hill-method/hill_dbn_wrapper.m {input.ts_file} {input.ref_dg} {output}"\
+			#+" "+str(HILL_MAX_INDEG)+" "+str(HILL_REG_MODE)+" "+str(TIMEOUT)
+
+
+#rule run_timetest_hill:
+#    input:
+#        expand("simulation-study/timeseries/v={v}_r="+str(SIM_GRID["R"][0])+"_a="+str(SIM_GRID["A"][0])+"_t="+str(SIM_GRID["T"][0])+"_replicate=0.json", v=)
+#    output:
+#	""
+
+#rule figure_timetest_hill:
+
 
 # END HILL JOBS
 #####################
@@ -203,7 +183,7 @@ rule score_sim_lasso:
     shell:
         ""
 
-rule perform_lasso:
+rule run_sim_lasso:
     input:
         ""
     output:
@@ -216,6 +196,12 @@ rule perform_lasso:
 
 ########################
 # JULIA CODE COMPILATION
+
+# Get the path of the Julia PackageCompiler
+JULIAC_PATH = glob.glob(os.path.join(os.environ["HOME"],
+          ".julia/packages/PackageCompiler/*/juliac.jl")
+          )[0]
+
 rule compile_simulator:
     input:
         "simulation-study/simulate_data.jl"

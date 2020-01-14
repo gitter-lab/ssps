@@ -13,7 +13,7 @@ function hill_dbn_wrapper(timeseries_filename, ref_graph_filename, output_filena
                                                        lambdas, reg_mode, 1, 0, timeout);
     elapsed = toc;
 
-    write_to_file(output_filename, edge_probs, sign_mat, chosen_lambda, elapsed, write_to_file)
+    write_to_file(output_filename, edge_probs, sign_mat, chosen_lambda, elapsed, timed_out)
 
 end
 
