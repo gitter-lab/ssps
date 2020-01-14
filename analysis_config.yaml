@@ -36,6 +36,8 @@ simulation_study:
 
 
 hill_timetest:
+    degs: [1, 2, 3, 4, 5]
+    v: [20, 100, 1000]
     modes: ["linear", "quadratic", "full"]
     deg_v_combs: [[1,20],[1,100],[1,1000],
                   [2,20],[2,100],[2,1000], 

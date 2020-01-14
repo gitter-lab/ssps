@@ -25,9 +25,14 @@ configfile: "analysis_config.yaml"
 ###########################
 
 # directories
+ROOT_DIR = os.getcwd()
+COMP_DIR = os.path.join(ROOT_DIR,"compiled")
+FIG_DIR = os.path.join(ROOT_DIR,"figures")
+JULIA_PROJ_DIR = os.path.join(ROOT_DIR, "julia-project")
+HILL_DIR = os.path.join(ROOT_DIR, "hill-method")
+FUNCH_DIR = os.path.join(ROOT_DIR, "funchisq")
 RES_DIR = config["results_dir"]
-COMP_DIR = "compiled"
-FIG_DIR = "figures"
+
 
 SIM_DIR = os.path.join(RES_DIR, "simulation_study")
 SIMDAT_DIR = os.path.join(SIM_DIR, "datasets")
@@ -76,7 +81,7 @@ rule all:
 	#expand("simulation-study/scores/lasso/v={v}_r={r}_a={a}_t={t}.json",
 	#        v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
 	## Hill timetest results
-        FIG_DIR+"/hill_method_timetest.png"	
+        FIG_DIR+"/hill_method_timetest.csv"	
 
 rule simulate_data:
     input:
@@ -139,12 +144,12 @@ rule run_sim_mcmc:
 
 rule run_sim_funchisq:
     input: 
-        "funchisq/funchisq_wrapper.R",
+        FUNCH_DIR+"/funchisq_wrapper.R",
         ts_file=TS_DIR+"/{replicate}.csv"
     output:
         PRED_DIR+"/funchisq/{replicate}.json"
     shell:
-        "Rscript funchisq/funchisq_wrapper.R {input.ts_file} {output}"
+        "Rscript {FUNCH_DIR}/funchisq_wrapper.R {input.ts_file} {output}"
 
 # END FUNCHISQ JOBS
 #####################
@@ -159,7 +164,7 @@ rule run_sim_hill:
     output:
         PRED_DIR+"/hill/{replicate}.json"
     shell:
-        "matlab -nodesktop -nosplash -nojvm -r \'cd(\"hill-method\"); try, hill_dbn_wrapper(\"{input.ts_file}\", \"{input.ref_dg}\", \"{output}\", -1, \"full\", "+str(SIM_TIMEOUT)+"), catch e, quit(1), end, quit\'"
+        "matlab -nodesktop -nosplash -nojvm -r \'cd(\""+HILL_DIR+"\"); try, hill_dbn_wrapper(\"{input.ts_file}\", \"{input.ref_dg}\", \"{output}\", -1, \"full\", "+str(SIM_TIMEOUT)+"), catch e, quit(1), end, quit\'"
 
 
 rule run_timetest_hill:
@@ -169,14 +174,16 @@ rule run_timetest_hill:
     output:
         PRED_DIR+"/hill_{deg}_{mode}/{replicate}.json"
     shell:
-        "matlab -nodesktop -nosplash -nojvm -r \'cd(\"hill-method\"); try, hill_dbn_wrapper(\"{input.ts}\", \"{input.ref}\", \"{output}\", {wildcards.deg}, \"{wildcards.mode}\", "+str(HILL_TIME_TIMEOUT)+"), catch e, quit(1), end, quit\'"
+        "matlab -nodesktop -nosplash -nojvm -r \'cd(\""+HILL_DIR+"\"); try, hill_dbn_wrapper(\"{input.ts}\", \"{input.ref}\", \"{output}\", {wildcards.deg}, \"{wildcards.mode}\", "+str(HILL_TIME_TIMEOUT)+"), catch e, quit(1), end, quit\'"
 
 
-rule figure_timetest_hill:
+rule tabulate_timetest_hill:
     input:
         [PRED_DIR+"/hill_"+str(comb[0])+"_"+str(m)+"/v="+str(comb[1])+"_r="+str(SIM_GRID["R"][0])+"_a="+str(SIM_GRID["A"][0])+"_t="+str(SIM_GRID["T"][0])+"_replicate=0.json" for comb in HILL_TIME_COMBS for m in HILL_MODES]
     output:
-        FIG_DIR+"/hill_method_timetest.png"
+        FIG_DIR+"/hill_method_timetest.csv"
+    script:
+        HILL_DIR+"/tabulate_timetest_results.py"
 
 # END HILL JOBS
 #####################
@@ -216,44 +223,44 @@ rule compile_simulator:
     output:
         "builddir/simulate_data"
     shell:
-        "julia --project=julia-project/ {JULIAC_PATH} -vae simulation-study/simulate_data.jl"
+        "julia --project={JULIA_PROJ_DIR} {JULIAC_PATH} -vae simulation-study/simulate_data.jl"
 
 rule compile_postprocessor:
     input:
         "builddir/Catsupp",
-        "julia-project/postprocess.jl"
+        JULIA_PROJ_DIR+"/postprocess.jl"
     output:
         "builddir/postprocess"
     shell:
-        "julia --project=julia-project/ {JULIAC_PATH} -vae julia-project/postprocess.jl"
+        "julia --project={JULIA_PROJ_DIR} {JULIAC_PATH} -vae {JULIA_PROJ_DIR}/postprocess.jl"
 
 
 rule compile_scoring:
     input:
-        "julia-project/scoring.jl",
+        JULIA_PROJ_DIR+"/scoring.jl",
         "builddir/postprocess"
     output:
         "builddir/scoring"
     shell:
-        "julia --project=julia-project/ {JULIAC_PATH} -vae julia-project/scoring.jl"
+        "julia --project={JULIA_PROJ_DIR} {JULIAC_PATH} -vae {JULIA_PROJ_DIR}/scoring.jl"
 
 rule compile_mcmc:
     input:
         "builddir/simulate_data",
-        "julia-project/Catsupp.jl"
+        JULIA_PROJ_DIR+"/Catsupp.jl"
     output:
         "builddir/Catsupp"
     shell:
-        "julia --project=julia-project/ {JULIAC_PATH} -vae julia-project/Catsupp.jl"
+        "julia --project={JULIA_PROJ_DIR} {JULIAC_PATH} -vae {JULIA_PROJ_DIR}/Catsupp.jl"
 
 rule compile_lasso:
     input:
-        "julia-project/lasso.jl",
+        JULIA_PROJ_DIR+"/lasso.jl",
         "builddir/simulate_data"
     output:
         "builddir/lasso"
     shell:
-        "julia --project=julia-project/ {JULIAC_PATH} -vae julia-project/lasso.jl"
+        "julia --project={JULIA_PROJ_DIR} {JULIAC_PATH} -vae {JULIA_PROJ_DIR}/lasso.jl"
 
 # END JULIA CODE COMPILATION
 #############################
