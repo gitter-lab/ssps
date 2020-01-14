@@ -1,8 +1,8 @@
-# This directory will contain the intermediate
+# This directory (*ABSOLUTE* path) will contain the intermediate
 # and final results for all of the analyses.
-# You may want to change it to fit your circumstances,
+# You need to change it to fit your circumstances,
 # e.g., "/scratch" or wherever you have plenty of disk available.
-results_dir: "analysis_outputs"
+results_dir: "~/projects/graph_ppl/analysis_results"
 
 # Define the simulation study
 simulation_study:
@@ -42,6 +42,6 @@ hill_timetest:
                   [3,20],[3,100],
                   [4,20],
                   [5,20]]
-
+    timeout: 3600
 
 

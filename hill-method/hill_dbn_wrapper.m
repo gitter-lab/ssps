@@ -5,8 +5,21 @@ function hill_dbn_wrapper(timeseries_filename, ref_graph_filename, output_filena
 
     ts_mat = read_timeseries_file(timeseries_filename);
     ref_adj = read_graph_file(ref_graph_filename);
-    lambdas = 0.5:0.5:10.0;
-    
+    V = size(ref_adj,1);
+    lambdas = 1.0:0.5:15.0;
+   
+    % If max_indegree=-1, choose it automatically 
+    % based on V. 
+    if max_indegree == -1
+        if V > 100
+            max_indegree = 2;
+        elseif V > 20
+            max_indegree = 3;
+        else
+            max_indegree = 5;
+        end
+    end
+
     tic;
     [edge_probs, sign_mat, chosen_lambda, timed_out] = dynamic_network_inference(ts_mat,...
                                                        max_indegree, ref_adj,... 
