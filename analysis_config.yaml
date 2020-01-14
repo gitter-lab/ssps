@@ -1,13 +1,13 @@
 # This directory (*ABSOLUTE* path) will contain the intermediate
-# and final results for all of the analyses.
+# results for all of the analyses.
 # You need to change it to fit your circumstances,
 # e.g., "/scratch" or wherever you have plenty of disk available.
-results_dir: "/ua/dmerrell/projects/graph-ppl/analysis_results"
+temp_dir: "/ua/dmerrell/projects/graph-ppl/temp"
 
 # Define the simulation study
 simulation_study:
     # timeout for each method 
-    timeout: 60 # seconds
+    timeout: 1800 # seconds
     # the grid of simulated datasets
     simulation_grid:
         V: [20, 100, 1000]     # number of variables

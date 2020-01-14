@@ -71,7 +71,12 @@ function dbn_mcmc_inference(reference_parents::Vector{Vector{Int64}},
     acceptances = nothing
 
     # Run the markov chain
+    prop_count = 0
     while true
+        
+        if (prop_count > 0) && (prop_count % 5 == 0)
+            println("\t",prop_count," proposals made.")
+        end
         # update the variables    
         tr, acc = update_loop_fn(tr, lambda_prop_std, proposal_param_vec, update_lambda)
         if track_acceptance
@@ -87,6 +92,8 @@ function dbn_mcmc_inference(reference_parents::Vector{Vector{Int64}},
             results["elapsed"] = t_elapsed
             break
         end
+
+        prop_count += 1
     end
 
     return results, acceptances 

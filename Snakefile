@@ -26,15 +26,15 @@ configfile: "analysis_config.yaml"
 
 # directories
 ROOT_DIR = os.getcwd()
-COMP_DIR = os.path.join(ROOT_DIR,"compiled")
+BIN_DIR = os.path.join(ROOT_DIR,"bin")
 FIG_DIR = os.path.join(ROOT_DIR,"figures")
 JULIA_PROJ_DIR = os.path.join(ROOT_DIR, "julia-project")
 HILL_DIR = os.path.join(ROOT_DIR, "hill-method")
 FUNCH_DIR = os.path.join(ROOT_DIR, "funchisq")
-RES_DIR = config["results_dir"]
+TEMP_DIR = config["temp_dir"]
 
-
-SIM_DIR = os.path.join(RES_DIR, "simulation_study")
+# simulation study directories
+SIM_DIR = os.path.join(TEMP_DIR, "simulation_study")
 SIMDAT_DIR = os.path.join(SIM_DIR, "datasets")
 TS_DIR = os.path.join(SIMDAT_DIR, "timeseries")
 REF_DIR = os.path.join(SIMDAT_DIR, "ref_graphs")
@@ -70,18 +70,18 @@ HILL_TIME_TIMEOUT = HILL_TIME_PARAMS["timeout"]
 #############################
 rule all:
     input:
-        ## simulation study results
-	#expand(SCORE_DIR+"/mcmc_d={d}_n={n}_b={b}_th={th}/v={v}_r={r}_a={a}_t={t}.json", 
-	#       d=REG_DEGS, n=N_SAMPLES, b=BURNINS, th=THINNINGS, 
-	#       v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]), 
-	#expand(SCORE_DIR+"/funchisq/v={v}_r={r}_a={a}_t={t}.json",
+        # simulation study results
+        expand(SCORE_DIR+"/mcmc_d={d}_n={n}_b={b}_th={th}/v={v}_r={r}_a={a}_t={t}.json", 
+           d=REG_DEGS, n=N_SAMPLES, b=BURNINS, th=THINNINGS, 
+           v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]), 
+        #expand(SCORE_DIR+"/funchisq/v={v}_r={r}_a={a}_t={t}.json",
         #        v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
         #expand(SCORE_DIR+"/hill/v={v}_r={r}_a={a}_t={t}.json",   
         #        v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
-	#expand("simulation-study/scores/lasso/v={v}_r={r}_a={a}_t={t}.json",
-	#        v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
-	## Hill timetest results
-        FIG_DIR+"/hill_method_timetest.csv"	
+        #expand("simulation-study/scores/lasso/v={v}_r={r}_a={a}_t={t}.json",
+        #        v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
+        ## Hill timetest results
+        #FIG_DIR+"/hill_method_timetest.csv"    
 
 rule simulate_data:
     input:
@@ -96,8 +96,8 @@ rule simulate_data:
 rule score_predictions:
     input:
         "builddir/scoring",
-	tr_dg_fs=[TRU_DIR+"/{sim_gridpoint}_replicate="+str(rep)+".csv" for rep in SIM_REPLICATES],
-	pp_res=[PRED_DIR+"/{method}/{sim_gridpoint}_replicate="+str(rep)+".json" for rep in SIM_REPLICATES]
+        tr_dg_fs=[TRU_DIR+"/{sim_gridpoint}_replicate="+str(rep)+".csv" for rep in SIM_REPLICATES],
+        pp_res=[PRED_DIR+"/{method}/{sim_gridpoint}_replicate="+str(rep)+".json" for rep in SIM_REPLICATES]
     output:
         out=SCORE_DIR+"/{method}/{sim_gridpoint}.json" 
     shell:
@@ -119,13 +119,13 @@ rule postprocess_sim_mcmc:
 
 rule run_sim_mcmc:
     input:
-        method="builddir/Catsupp",
+        method=BIN_DIR+"/mcmc/Catsupp",
         ts_file=TS_DIR+"/{replicate}.csv",
         ref_dg=REF_DIR+"/{replicate}.csv",
     output:
         out=list([RAW_DIR+"/mcmc_d={d}_n="+str(n)+"_b="+str(b)+"_th="+str(th)\
-			+"/{replicate}_chain={c}.json"\
-			for n in N_SAMPLES for b in BURNINS for th in THINNINGS])
+            +"/{replicate}_chain={c}.json"\
+            for n in N_SAMPLES for b in BURNINS for th in THINNINGS])
     shell:
         "{input.method} {input.ts_file} {input.ref_dg} "+RAW_DIR\ 
         +" {wildcards.replicate}_chain={wildcards.c}.json"\
@@ -170,7 +170,7 @@ rule run_sim_hill:
 rule run_timetest_hill:
     input:
         ts=TS_DIR+"/{replicate}.csv",
-	ref=REF_DIR+"/{replicate}.csv"
+        ref=REF_DIR+"/{replicate}.csv"
     output:
         PRED_DIR+"/hill_{deg}_{mode}/{replicate}.json"
     shell:
@@ -221,18 +221,22 @@ rule compile_simulator:
     input:
         "simulation-study/simulate_data.jl"
     output:
-        "builddir/simulate_data"
+        BIN_DIR+"/simulator/simulate_data"
+    params:
+        simulator_dir=BIN_DIR+"/simulator"
+    threads: 1
     shell:
-        "julia --project={JULIA_PROJ_DIR} {JULIAC_PATH} -vae simulation-study/simulate_data.jl"
+        "julia --project={JULIA_PROJ_DIR} {JULIAC_PATH} -d {params.simulator_dir} -vaet simulation-study/simulate_data.jl"
 
 rule compile_postprocessor:
     input:
-        "builddir/Catsupp",
+        BIN_DIR+"/mcmc/Catsupp",
         JULIA_PROJ_DIR+"/postprocess.jl"
     output:
         "builddir/postprocess"
+    threads: 1
     shell:
-        "julia --project={JULIA_PROJ_DIR} {JULIAC_PATH} -vae {JULIA_PROJ_DIR}/postprocess.jl"
+        "julia --project={JULIA_PROJ_DIR} {JULIAC_PATH} -vaet {JULIA_PROJ_DIR}/postprocess.jl"
 
 
 rule compile_scoring:
@@ -241,17 +245,21 @@ rule compile_scoring:
         "builddir/postprocess"
     output:
         "builddir/scoring"
+    threads: 1
     shell:
-        "julia --project={JULIA_PROJ_DIR} {JULIAC_PATH} -vae {JULIA_PROJ_DIR}/scoring.jl"
+        "julia --project={JULIA_PROJ_DIR} {JULIAC_PATH} -vaet {JULIA_PROJ_DIR}/scoring.jl"
 
 rule compile_mcmc:
     input:
         "builddir/simulate_data",
         JULIA_PROJ_DIR+"/Catsupp.jl"
     output:
-        "builddir/Catsupp"
+        BIN_DIR+"/mcmc/Catsupp"
+    params:
+        mcmc_bin=BIN_DIR+"/mcmc"
+    threads: 1
     shell:
-        "julia --project={JULIA_PROJ_DIR} {JULIAC_PATH} -vae {JULIA_PROJ_DIR}/Catsupp.jl"
+        "julia --project={JULIA_PROJ_DIR} {JULIAC_PATH} -d {params.mcmc_bin} -vaet {JULIA_PROJ_DIR}/Catsupp.jl"
 
 rule compile_lasso:
     input:
@@ -259,8 +267,9 @@ rule compile_lasso:
         "builddir/simulate_data"
     output:
         "builddir/lasso"
+    threads: 1
     shell:
-        "julia --project={JULIA_PROJ_DIR} {JULIAC_PATH} -vae {JULIA_PROJ_DIR}/lasso.jl"
+        "julia --project={JULIA_PROJ_DIR} {JULIAC_PATH} -vaet {JULIA_PROJ_DIR}/lasso.jl"
 
 # END JULIA CODE COMPILATION
 #############################
