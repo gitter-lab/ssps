@@ -5,7 +5,6 @@
 # Contains functions relevant for inference
 # in our network reconstruction setting.
 
-import DataStructures: DefaultDict
 
 """
 Generic MCMC inference wrapper for DBN model.
@@ -17,20 +16,18 @@ Some important arguments:
 * update_results    
 """
 function dbn_mcmc_inference(reference_parents::Vector{Vector{Int64}},
-			    X::Vector{Array{Float64,2}},
-                            regression_deg::Int64,
-			    lambda_max::Float64,
-                            n_samples_v::Vector{Int64},
-                            burnin_v::Vector{Int64}, 
-                            thinning_v::Vector{Int64},
+			    X::Vector{Array{Float64,2}};
+                            regression_deg::Int64=3,
+                            timeout::Float64=3600.0,
+                            burnin_v::Vector{Float64}=[0.5], 
+                            thinning_v::Vector{Int64}=[5],
 			    update_loop_fn::Function,
 			    update_results::Function,
-			    lambda_prop_std::Float64;
-			    fixed_lambda::Float64=1.0,
-			    update_lambda::Bool=true,
+                            large_indeg::Float64=20.0,
+			    lambda_max::Float64=15.0,
+			    lambda_prop_std::Float64=0.25,
 			    track_acceptance::Bool=false,
-			    update_acc_fn::Function=identity,
-                            timeout::Float64=Inf)
+			    update_acc_fn::Function=identity)
 
     # start the timer
     t_start = time()
@@ -46,6 +43,7 @@ function dbn_mcmc_inference(reference_parents::Vector{Vector{Int64}},
     if regression_deg == -1
         regression_deg = V
     end
+    lambda_min = log(V / large_indeg - 1.0)
 
     # Condition the model on the data
     observations = Gen.choicemap()
@@ -53,15 +51,11 @@ function dbn_mcmc_inference(reference_parents::Vector{Vector{Int64}},
         observations[:Xplus => i => :Xp] = Xp
     end
 
-    # Initialize the lambda value (if we aren't sampling it)
-    if !update_lambda
-        observations[:lambda] = fixed_lambda
-    end
-
     # Generate an initial trace
     tr, _ = Gen.generate(dbn_model, (reference_parents, 
 				     Xminus, 
-                                     Xplus, 
+                                     Xplus,
+                                     lambda_min, 
 				     lambda_max,
 				     regression_deg),
 			 observations)
@@ -78,7 +72,7 @@ function dbn_mcmc_inference(reference_parents::Vector{Vector{Int64}},
             println("\t",prop_count," proposals made.")
         end
         # update the variables    
-        tr, acc = update_loop_fn(tr, lambda_prop_std, proposal_param_vec, update_lambda)
+        tr, acc = update_loop_fn(tr, lambda_prop_std, proposal_param_vec)
         if track_acceptance
             acceptances = update_acc_fn(acceptances, acc, V)
         end
@@ -106,21 +100,18 @@ Metropolis-Hastings updates on them.
 Use a proposal distribution with add, remove, 
 and "parent swap" moves.
 """
-function ps_smart_swp_update_loop(tr, lambda_prop_std::Float64, 
-				      proposal_param_vec::Vector{Float64},
-				      update_lambda::Bool)
+function smart_update_loop(tr, lambda_prop_std::Float64, 
+	  		       proposal_param_vec::Vector{Float64})
 
     V = length(proposal_param_vec)
     lambda_acc = false
-    if update_lambda
-        tr, lambda_acc = Gen.mh(tr, lambda_proposal, (lambda_prop_std,))
-    end
+    tr, lambda_acc = Gen.mh(tr, lambda_proposal, (lambda_prop_std,))
 
     acc_vec = zeros(V)
     for i=1:V
-        tr, acc_vec[i] = Gen.mh(tr, parentvec_smart_swp_proposal,
+        tr, acc_vec[i] = Gen.mh(tr, smart_proposal,
 				(i, proposal_param_vec[i], V),
-				parentvec_smart_swp_involution)
+				smart_involution)
     end
 
     return tr, (lambda_acc, acc_vec)
@@ -175,6 +166,8 @@ function update_results_split(results, tr, V, n_samples_v, burnin_v, thinning_v,
 
     return results
 end
+
+import DataStructures: DefaultDict
 
 function initialize_results_split(V, n_samples_v, burnin_v, thinning_v)
    

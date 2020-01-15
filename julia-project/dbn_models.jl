@@ -88,10 +88,11 @@ P(X,G,lambda | G') = P(X|G) * P(G|lambda, G') * P(lambda)
 @gen (static) function dbn_model(reference_adj::Vector{Vector{Int64}}, 
 				 Xminus::Array{Float64,2}, 
 				 Xplus::Vector{Vector{Float64}},
+                                 lambda_min::Float64,
 				 lambda_max::Float64,
 				 regression_deg::Int64)
 
-    lambda = @trace(Gen.uniform(0.0, lambda_max), :lambda)
+    lambda = @trace(Gen.uniform(lambda_min, lambda_max), :lambda)
 
     V = length(Xplus)
     Vvec = SingletonVec(V, V)

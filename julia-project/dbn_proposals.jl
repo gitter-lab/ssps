@@ -54,9 +54,9 @@ and edge, just move it to a different parent.
 "Swap" proposals preserve in-degree. This is a good thing, since our 
 model's posterior distribution varies pretty strongly with in-degree.
 """
-@gen function parentvec_smart_swp_proposal(tr, vertex::Int64, 
-					   prob_param::Float64,
-					   V::Int64)
+@gen function smart_proposal(tr, vertex::Int64, 
+	                         prob_param::Float64,
+                                 V::Int64)
 
     parents = copy(tr[:parent_sets => vertex => :parents])
     #println("PARENTS: ", parents)
@@ -80,7 +80,7 @@ model's posterior distribution varies pretty strongly with in-degree.
 end
 
 
-function parentvec_smart_swp_involution(cur_tr, fwd_choices, fwd_ret, prop_args)
+function smart_involution(cur_tr, fwd_choices, fwd_ret, prop_args)
 
     parents = fwd_ret[1]
     action = fwd_ret[2]
