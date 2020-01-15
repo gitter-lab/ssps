@@ -75,7 +75,7 @@ function dbn_mcmc_inference(reference_parents::Vector{Vector{Int64}},
     while true
         
         if (prop_count > 0) && (prop_count % 5 == 0)
-            println("\t",prop_count," proposals made.")
+            println("\t",prop_count," proposals made. (",time() - t_start," seconds)" )
         end
         # update the variables    
         tr, acc = update_loop_fn(tr, lambda_prop_std, proposal_param_vec, update_lambda)
