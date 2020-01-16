@@ -32,6 +32,7 @@ JULIA_PROJ_DIR = os.path.join(ROOT_DIR, "julia-project")
 HILL_DIR = os.path.join(ROOT_DIR, "hill-method")
 FUNCH_DIR = os.path.join(ROOT_DIR, "funchisq")
 TEMP_DIR = config["temp_dir"]
+EXP_DATA_DIR = os.path.join(ROOT_DIR,"experimental_data")
 
 # simulation study directories
 SIM_DIR = os.path.join(TEMP_DIR, "simulation_study")
@@ -39,7 +40,7 @@ SIMDAT_DIR = os.path.join(SIM_DIR, "datasets")
 TS_DIR = os.path.join(SIMDAT_DIR, "timeseries")
 REF_DIR = os.path.join(SIMDAT_DIR, "ref_graphs")
 TRU_DIR = os.path.join(SIMDAT_DIR, "true_graph")
-RAW_DIR = os.path.join(SIMDAT_DIR, "raw")
+RAW_DIR = os.path.join(SIM_DIR, "raw")
 PRED_DIR = os.path.join(SIM_DIR, "predictions")
 SCORE_DIR = os.path.join(SIM_DIR, "scores")
 
@@ -49,6 +50,7 @@ SIM_TIMEOUT = SIM_PARAMS["timeout"]
 SIM_REPLICATES = list(range(SIM_PARAMS["N"]))
 SIM_GRID = SIM_PARAMS["simulation_grid"]
 SIM_M = SIM_GRID["M"]
+POLY_DEG = SIM_PARAMS["polynomial_degree"]
 
 # MCMC hyperparameters (for simulation study)
 MC_PARAMS = SIM_PARAMS["mcmc_hyperparams"]
@@ -57,22 +59,44 @@ BURNIN = MC_PARAMS["burnin"]
 
 # Hill hyperparameters
 HILL_PARAMS = SIM_PARAMS["hill_hyperparams"]
+HILL_MAX_INDEG = HILL_PARAMS["max_indeg"]
 HILL_TIME_PARAMS = config["hill_timetest"]
 HILL_TIME_COMBS = HILL_TIME_PARAMS["deg_v_combs"]
 HILL_MODES = HILL_TIME_PARAMS["modes"]
 HILL_TIME_TIMEOUT = HILL_TIME_PARAMS["timeout"]
+
+# Convergence analysis 
+CONV_DIR = os.path.join(TEMP_DIR, "convergence")
+CONV_RES_DIR = os.path.join(CONV_DIR, "results")
+CONV_RAW_DIR = os.path.join(CONV_DIR, "raw")
+CONV_PARAMS = config["convergence_analysis"]
+CONV_SIM_GRID = CONV_PARAMS["simulation_grid"]
+CONV_DATASETS = CONV_PARAMS["experimental_datasets"]
+CONV_DEGS = CONV_PARAMS["mcmc_hyperparams"]["regression_deg"]
+CONV_REPLICATES = list(range(CONV_PARAMS["N"]))
+CONV_CHAINS = list(range(CONV_PARAMS["n_chains"]))
+CONV_MAX_SAMPLES = CONV_PARAMS["max_samples"]
+CONV_TIMEOUT = CONV_PARAMS["timeout"]
+
 
 #############################
 # RULES
 #############################
 rule all:
     input:
-        # simulation study results
-        expand(SCORE_DIR+"/mcmc_d={d}/v={v}_r={r}_a={a}_t={t}.json", 
-           d=REG_DEGS, v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]), 
+        # convergence tests on simulated data
+        expand(CONV_RAW_DIR+"/v={v}_r={r}_a={a}_t={t}_replicate={rep}/mcmc_d={d}/chain_{c}.bson",
+               v=CONV_SIM_GRID["V"], r=CONV_SIM_GRID["R"], a=CONV_SIM_GRID["A"],
+               t=CONV_SIM_GRID["T"], rep=CONV_REPLICATES, d=CONV_DEGS, c=CONV_CHAINS) 
+        # convergence test results on experimental data
+        #expand(CONV_RAW_DIR+"/{dataset}/mcmc_d={d}/chain_{c}.bson", 
+        #       ds=CONV_DATASETS, d=CONV_DEGS, c=CONV_CHAINS)
+        # simulation study
+        #expand(SCORE_DIR+"/mcmc_d={d}/v={v}_r={r}_a={a}_t={t}.json", 
+        #       d=REG_DEGS, v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]), 
         #expand(SCORE_DIR+"/funchisq/v={v}_r={r}_a={a}_t={t}.json",
         #        v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
-        #expand(SCORE_DIR+"/hill/v={v}_r={r}_a={a}_t={t}.json",   
+        #expand(SCORE_DIR+"/hill/v={v}_r={r}_a={a}_t={t}.json",  
         #        v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
         #expand("simulation-study/scores/lasso/v={v}_r={r}_a={a}_t={t}.json",
         #        v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
@@ -87,7 +111,7 @@ rule simulate_data:
         ref=REF_DIR+"/v={v}_r={r}_a={a}_t={t}_replicate={rep}.csv",
         true=TRU_DIR+"/v={v}_r={r}_a={a}_t={t}_replicate={rep}.csv"
     shell:
-        "{input.simulator} {wildcards.v} {wildcards.t} {SIM_M} {wildcards.r} {wildcards.a} 3 {output.ref} {output.true} {output.ts}"
+        "{input.simulator} {wildcards.v} {wildcards.t} {SIM_M} {wildcards.r} {wildcards.a} {POLY_DEG} {output.ref} {output.true} {output.ts}"
 
 rule score_predictions:
     input:
@@ -103,6 +127,17 @@ rule score_predictions:
 
 ######################
 # MCMC JOBS
+
+rule run_conv_mcmc_sim:
+    input:
+        method=BIN_DIR+"/mcmc/Catsupp",
+        ts_file=TS_DIR+"/{dataset}.csv",
+        ref_dg=REF_DIR+"/{dataset}.csv",
+    output:
+        CONV_RAW_DIR+"/{dataset}/mcmc_d={d}/{chain}.bson"
+    shell:
+        "{input.method} {input.ts_file} {input.ref_dg} {output} {CONV_TIMEOUT}"\
+        +" --regression-deg {wildcards.d} --n-samples {CONV_MAX_SAMPLES}"
 
 rule postprocess_sim_mcmc:
     input:
@@ -121,7 +156,7 @@ rule run_sim_mcmc:
     output:
         RAW_DIR+"/mcmc_d={d}/{replicate}.json"
     shell:
-        "{input.method} {input.ts_file} {input.ref_dg} {output} {SIM_TIMEOUT}" 
+        "{input.method} {input.ts_file} {input.ref_dg} {output} {SIM_TIMEOUT}"\
         +" --regression-deg {wildcards.d}"
         
 
@@ -151,9 +186,9 @@ rule run_sim_hill:
         ts_file=TS_DIR+"/{replicate}.csv",
         ref_dg=REF_DIR+"/{replicate}.csv"
     output:
-        PRED_DIR+"/hill/{replicate}.json"
+        PRED_DIR+"/hill_{deg}_{mode}/{replicate}.json"
     shell:
-        "matlab -nodesktop -nosplash -nojvm -r \'cd(\""+HILL_DIR+"\"); try, hill_dbn_wrapper(\"{input.ts_file}\", \"{input.ref_dg}\", \"{output}\", -1, \"full\", "+str(SIM_TIMEOUT)+"), catch e, quit(1), end, quit\'"
+        "matlab -nodesktop -nosplash -nojvm -r \'cd(\"{HILL_DIR}\"); try, hill_dbn_wrapper(\"{input.ts_file}\", \"{input.ref_dg}\", \"{output}\", -1, \"full\", {SIM_TIMEOUT}), catch e, quit(1), end, quit\'"
 
 
 rule run_timetest_hill:
