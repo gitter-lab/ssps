@@ -53,10 +53,7 @@ SIM_M = SIM_GRID["M"]
 # MCMC hyperparameters (for simulation study)
 MC_PARAMS = SIM_PARAMS["mcmc_hyperparams"]
 REG_DEGS = MC_PARAMS["regression_deg"]
-CHAINS = list(range(MC_PARAMS["n_chains"]))
-N_SAMPLES = MC_PARAMS["n_samples"]
-THINNINGS = MC_PARAMS["thinning"]
-BURNINS = MC_PARAMS["burnin"]
+BURNIN = MC_PARAMS["burnin"]
 
 # Hill hyperparameters
 HILL_PARAMS = SIM_PARAMS["hill_hyperparams"]
@@ -71,9 +68,8 @@ HILL_TIME_TIMEOUT = HILL_TIME_PARAMS["timeout"]
 rule all:
     input:
         # simulation study results
-        expand(SCORE_DIR+"/mcmc_d={d}_n={n}_b={b}_th={th}/v={v}_r={r}_a={a}_t={t}.json", 
-           d=REG_DEGS, n=N_SAMPLES, b=BURNINS, th=THINNINGS, 
-           v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]), 
+        expand(SCORE_DIR+"/mcmc_d={d}/v={v}_r={r}_a={a}_t={t}.json", 
+           d=REG_DEGS, v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]), 
         #expand(SCORE_DIR+"/funchisq/v={v}_r={r}_a={a}_t={t}.json",
         #        v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
         #expand(SCORE_DIR+"/hill/v={v}_r={r}_a={a}_t={t}.json",   
@@ -123,17 +119,10 @@ rule run_sim_mcmc:
         ts_file=TS_DIR+"/{replicate}.csv",
         ref_dg=REF_DIR+"/{replicate}.csv",
     output:
-        out=list([RAW_DIR+"/mcmc_d={d}_n="+str(n)+"_b="+str(b)+"_th="+str(th)\
-            +"/{replicate}_chain={c}.json"\
-            for n in N_SAMPLES for b in BURNINS for th in THINNINGS])
+        RAW_DIR+"/mcmc_d={d}/{replicate}.json"
     shell:
-        "{input.method} {input.ts_file} {input.ref_dg} "+RAW_DIR\ 
-        +" {wildcards.replicate}_chain={wildcards.c}.json"\
-        +" --n-samples " + " ".join([str(i) for i in N_SAMPLES])\
-        +" --burnin "+ " ".join([str(b) for b in BURNINS])\
-        +" --thinning "+" ".join([str(th) for th in THINNINGS])\
-        +" --regression-deg {wildcards.d}"\
-        +" --timeout "+str(SIM_TIMEOUT)
+        "{input.method} {input.ts_file} {input.ref_dg} {output} {SIM_TIMEOUT}" 
+        +" --regression-deg {wildcards.d}"
         
 
 # END MCMC JOBS

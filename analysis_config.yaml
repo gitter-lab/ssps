@@ -7,7 +7,7 @@ temp_dir: "/ua/dmerrell/projects/graph-ppl/temp"
 # Define the simulation study
 simulation_study:
     # timeout for each method 
-    timeout: 1800 # seconds
+    timeout: 3600 # seconds
     # the grid of simulated datasets
     simulation_grid:
         V: [20, 100, 1000]     # number of variables
@@ -19,10 +19,7 @@ simulation_study:
     N: 1
     # the grid of MCMC hyperparameters
     mcmc_hyperparams:
-        n_samples: [10, 100]
-        thinning: [1,10]
-        burnin: [0, 10]
-        n_chains: 4
+        burnin: 0.5 
         regression_deg: [1,2]
     # the grid of Hill hyperparameters
     hill_hyperparams:

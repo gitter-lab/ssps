@@ -20,9 +20,7 @@ Gen.load_generated_functions()
 make a json string containing all of the relevant
 outputs of MCMC, structured in a sensible way.
 """
-function make_output_json(results, tup, acc)
-
-    cur_results = results["splits"][tup]
+function make_output_json(results, acc)
 
     if acc == nothing
         acc = Dict("lambdas" => nothing,
@@ -31,11 +29,10 @@ function make_output_json(results, tup, acc)
 		   )
     end
 
-    cur_results["parent_sets_acc"] = acc["parent_sets"]
-    cur_results["lambdas_acc"] = acc["lambdas"]
-    cur_results["n_proposals"] = acc["n_proposals"]
+    results["parent_sets_acc"] = acc["parent_sets"]
+    results["lambdas_acc"] = acc["lambdas"]
 
-    return JSON.json(cur_results)
+    return JSON.json(results)
 end
 
 
@@ -52,33 +49,25 @@ function parse_script_arguments()
         "ref_graph_filename"
             help = "name of reference graph data file"
     	    required = true
-        "output_directory"
-            help = "name of output directory. Output will be written to output_directory/{mcmc_param_list}/output_filename"
-    	    required = true
-        "output_filename"
+        "output_path"
             help = "name of output JSON file"
     	    required = true
-        "--n-samples"
-            help = "number of MCMC samples to take"
-    	    arg_type = Int
-    	    nargs='+'
+        "timeout"
+            help = "execution timeout (in seconds). When reached, terminate and output results as they are."
+            arg_type = Float64
         "--burnin"
-            help = "number of burnin proposals to make"
-    	    arg_type = Int
-            nargs='+'
-        "--thinning"
-            help = "number of thinning proposals to make"
-    	    arg_type = Int
-    	    nargs='+'
-        "--fixed-lambda"
-            help = "If we give lambda a fixed value, this is that value."
+            help = "fraction of runtime to spend warming up the markov chain"
     	    arg_type = Float64
-    	    default = -1.0
-        "--lambda-prior"
-            help = "kind of prior distribution for lambda variable"
-    	    default = "uniform"
-	    range_tester = x -> x in ["uniform"; "exponential"]
-        "--lambda-param"
+            default=0.5
+        "--thinning"
+            help = "number of proposals to make for each sample taken"
+    	    arg_type = Int64
+            default=1
+        "--large-indeg"
+            help = "an approximate upper bound on the number of parents for any node"
+            arg_type = Float64
+    	    default = 20.0
+        "--lambda-max"
             help = "hyperparameter for lambda prior"
     	    default = 10.0
         "--regression-deg"
@@ -87,18 +76,10 @@ function parse_script_arguments()
     	    default = -1 
         "--lambda-prop-std"
             help = "standard deviation of lambda's proposal distribution"
-    	    default = 0.5
-        "--parent-prop"
-            help = "the kind of proposal distribution to use for parent sets"
-    	    default = "smart"
-	    range_tester = x -> x in ["smart", "dumb"]
+    	    default = 0.25
 	"--track-acceptance"
 	    help = "flag: track proposal acceptance rates during MCMC"
 	    action = :store_true
-        "--timeout"
-            help = "execution timeout (in seconds). When reached, terminate and output results as they are."
-            arg_type = Float64
-            default = Inf
     end
 
     args = parse_args(s)
@@ -107,40 +88,35 @@ function parse_script_arguments()
     return arg_vec
 end
 
+
 function transform_arguments(parsed_arg_dict)
 
     arg_vec = []
     push!(arg_vec, parsed_arg_dict["timeseries_filename"])
     push!(arg_vec, parsed_arg_dict["ref_graph_filename"])
-    push!(arg_vec, parsed_arg_dict["output_directory"])
-    push!(arg_vec, parsed_arg_dict["output_filename"])
-    push!(arg_vec, parsed_arg_dict["n-samples"])
+    push!(arg_vec, parsed_arg_dict["output_path"])
+    push!(arg_vec, parsed_arg_dict["timeout"])
     push!(arg_vec, parsed_arg_dict["burnin"])
     push!(arg_vec, parsed_arg_dict["thinning"])
-    push!(arg_vec, parsed_arg_dict["fixed-lambda"] == -1.0)
-    push!(arg_vec, parsed_arg_dict["fixed-lambda"])
-    push!(arg_vec, parsed_arg_dict["lambda-prior"])
-    push!(arg_vec, parsed_arg_dict["lambda-param"])
+    push!(arg_vec, parsed_arg_dict["large-indeg"])
+    push!(arg_vec, parsed_arg_dict["lambda-max"])
     push!(arg_vec, parsed_arg_dict["regression-deg"])
     push!(arg_vec, parsed_arg_dict["lambda-prop-std"])
-    push!(arg_vec, parsed_arg_dict["parent-prop"])
-    push!(arg_vec, parsed_arg_dict["timeout"])
 
     return arg_vec
 end
 
+
 function perform_inference(timeseries_filename::String,
 			   ref_graph_filename::String,
-			   output_dir::String,
-                           fname::String,
-			   n_samples::Vector{Int64},
-			   burnin::Vector{Int64}, thinning::Vector{Int64},
-			   lambda_prior::String,
-			   lambda_param::Float64,
+                           output_path::String,
+                           timeout::Float64,
+			   burnin::Float64, 
+                           thinning::Int64,
+			   large_indeg::Float64,
+			   lambda_max::Float64,
 			   regression_deg::Int64,
-			   lambda_prop_std::Float64,
-			   parent_proposal::String,
-                           timeout::Float64)
+			   lambda_prop_std::Float64)
 
     ts_vec, ref_ps = load_simulated_data(timeseries_filename, 
 					 ref_graph_filename) 
@@ -150,34 +126,26 @@ function perform_inference(timeseries_filename::String,
     println("Invoking Catsupp on input files:\n\t", 
 	    timeseries_filename, "\n\t", ref_graph_filename)
 
-    results, acc = dbn_mcmc_inference(ref_ps, ts_vec, 
-				      regression_deg, lambda_param,
-                                      n_samples, burnin, thinning,
-			              smart_update_loop,
-			              update_results_split,
-				      lambda_prop_std;
+    results, acc = dbn_mcmc_inference(ref_ps, ts_vec; 
+				      regression_deg=regression_deg,
+                                      timeout=timeout, 
+                                      burnin=burnin, 
+                                      thinning=thinning,
+			              update_loop_fn=smart_update_loop,
+			              update_results_fn=update_results_summary,
+                                      large_indeg=large_indeg,
+                                      lambda_max=lambda_max,
+				      lambda_prop_std=lambda_prop_std,
 			              track_acceptance=true,
-			              update_acc_fn=update_acc_z_lambda,
-                                      timeout=timeout)
+			              update_acc_fn=update_acc)
   
-    println("Saving results to JSON files:")
-    for (n,b,t) in keys(results["splits"]) 
-    
-        js_str = make_output_json(results, (n,b,t), acc)
-        config_str = join(["mcmc_d=", regression_deg, 
-                           "_n=", n, 
-                           "_b=", b,
-                           "_th=", t])
+    println("Saving results to JSON file:")
+    js_str = make_output_json(results, acc)
 
-        mcmc_dir = Base.Filesystem.joinpath(output_dir, config_str) 
-        Base.Filesystem.mkpath(mcmc_dir)
-
-        output_path = Base.Filesystem.joinpath(mcmc_dir, fname)        
-        f = open(output_path, "w")
-        write(f, js_str)
-        close(f)
-        println("\t", output_path) 
-    end
+    f = open(output_path, "w")
+    write(f, js_str)
+    close(f)
+    println("\t", output_path) 
 
 end
 

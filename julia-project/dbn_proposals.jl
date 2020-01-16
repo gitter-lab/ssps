@@ -59,11 +59,8 @@ model's posterior distribution varies pretty strongly with in-degree.
                                  V::Int64)
 
     parents = copy(tr[:parent_sets => vertex => :parents])
-    #println("PARENTS: ", parents)
     indeg = length(parents)
-    #println("INDEG: ", indeg)
     action_probs = compute_move_probs(indeg, V, prob_param)
-    #println("ACTION PROBS: ", action_probs)
     action = @trace(Gen.categorical(action_probs), :action)
 
     if action == 1
@@ -130,17 +127,10 @@ function smart_involution(cur_tr, fwd_choices, fwd_ret, prop_args)
 end
 
 
-@gen function lambda_proposal(tr, radius::Int64)
+@gen function lambda_proposal(tr, std::Int64)
 
-    @trace(Gen.normal(tr[:lambda], radius), :lambda)
+    @trace(Gen.normal(tr[:lambda], std), :lambda)
 
 end
 
-
-@gen (static) function edge_proposal(cur_tr, parent_idx::Int64, 
-				             child_idx::Int64,
-					     prob::Float64)
-    @trace(Gen.bernoulli(prob), 
-           :adjacency => :edges => child_idx => parent_idx => :z)
-end
 
