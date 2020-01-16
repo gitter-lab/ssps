@@ -107,7 +107,7 @@ rule score_predictions:
 rule postprocess_sim_mcmc:
     input:
         "builddir/postprocess",
-        raw=[RAW_DIR+"/mcmc_{mcmc_settings}/{replicate}_chain="+str(c)+".json" for c in CHAINS]
+        raw=RAW_DIR+"/mcmc_{mcmc_settings}/{replicate}.json" 
     output:
         out=PRED_DIR+"/mcmc_{mcmc_settings}/{replicate}.json"
     shell:
@@ -213,7 +213,6 @@ rule compile_simulator:
         BIN_DIR+"/simulator/simulate_data"
     params:
         simulator_dir=BIN_DIR+"/simulator"
-    threads: 1
     shell:
         "julia --project={JULIA_PROJ_DIR} {JULIAC_PATH} -d {params.simulator_dir} -vaet simulation-study/simulate_data.jl"
 
@@ -223,7 +222,6 @@ rule compile_postprocessor:
         JULIA_PROJ_DIR+"/postprocess.jl"
     output:
         "builddir/postprocess"
-    threads: 1
     shell:
         "julia --project={JULIA_PROJ_DIR} {JULIAC_PATH} -vaet {JULIA_PROJ_DIR}/postprocess.jl"
 
@@ -234,7 +232,6 @@ rule compile_scoring:
         "builddir/postprocess"
     output:
         "builddir/scoring"
-    threads: 1
     shell:
         "julia --project={JULIA_PROJ_DIR} {JULIAC_PATH} -vaet {JULIA_PROJ_DIR}/scoring.jl"
 
@@ -246,7 +243,6 @@ rule compile_mcmc:
         BIN_DIR+"/mcmc/Catsupp"
     params:
         mcmc_bin=BIN_DIR+"/mcmc"
-    threads: 1
     shell:
         "julia --project={JULIA_PROJ_DIR} {JULIAC_PATH} -d {params.mcmc_bin} -vaet {JULIA_PROJ_DIR}/Catsupp.jl"
 
@@ -256,7 +252,6 @@ rule compile_lasso:
         "builddir/simulate_data"
     output:
         "builddir/lasso"
-    threads: 1
     shell:
         "julia --project={JULIA_PROJ_DIR} {JULIAC_PATH} -vaet {JULIA_PROJ_DIR}/lasso.jl"
 
