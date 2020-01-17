@@ -131,22 +131,31 @@ function perform_inference(timeseries_filename::String,
                            track_acceptance::Bool,
                            store_samples::Bool)
 
+    clear_caches()
+
     ts_vec, ref_ps = load_simulated_data(timeseries_filename, 
 					 ref_graph_filename) 
   
-
-    clear_caches()
     println("Invoking Catsupp on input files:\n\t", 
 	    timeseries_filename, "\n\t", ref_graph_filename)
 
+    # Decide the kind of results to store:
+    # summary statistics -- or -- a record of all samples
+    if store_samples
+        update_results_fn = update_results_storediff
+    else
+        update_results_fn = update_results_summary
+    end
+    
     results, acc = dbn_mcmc_inference(ref_ps, ts_vec; 
 				      regression_deg=regression_deg,
                                       timeout=timeout,
-                                      n_steps=n_steps, 
+                                      n_steps=n_steps,
+                                      store_samples=store_samples, 
                                       burnin=burnin, 
                                       thinning=thinning,
 			              update_loop_fn=smart_update_loop,
-			              update_results_fn=update_results_summary,
+			              update_results_fn=update_results_fn,
                                       large_indeg=large_indeg,
                                       lambda_max=lambda_max,
 				      lambda_prop_std=lambda_prop_std,

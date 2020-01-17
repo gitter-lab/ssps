@@ -15,6 +15,7 @@ function dbn_mcmc_inference(reference_parents::Vector{Vector{Int64}},
                             regression_deg::Int64=3,
                             timeout::Float64=3600.0,
                             n_steps::Int64=-1,
+                            store_samples::Bool=false,
                             burnin::Float64=0.5, 
                             thinning::Int64=5,
 			    update_loop_fn::Function=smart_update_loop,
@@ -24,19 +25,6 @@ function dbn_mcmc_inference(reference_parents::Vector{Vector{Int64}},
 			    lambda_prop_std::Float64=0.25,
 			    track_acceptance::Bool=false,
 			    update_acc_fn::Function=update_acc)
-
-    # Check for some default parameters
-    if regression_deg == -1
-        regression_deg = V
-    end
-    if n_steps == -1
-        n_steps = Inf
-    end
-    if store_samples 
-        update_results_fn = update_results_storediff
-        track_acceptance = false
-        burnin = 0.0
-    end 
 
     # Some data preprocessing
     Xminus, Xplus  = combine_X(X)
@@ -51,6 +39,18 @@ function dbn_mcmc_inference(reference_parents::Vector{Vector{Int64}},
     ref_parent_counts = [max(length(ps),1) for ps in reference_parents]
     proposal_param_vec = 1.0 ./ log2.(V ./ ref_parent_counts)
     lambda_min = log(max(V/large_indeg - 1.0, exp(0.5)))
+    
+    # Check for some default arguments 
+    if regression_deg == -1
+        regression_deg = V
+    end
+    if n_steps == -1
+        n_steps = Inf
+    end
+    if store_samples 
+        track_acceptance = false
+        burnin = 0.0
+    end 
 
     # Condition the model on the data
     observations = Gen.choicemap()
@@ -124,7 +124,7 @@ function dbn_mcmc_inference(reference_parents::Vector{Vector{Int64}},
     # Some last updates to the `results` object
     results["burnin_count"] = burnin_count
     if store_samples
-        delete!(results["prev_state"]) 
+        delete!(results, "prev_parents") 
     end
 
     return results, acceptances 
@@ -209,41 +209,44 @@ function update_results_storediff(results, tr, V)
         results = Dict("parent_sets" => [DefaultDict{Int64,Vector{Tuple{Int64,Int64}}}([]) for i=1:V],
                        "lambda" => Vector{Tuple{Int64,Float64}}(),
                        "n" => 1,
-                       "prev_state" => Gen.get_choices(tr)
+                       "prev_parents" => [Vector{Int64}() for i=1:V]
                        )
         
-        push!(results["lambda"], (n, tr[:lambda]))
+        push!(results["lambda"], (1, tr[:lambda]))
         for i=1:V
-            for parent in tr[:parent_sets => i]
-                push!(results["parent_sets"][i][parent], (n,1))
+            for parent in tr[:parent_sets => i => :parents]
+                push!(results["parent_sets"][i][parent], (1,1))
             end
+            results["prev_parents"][i] = tr[:parent_sets => i => :parents]
         end
     
     else # Update the state
-        
-        results["n"] += 1
+       
+        n = results["n"] + 1 
         # Lambda diffs
-        if results["prev_state"][:lambda] != tr[:lambda]
-            push!(results["lambda"], (results["n"], tr[:lambda]))
+        if results["lambda"][end] != tr[:lambda]
+            push!(results["lambda"], (n, tr[:lambda]))
         end 
         # Parent set diffs
         for i=1:V
-            prev_ps = results["prev_state"][:parent_sets => i]
-            
+            prev_ps = results["prev_parents"][i]
+            cur_ps = tr[:parent_sets => i => :parents] 
             # Has a new parent been added?
-            new_parents = setdiff(tr[:parent_sets => i], prev_ps)
+            new_parents = setdiff(cur_ps, prev_ps)
             for new_parent in new_parents
-                push!(results["parent_sets"][i][new_parent], (results["n"], 1))
+                push!(results["parent_sets"][i][new_parent], (n, 1))
             end
          
             # Has a parent been removed?
-            removed_parents = setdiff(prev_ps, tr[:parent_sets])
+            removed_parents = setdiff(prev_ps, cur_ps)
             for rem_parent in removed_parents
-                push!(results["parent_sets"][i][removed_parent], (results["n"], 0))
+                push!(results["parent_sets"][i][rem_parent], (n, 0))
             end
+
+            results["prev_parents"][i] = copy(cur_ps)
         end 
-        # Finished. Now current state is the old state
-        results["prev_state"] = Gen.get_choices(tr)
+        # Finished. update n. 
+        results["n"] = n
  
     end
     
