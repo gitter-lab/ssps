@@ -14,6 +14,7 @@ function dbn_mcmc_inference(reference_parents::Vector{Vector{Int64}},
 			    X::Vector{Array{Float64,2}};
                             regression_deg::Int64=3,
                             timeout::Float64=3600.0,
+                            n_steps::Int64=-1,
                             burnin::Float64=0.5, 
                             thinning::Int64=5,
 			    update_loop_fn::Function=smart_update_loop,
@@ -24,21 +25,31 @@ function dbn_mcmc_inference(reference_parents::Vector{Vector{Int64}},
 			    track_acceptance::Bool=false,
 			    update_acc_fn::Function=update_acc)
 
-    # start the timer
-    t_start = time()
-    t_elapsed = 0.0
+    # Check for some default parameters
+    if regression_deg == -1
+        regression_deg = V
+    end
+    if n_steps == -1
+        n_steps = Inf
+    end
+    if store_samples 
+        update_results_fn = update_results_storediff
+        track_acceptance = false
+        burnin = 0.0
+    end 
 
     # Some data preprocessing
     Xminus, Xplus  = combine_X(X)
     Xminus, Xplus = vectorize_X(Xminus, Xplus)
+    
+    # start the timer
+    t_start = time()
+    t_elapsed = 0.0
 
     # prepare some useful parameters
     V = length(Xplus)
     ref_parent_counts = [max(length(ps),1) for ps in reference_parents]
     proposal_param_vec = 1.0 ./ log2.(V ./ ref_parent_counts)
-    if regression_deg == -1
-        regression_deg = V
-    end
     lambda_min = log(max(V/large_indeg - 1.0, exp(0.5)))
 
     # Condition the model on the data
@@ -60,29 +71,34 @@ function dbn_mcmc_inference(reference_parents::Vector{Vector{Int64}},
     results = nothing
     acceptances = nothing
 
-    # burn in the markov chain
+    # Burn-in loop:
     burnin_count = 0
     t_burn = burnin*timeout
     println("Burning in for ", round(t_burn - t_elapsed), " seconds.")
     t_print = 0.0
     while t_elapsed < t_burn
+
         if (burnin_count > 0) && (t_elapsed - t_print >= t_burn/10.0)
             println("\t", burnin_count, " updates in ", round(t_elapsed), " seconds." )
             t_print = t_elapsed 
         end 
+
         tr, acc = update_loop_fn(tr, lambda_prop_std, proposal_param_vec)     
         t_elapsed = time() - t_start
         burnin_count += 1
     end
 
-    # Run the markov chain
+    # Sampling loop
     prop_count = 0
     println("Sampling for ", round(timeout - t_burn), " seconds.")
     t_print = 0.0
-    while t_elapsed < timeout
-        # thinning (if applicable)
+    while t_elapsed < timeout && prop_count < n_steps
+        
+        # thinning loop (if applicable)
         for i=1:thinning
-            if (prop_count > 0) && (t_elapsed - t_print >= (timeout - t_burn)/10.0)
+            
+            # Print progress
+            if (prop_count > 0) && (t_elapsed - t_print >= 20.0)
                 println("\t", prop_count," updates in ", round(t_elapsed), " seconds.")
                 t_print = t_elapsed 
             end
@@ -104,7 +120,12 @@ function dbn_mcmc_inference(reference_parents::Vector{Vector{Int64}},
         results = update_results_fn(results, tr, V)
         
     end
+ 
+    # Some last updates to the `results` object
     results["burnin_count"] = burnin_count
+    if store_samples
+        delete!(results["prev_state"]) 
+    end
 
     return results, acceptances 
 end
@@ -113,8 +134,8 @@ end
 """
 Loop through the model variables and perform
 Metropolis-Hastings updates on them.
-Use a proposal distribution with add, remove, 
-and "parent swap" moves.
+It's called ``smart'' because it uses a fancy
+proposal distribution for the parent sets.
 """
 function smart_update_loop(tr, lambda_prop_std::Float64, 
 	  		       proposal_param_vec::Vector{Float64})
@@ -136,6 +157,11 @@ end
 
 import DataStructures: DefaultDict
 
+
+"""
+Aggregate summary statistics for the quantities of interest
+while the markov chain runs, in an online fashion.
+"""
 function update_results_summary(results, tr, V)
 
     if results == nothing
@@ -169,6 +195,59 @@ function update_moments(cur_mean, cur_var, new_x, cur_N)
         new_var = ((cur_N-1)*cur_var + diff*diff2)/cur_N
     end
     return new_mean, new_var, new_N
+end
+
+
+"""
+Store a compact representation of all samples by
+tracking *changes* in the model variables.
+"""
+function update_results_storediff(results, tr, V)
+
+    # Initialize the state
+    if results == nothing
+        results = Dict("parent_sets" => [DefaultDict{Int64,Vector{Tuple{Int64,Int64}}}([]) for i=1:V],
+                       "lambda" => Vector{Tuple{Int64,Float64}}(),
+                       "n" => 1,
+                       "prev_state" => Gen.get_choices(tr)
+                       )
+        
+        push!(results["lambda"], (n, tr[:lambda]))
+        for i=1:V
+            for parent in tr[:parent_sets => i]
+                push!(results["parent_sets"][i][parent], (n,1))
+            end
+        end
+    
+    else # Update the state
+        
+        results["n"] += 1
+        # Lambda diffs
+        if results["prev_state"][:lambda] != tr[:lambda]
+            push!(results["lambda"], (results["n"], tr[:lambda]))
+        end 
+        # Parent set diffs
+        for i=1:V
+            prev_ps = results["prev_state"][:parent_sets => i]
+            
+            # Has a new parent been added?
+            new_parents = setdiff(tr[:parent_sets => i], prev_ps)
+            for new_parent in new_parents
+                push!(results["parent_sets"][i][new_parent], (results["n"], 1))
+            end
+         
+            # Has a parent been removed?
+            removed_parents = setdiff(prev_ps, tr[:parent_sets])
+            for rem_parent in removed_parents
+                push!(results["parent_sets"][i][removed_parent], (results["n"], 0))
+            end
+        end 
+        # Finished. Now current state is the old state
+        results["prev_state"] = Gen.get_choices(tr)
+ 
+    end
+    
+    return results
 end
 
 

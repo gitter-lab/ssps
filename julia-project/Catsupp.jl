@@ -80,6 +80,13 @@ function parse_script_arguments()
 	"--track-acceptance"
 	    help = "flag: track proposal acceptance rates during MCMC"
 	    action = :store_true
+        "--store-samples"
+            help = "Store and return the entire sequence without burnin. Used in convergence analyses."
+	    action = :store_true
+        "--n-steps"
+            help = "Terminate the markov chain after it runs this many steps."
+            arg_type = Int64
+            default = -1
     end
 
     args = parse_args(s)
@@ -96,12 +103,15 @@ function transform_arguments(parsed_arg_dict)
     push!(arg_vec, parsed_arg_dict["ref_graph_filename"])
     push!(arg_vec, parsed_arg_dict["output_path"])
     push!(arg_vec, parsed_arg_dict["timeout"])
+    push!(arg_vec, parsed_arg_dict["n-steps"])
     push!(arg_vec, parsed_arg_dict["burnin"])
     push!(arg_vec, parsed_arg_dict["thinning"])
     push!(arg_vec, parsed_arg_dict["large-indeg"])
     push!(arg_vec, parsed_arg_dict["lambda-max"])
     push!(arg_vec, parsed_arg_dict["regression-deg"])
     push!(arg_vec, parsed_arg_dict["lambda-prop-std"])
+    push!(arg_vec, parsed_arg_dict["track-acceptance"])
+    push!(arg_vec, parsed_arg_dict["store-samples"])
 
     return arg_vec
 end
@@ -111,16 +121,19 @@ function perform_inference(timeseries_filename::String,
 			   ref_graph_filename::String,
                            output_path::String,
                            timeout::Float64,
+                           n_steps::Int64,
 			   burnin::Float64, 
                            thinning::Int64,
 			   large_indeg::Float64,
 			   lambda_max::Float64,
 			   regression_deg::Int64,
-			   lambda_prop_std::Float64)
+			   lambda_prop_std::Float64,
+                           track_acceptance::Bool,
+                           store_samples::Bool)
 
     ts_vec, ref_ps = load_simulated_data(timeseries_filename, 
 					 ref_graph_filename) 
-   
+  
 
     clear_caches()
     println("Invoking Catsupp on input files:\n\t", 
@@ -128,7 +141,8 @@ function perform_inference(timeseries_filename::String,
 
     results, acc = dbn_mcmc_inference(ref_ps, ts_vec; 
 				      regression_deg=regression_deg,
-                                      timeout=timeout, 
+                                      timeout=timeout,
+                                      n_steps=n_steps, 
                                       burnin=burnin, 
                                       thinning=thinning,
 			              update_loop_fn=smart_update_loop,
@@ -136,9 +150,10 @@ function perform_inference(timeseries_filename::String,
                                       large_indeg=large_indeg,
                                       lambda_max=lambda_max,
 				      lambda_prop_std=lambda_prop_std,
-			              track_acceptance=true,
+			              track_acceptance=track_acceptance,
 			              update_acc_fn=update_acc)
-  
+
+ 
     println("Saving results to JSON file:")
     js_str = make_output_json(results, acc)
 

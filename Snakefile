@@ -137,7 +137,7 @@ rule run_conv_mcmc_sim:
         CONV_RAW_DIR+"/{dataset}/mcmc_d={d}/{chain}.bson"
     shell:
         "{input.method} {input.ts_file} {input.ref_dg} {output} {CONV_TIMEOUT}"\
-        +" --regression-deg {wildcards.d} --n-samples {CONV_MAX_SAMPLES}"
+        +" --store-samples --n-steps {CONV_MAX_SAMPLES} --regression-deg {wildcards.d}"
 
 rule postprocess_sim_mcmc:
     input:
