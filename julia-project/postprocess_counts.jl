@@ -1,19 +1,16 @@
-# dbn_postprocess.jl
-# 2019-12-13
+# postprocess_counts.jl
+# 2020-01-17
 # David Merrell
 #
 # Functions for postprocessing MCMC results.
-# We assume the results reside in a JSON
-# file. Samples are segregated into a "first_half"
-# and "second_half" for purposes of computing
-# R statistics (assessing mixing & stationarity).
+# Specifically for converting counts -> predictions,
+# which can then be used in evaluation.
 
-module Postprocess
+module CountPostprocess
 
 using JSON
 using ArgParse
 
-export postprocessor
 
 """
 Extract a vector of parent sets from the given JSON file.

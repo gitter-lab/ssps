@@ -29,7 +29,7 @@ simulation_study:
     timeout: 3600 # seconds
     # the grid of simulated datasets
     simulation_grid:
-        V: [20, 100, 1000]     # number of variables
+        V: [20, 100, 500] #,1000]     # number of variables
         R: [0.1, 0.25, 0.5]    # fraction of edges to remove
         A: [0.1, 0.25, 0.5]    # fraction of new edges to add
         T: [8, 20]             # length of each time series 

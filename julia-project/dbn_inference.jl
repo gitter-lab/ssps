@@ -224,7 +224,7 @@ function update_results_storediff(results, tr, V)
        
         n = results["n"] + 1 
         # Lambda diffs
-        if results["lambda"][end] != tr[:lambda]
+        if results["lambda"][end][2] != tr[:lambda]
             push!(results["lambda"], (n, tr[:lambda]))
         end 
         # Parent set diffs

@@ -85,15 +85,15 @@ CONV_TIMEOUT = CONV_PARAMS["timeout"]
 rule all:
     input:
         # convergence tests on simulated data
-        expand(CONV_RAW_DIR+"/v={v}_r={r}_a={a}_t={t}_replicate={rep}/mcmc_d={d}/chain_{c}.bson",
-               v=CONV_SIM_GRID["V"], r=CONV_SIM_GRID["R"], a=CONV_SIM_GRID["A"],
-               t=CONV_SIM_GRID["T"], rep=CONV_REPLICATES, d=CONV_DEGS, c=CONV_CHAINS) 
+	#expand(CONV_RAW_DIR+"/v={v}_r={r}_a={a}_t={t}_replicate={rep}/mcmc_d={d}/chain_{c}.json",
+        #       v=CONV_SIM_GRID["V"], r=CONV_SIM_GRID["R"], a=CONV_SIM_GRID["A"],
+        #       t=CONV_SIM_GRID["T"], rep=CONV_REPLICATES, d=CONV_DEGS, c=CONV_CHAINS) 
         # convergence test results on experimental data
-        #expand(CONV_RAW_DIR+"/{dataset}/mcmc_d={d}/chain_{c}.bson", 
+        #expand(CONV_RAW_DIR+"/{dataset}/mcmc_d={d}/chain_{c}.json", 
         #       ds=CONV_DATASETS, d=CONV_DEGS, c=CONV_CHAINS)
         # simulation study
-        #expand(SCORE_DIR+"/mcmc_d={d}/v={v}_r={r}_a={a}_t={t}.json", 
-        #       d=REG_DEGS, v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]), 
+        expand(SCORE_DIR+"/mcmc_d={d}/v={v}_r={r}_a={a}_t={t}.json", 
+               d=REG_DEGS, v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]), 
         #expand(SCORE_DIR+"/funchisq/v={v}_r={r}_a={a}_t={t}.json",
         #        v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
         #expand(SCORE_DIR+"/hill/v={v}_r={r}_a={a}_t={t}.json",  
@@ -105,7 +105,7 @@ rule all:
 
 rule simulate_data:
     input:
-        simulator="builddir/simulate_data"
+        simulator=BIN_DIR+"/simulate_data/simulate_data"
     output:
         ts=TS_DIR+"/v={v}_r={r}_a={a}_t={t}_replicate={rep}.csv",
         ref=REF_DIR+"/v={v}_r={r}_a={a}_t={t}_replicate={rep}.csv",
@@ -115,13 +115,13 @@ rule simulate_data:
 
 rule score_predictions:
     input:
-        "builddir/scoring",
+        scorer=BIN_DIR+"/scoring/scoring",
         tr_dg_fs=[TRU_DIR+"/{sim_gridpoint}_replicate="+str(rep)+".csv" for rep in SIM_REPLICATES],
         pp_res=[PRED_DIR+"/{method}/{sim_gridpoint}_replicate="+str(rep)+".json" for rep in SIM_REPLICATES]
     output:
         out=SCORE_DIR+"/{method}/{sim_gridpoint}.json" 
     shell:
-        "builddir/scoring --truth-files {input.tr_dg_fs} --pred-files {input.pp_res} --output-file {output.out}"
+        "{input.scorer} --truth-files {input.tr_dg_fs} --pred-files {input.pp_res} --output-file {output.out}"
 
 
 
@@ -130,27 +130,27 @@ rule score_predictions:
 
 rule run_conv_mcmc_sim:
     input:
-        method=BIN_DIR+"/mcmc/Catsupp",
+        method=BIN_DIR+"/Catsupp/Catsupp",
         ts_file=TS_DIR+"/{dataset}.csv",
         ref_dg=REF_DIR+"/{dataset}.csv",
     output:
-        CONV_RAW_DIR+"/{dataset}/mcmc_d={d}/{chain}.bson"
+        CONV_RAW_DIR+"/{dataset}/mcmc_d={d}/{chain}.json"
     shell:
         "{input.method} {input.ts_file} {input.ref_dg} {output} {CONV_TIMEOUT}"\
         +" --store-samples --n-steps {CONV_MAX_SAMPLES} --regression-deg {wildcards.d}"
 
 rule postprocess_sim_mcmc:
     input:
-        "builddir/postprocess",
+        pp=BIN_DIR+"/postprocess_counts/postprocess_counts",
         raw=RAW_DIR+"/mcmc_{mcmc_settings}/{replicate}.json" 
     output:
         out=PRED_DIR+"/mcmc_{mcmc_settings}/{replicate}.json"
     shell:
-        "builddir/postprocess {input.raw} --output-file {output.out}"
+        "{input.pp} {input.raw} --output-file {output.out}"
 
 rule run_sim_mcmc:
     input:
-        method=BIN_DIR+"/mcmc/Catsupp",
+        method=BIN_DIR+"/Catsupp/Catsupp",
         ts_file=TS_DIR+"/{replicate}.csv",
         ref_dg=REF_DIR+"/{replicate}.csv",
     output:
@@ -241,54 +241,14 @@ JULIAC_PATH = glob.glob(os.path.join(os.environ["HOME"],
           ".julia/packages/PackageCompiler/*/juliac.jl")
           )[0]
 
-rule compile_simulator:
+rule compile_julia:
     input:
-        "simulation-study/simulate_data.jl"
+        src=JULIA_PROJ_DIR+"/{source_name}.jl"
     output:
-        BIN_DIR+"/simulator/simulate_data"
-    params:
-        simulator_dir=BIN_DIR+"/simulator"
+        exe=BIN_DIR+"/{source_name}/{source_name}"
     shell:
-        "julia --project={JULIA_PROJ_DIR} {JULIAC_PATH} -d {params.simulator_dir} -vaet simulation-study/simulate_data.jl"
+        "julia --project={JULIA_PROJ_DIR} {JULIAC_PATH} -d {BIN_DIR}/{output.exe} -vaet {input.src}"
 
-rule compile_postprocessor:
-    input:
-        BIN_DIR+"/mcmc/Catsupp",
-        JULIA_PROJ_DIR+"/postprocess.jl"
-    output:
-        "builddir/postprocess"
-    shell:
-        "julia --project={JULIA_PROJ_DIR} {JULIAC_PATH} -vaet {JULIA_PROJ_DIR}/postprocess.jl"
-
-
-rule compile_scoring:
-    input:
-        JULIA_PROJ_DIR+"/scoring.jl",
-        "builddir/postprocess"
-    output:
-        "builddir/scoring"
-    shell:
-        "julia --project={JULIA_PROJ_DIR} {JULIAC_PATH} -vaet {JULIA_PROJ_DIR}/scoring.jl"
-
-rule compile_mcmc:
-    input:
-        "builddir/simulate_data",
-        JULIA_PROJ_DIR+"/Catsupp.jl"
-    output:
-        BIN_DIR+"/mcmc/Catsupp"
-    params:
-        mcmc_bin=BIN_DIR+"/mcmc"
-    shell:
-        "julia --project={JULIA_PROJ_DIR} {JULIAC_PATH} -d {params.mcmc_bin} -vaet {JULIA_PROJ_DIR}/Catsupp.jl"
-
-rule compile_lasso:
-    input:
-        JULIA_PROJ_DIR+"/lasso.jl",
-        "builddir/simulate_data"
-    output:
-        "builddir/lasso"
-    shell:
-        "julia --project={JULIA_PROJ_DIR} {JULIAC_PATH} -vaet {JULIA_PROJ_DIR}/lasso.jl"
 
 # END JULIA CODE COMPILATION
 #############################
