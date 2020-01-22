@@ -10,7 +10,6 @@ module SamplePostprocess
 
 using JSON
 
-
 """
 Read an MCMC samples output file
 """
@@ -25,114 +24,148 @@ function load_samples(samples_file_path::String)
 end
 
 
-"""
-Select the subsequence starting at `start_t` and ending at `end_t` -- *inclusive*
-"""
-function changepoint_select(changepoints::Vector, start_t::Int64, end_t::Int64)
+#####
+# Define a convenience class for working with the sparse-formatted
+# MCMC sample data. 
+#
+# Samples are stored as vectors of "changepoints"; 
+# (idx,val) pairs where the sequence changes to 
+# value `val` at index `idx`, and stays constant otherwise.
+##################################################################
 
-    start_idx = searchsortedfirst(changepoints, start_t; by=x->x[1])
-    end_idx = searchsortedlast(changepoints, end_t; by=x->x[1])
+mutable struct ChangepointVec{T}
+    changepoints::Vector{Tuple{Int64,T}}
+    len::Int64
+    default_v::T
+end
 
-    result = changepoints[start_idx:end_idx]
+ChangepointVec(changepoints::Vector{Tuple{Int64,T}}, len::Int64) where T = ChangepointVec(changepoints, len, zero(T))
 
-    if changepoints[start_idx][1] != start_t
-        prev_v = 0
-        if start_idx > 1
-            prev_v = changepoints[start_idx - 1][2]
-        end
-        pushfirst!(result, (start_t, prev_v))
+import Base: map, reduce, getindex, length
+
+length(cpv::ChangepointVec) = cpv.len
+
+
+function getindex(cpv::ChangepointVec, r::UnitRange)
+    
+    # take care of this corner case
+    if length(cpv.changepoints) == 0
+        return ChangepointVec([], length(r), cpv.default_v)
     end
-
-    return result
-end
-
-
-
-"""
-Apply a function `op` to each entry of the sequence defined by
-the changepoint vector.
-"""
-function changepoint_map(op::Function, changepoints::Vector)
-    result = [(i, op(cp)) for cp in changepoints]
-end
-
-
-"""
-Given a vector of changepoints and a vector of endpoints,
-return the means of the sequences terminating at the endpoints.
-"""
-function sequence_means(changepoints::Vector, 
-                        endpoints::Vector{Int64})
-
-    sequence_sums = changepoint_sum(changepoints, endpoints)
     
-    start_t = changepoints[1][1]
- 
-    return [s/(endpoints[i] - start_t + 1) for (i, s) in enumerate(sequence_sums)]
-end
-
-
-"""
-Given a vector of changepoints and a vector of endpoints,
-return the variances of the sequences terminating at the endpoints.
-"""
-function sequence_variances(changepoints::Vector,
-                            endpoints::Vector{Int64})
+    # Index the range into the changepoints
+    start_idx = searchsortedfirst(cpv.changepoints, r.start; by=x-> x[1])
+    stop_idx = searchsortedfirst(cpv.changepoints, r.stop; by=x-> x[1])
     
-    means = sequence_means(changepoints, endpoints)
-    
-    for mean in means
-        
+    # Adjust the stop_idx
+    if stop_idx > length(cpv.changepoints) || r.stop != cpv.changepoints[stop_idx][1]
+        stop_idx -= 1
     end
+    
+    new_changepoints = cpv.changepoints[start_idx:stop_idx]
+    
+    # Adjust the start of the vector
+    if r.start != cpv.changepoints[start_idx][1]
+        pushfirst!(new_changepoints, (r.start, cpv.changepoints[end][2]))
+    end
+    
+    # Shift their indices so that we start from 1
+    new_changepoints = map(x->(x[1] - r.start + 1, x[2]), new_changepoints)
+
+    return ChangepointVec(new_changepoints, length(r), cpv.default_v)
 end
 
 
 """
-Given a vector of changepoints and a sorted vector of endpoints,
-return the sums of the sequences terminating at the endpoints. 
+We assume t in [1, length(cpv)].
 """
-function changepoint_sum(changepoints::Vector, 
-                         endpoints::Vector{Int64})
-  
-    cur_t = min(changepoints[1][1], endpoints[1])
-    cur_v = 0.0
-    cur_changepoint = 1
-    cur_endpoint = 1
-    cur_sum = 0
-    sums = zeros(length(endpoints))
-
-    while cur_endpoint <= length(endpoints)
-        
-        # is our current point a changepoint?
-        if cur_changepoint <= length(changepoints) && cur_t == changepoints[cur_changepoint][1]
-            cur_v = changepoints[cur_changepoint][2]
-            cur_changepoint += 1
-        end
-        
-        # is our current point an endpoint?
-        if cur_t == endpoints[cur_endpoint]
-            sums[cur_endpoint] = cur_sum + cur_v
-            cur_endpoint += 1
-        end
-        if cur_endpoint > length(endpoints)
-            break
-        end
-
-        # Get the next point of interest
-        if cur_changepoint > length(changepoints)
-            next_t = endpoints[cur_endpoint]
+function getindex(cpv::ChangepointVec, t::Int)
+    
+    if length(cpv.changepoints) == 0
+        return cpv.default_v
+    end
+    
+    idx = searchsortedfirst(cpv.changepoints, t; by=x->x[1])
+    
+    if idx > length(cpv.changepoints) 
+        return cpv.changepoints[end][2]
+    elseif cpv.changepoints[idx][1] == t
+        return cpv.changepoints[idx][2]
+    else
+        if idx == 1
+            return cpv.default_v
         else
-            next_t = min(changepoints[cur_changepoint][1], endpoints[cur_endpoint])
+            return cpv.changepoints[idx-1][2]
         end
-        
-        #increment sum, update state
-        cur_sum += cur_v * (next_t - cur_t)
-        cur_t = next_t
     end
-    
-    return sums
 end
 
+
+function map(f::Function, cpv::ChangepointVec)
+    new_changepoints = map(x->(x[1],f(x[2])), cpv.changepoints)
+    return ChangepointVec(new_changepoints, cpv.len, cpv.default_v)
+end
+
+
+function sum(cpv::ChangepointVec)
+    s = zero(cpv.default_v)
+    cur_t = 0
+    cur_changepoint = 0
+    cur_v = cpv.default_v
+    
+    if length(cpv.changepoints) == 0
+        return length(cpv) * cpv.default_v
+    end
+    
+    while cur_changepoint < length(cpv.changepoints)
+        next_t, next_v = cpv.changepoints[cur_changepoint+1]
+        s += cur_v * (next_t - cur_t)
+        cur_changepoint += 1
+        cur_t = next_t
+        cur_v = next_v
+    end 
+    s += cur_v * (length(cpv) - cur_t + 1)
+    
+    return s
+end
+
+
+function mean(cpv::ChangepointVec)
+    return sum(cpv) / length(cpv)
+end
+
+
+#######
+# These functions are used for computing PSRF and 
+# N_eff (diagnostic scores for MCMC convergence)
+#################################################
+
+function var(cpv::ChangepointVec, mean::Float64)
+    return sum(map( x->abs2(x-mean), cpv )) / (length(cpv) - 1)
+end
+
+function w_stat(variances::Vector{Float64})
+    return sum(variances) / length(variances)
+end
+
+function b_stat(means::Vector{Float64}, n::Int64)
+   big_mean = sum(means)/length(means)
+   return n * sum(abs2(means .- big_mean)) / length(means)
+end
+
+function varplus(w_stat::Float64, b_stat::Float64, n::Int64)
+    return (n-1)*w_stat/n + b_stat/n
+end
+
+function psrf_stat(varplus, w_stat)
+    return sqrt(varplus / w_stat)
+end
+
+
+
+function compute_psrf_neff(seqs::Vector{ChangepointVec})
+    
+end
 
 
 end # END MODULE
