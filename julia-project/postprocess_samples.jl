@@ -10,6 +10,7 @@ module SamplePostprocess
 
 using JSON
 
+
 """
 Read an MCMC samples output file
 """
@@ -28,20 +29,20 @@ end
 # Define a convenience class for working with the sparse-formatted
 # MCMC sample data. 
 #
-# Samples are stored as vectors of "changepoints"; 
+# Samples are stored as vectors of "changepoints":
 # (idx,val) pairs where the sequence changes to 
 # value `val` at index `idx`, and stays constant otherwise.
 ##################################################################
 
-mutable struct ChangepointVec{T}
-    changepoints::Vector{Tuple{Int64,T}}
+mutable struct ChangepointVec
+    changepoints::Vector{Tuple{Int64,Number}}
     len::Int64
-    default_v::T
+    default_v::Number
 end
 
 ChangepointVec(changepoints::Vector{Tuple{Int64,T}}, len::Int64) where T = ChangepointVec(changepoints, len, zero(T))
 
-import Base: map, reduce, getindex, length
+import Base: map, reduce, getindex, length, sum
 
 length(cpv::ChangepointVec) = cpv.len
 
@@ -109,7 +110,7 @@ end
 
 function sum(cpv::ChangepointVec)
     s = zero(cpv.default_v)
-    cur_t = 0
+    cur_t = 1
     cur_changepoint = 0
     cur_v = cpv.default_v
     
@@ -129,10 +130,118 @@ function sum(cpv::ChangepointVec)
     return s
 end
 
+mean(cpv::ChangepointVec) = sum(cpv) / length(cpv)
 
-function mean(cpv::ChangepointVec)
-    return sum(cpv) / length(cpv)
+
+function binop(f::Function, cpva::ChangepointVec, cpvb::ChangepointVec)
+
+    new_default = f(cpva.default_v, cpvb.default_v)
+    new_len = length(cpva)
+    new_changepoints = []
+
+    # Handle this corner case
+    if new_len == 0
+        return ChangepointVec(new_changepoints, new_len, new_default)
+    end
+
+    cur_t = 1
+    cur_cp_a = 0
+    cur_cp_b = 0
+    cur_v_a = cpva.default_v
+    cur_v_b = cpvb.default_v
+
+    while cur_t < new_len
+
+        if cur_cp_a < length(cpva.changepoints)
+            next_t_a, next_v_a = cpva.changepoints[cur_cp_a+1]
+        else
+            next_t_a = new_len
+            next_v_a = cur_v_a
+        end
+        if cur_cp_b < length(cpvb.changepoints)
+            next_t_b, next_v_b = cpvb.changepoints[cur_cp_b+1]
+        else
+            next_t_b = new_len
+            next_v_b = cur_v_b
+        end
+
+        if next_t_a <= next_t_b
+            cur_t = next_t_a
+            cur_cp_a += 1
+            cur_v_a = next_v_a
+        end
+        if next_t_b <= next_t_a
+            cur_t = next_t_b
+            cur_cp_b += 1
+            cur_v_b = next_v_b
+        end
+
+        push!(new_changepoints, (cur_t, f(cur_v_a, cur_v_b)))
+    end
+
+    return ChangepointVec(new_changepoints, new_len, new_default)
 end
+
+
+function seq_variogram(seq::ChangepointVec)
+    
+    n = length(seq)
+    result = zeros(n - 1)
+
+    if length(seq.changepoints) == 0
+        return result
+    end    
+
+    changepoints = copy(seq.changepoints)
+    if changepoints[1][1] > 1 
+        pushfirst!(changepoints, (1, seq.default_v))
+    end 
+
+    # Get the sizes of "blocks" of same-valued entries
+    blocksizes = zeros(Int64, length(changepoints))
+    for k=1:length(changepoints) - 1 
+        blocksizes[k] = changepoints[k+1][1] - changepoints[k][1]
+    end 
+    blocksizes[end] = n - changepoints[end][1] + 1 
+
+    for (i, cpi) in enumerate(changepoints)
+        start_i = cpi[1]
+        bsize_i = blocksizes[i] 
+        for (j, cpj) in enumerate(changepoints[i+1:end])
+            start_j = cpj[1]
+            bsize_j = blocksizes[j+i]
+                
+            diffsq = abs2(cpi[2] - cpj[2])
+            if diffsq == 0
+                continue
+            end 
+    
+            for ii=start_i:(start_i+bsize_i-1)
+                for jj=start_j:(start_j+bsize_j-1)
+                    result[jj - ii] += diffsq
+                end
+            end 
+        end
+    end 
+    
+    return result ./ (n .- collect(1:n-1))
+end
+
+
+function correlation_sum(variogram::Vector, varplus::Float64)
+    corrs = 1.0 .- variogram ./ (2.0*varplus)
+    s = 0.0
+    for i=1:length(corrs)-2 
+        if corrs[i+1] + corrs[i+2] >= 0.0
+            s += corrs[i]
+        else
+            break
+        end
+    end
+    return s
+end
+
+n_eff_stat(corr_sum::Float64, m::Int64, n::Int64) = m*n/(1.0 + 2.0*corr_sum)
 
 
 #######
@@ -140,32 +249,43 @@ end
 # N_eff (diagnostic scores for MCMC convergence)
 #################################################
 
-function var(cpv::ChangepointVec, mean::Float64)
-    return sum(map( x->abs2(x-mean), cpv )) / (length(cpv) - 1)
-end
+seq_var(cpv::ChangepointVec, mean::Float64) = sum(map( x->abs2(x-mean), cpv )) / (length(cpv) - 1)
 
-function w_stat(variances::Vector{Float64})
-    return sum(variances) / length(variances)
-end
+w_stat(variances::Vector{Float64}) = sum(variances) / length(variances)
 
-function b_stat(means::Vector{Float64}, n::Int64)
-   big_mean = sum(means)/length(means)
-   return n * sum(abs2(means .- big_mean)) / length(means)
-end
+b_stat(means::Vector{Float64}, n::Int64) = n*sum(abs2.(means .- sum(means)/length(means)))/length(means)
 
-function varplus(w_stat::Float64, b_stat::Float64, n::Int64)
-    return (n-1)*w_stat/n + b_stat/n
-end
+varplus(w_stat::Float64, b_stat::Float64, n::Int64) = (n-1)*w_stat/n + b_stat/n
 
-function psrf_stat(varplus, w_stat)
-    return sqrt(varplus / w_stat)
-end
+psrf_stat(varplus, w_stat) = sqrt(varplus / w_stat)
 
 
+"""
+Compute the PSRF and N_eff for a collection of sequences.
+In the context of MCMC, we assume the seqs have already been
+split in half. 
 
+We assume the seqs all have equal length.
+"""
 function compute_psrf_neff(seqs::Vector{ChangepointVec})
+    seq_means = [mean(seq) for seq in seqs]
+    seq_variances = [seq_var(seq, seq_means[i]) for (i, seq) in enumerate(seqs)]
+    m = length(seqs)
+    n = length(seqs[1])
+    B = b_stat(seq_means, n)
+    W = w_stat(seq_variances)
+    vp = varplus(W, B, n)
+    psrf = psrf_stat(vp, W)
     
+    seq_vgrams = [seq_variogram(seq) for seq in seqs]
+    vgram = sum(seq_vgrams) / m
+    corr_sum = correlation_sum(vgram, vp)
+    n_eff = n_eff_stat(corr_sum, m, n)
+
+    return psrf, n_eff
 end
 
 
-end # END MODULE
+
+
+end
