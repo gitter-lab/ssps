@@ -207,6 +207,7 @@ function seq_variogram(seq::ChangepointVec)
     for (i, cpi) in enumerate(changepoints)
         start_i = cpi[1]
         bsize_i = blocksizes[i] 
+
         for (j, cpj) in enumerate(changepoints[i+1:end])
             start_j = cpj[1]
             bsize_j = blocksizes[j+i]
@@ -278,6 +279,8 @@ function compute_psrf_neff(seqs::Vector{ChangepointVec})
     psrf = psrf_stat(vp, W)
     
     seq_vgrams = [seq_variogram(seq) for seq in seqs]
+    #println(seq_vgrams)
+    #vgram = combine_variograms(seq_vgrams)
     vgram = sum(seq_vgrams) / m
     corr_sum = correlation_sum(vgram, vp)
     n_eff = n_eff_stat(corr_sum, m, n)
@@ -286,6 +289,93 @@ function compute_psrf_neff(seqs::Vector{ChangepointVec})
 end
 
 
+"""
+Compute convergence diagnostics for a collection of sequences,
+at multiple stop indices
+"""
+function evaluate_convergence(whole_seqs::Vector{ChangepointVec}, stop_idxs;
+                              burnin::Float64=0.5)
+    
+    # We'll collect a list of (psrf, n_eff values) 
+    results = []
+    
+    for len in stop_idxs
+        # Split the whole sequences into half sequences
+        burnin_idx = Int(round(burnin*len))
+        split_idx = burnin_idx + div(len - burnin_idx, 2)
+        half_seqs = []
+        for ws in whole_seqs
+            push!(half_seqs, ws[burnin_idx+1:split_idx])
+            push!(half_seqs, ws[split_idx+1:len])
+        end
+        
+        # compute the convergence diagnostics
+        psrf, n_eff = compute_psrf_neff(half_seqs)
+        push!(results, (psrf, n_eff))
+    end
+    
+    return results
+end
+
+
+seq_converged(psrf, n_eff, psrf_ub, n_eff_lb) = (psrf < psrf_ub && n_eff >= n_eff_lb)
+
+
+function get_all_at(dict_vec::Vector, key_vec::Vector)
+    results = []
+    for d in dict_vec
+        for k in key_vec
+            d = d[k]
+        end
+        push!(results, d)
+    end
+    return results
+end
+
+
+function evaluate_convergence_at(dict_vec::Vector, key_vec::Vector, 
+                                 stop_idxs, burnin)
+    whole_seqs = get_all_at(dict_vec, key_vec)
+    diag_vec = evaluate_convergence(whole_seqs, stop_idxs; burnin=burnin)
+    return diag_vec
+end
+
+
+function push_nonconverged!(nonconverged::Vector, dict_vec, key_vec, 
+                            stop_idx, burnin, psrf_ub, n_eff_lb)
+    
+    diag_vec = evaluate_convergence_at(dict_vec, key_vec, 
+                                       stop_idx, burnin)
+    for (i, diag) in enumerate(diag_vec)
+        if !seq_converged(diag[1], diag[2], psrf_ub, n_eff_lb)
+            push!(nonconverged[i], diag)
+        end
+    end
+end
+
+
+function collect_dbn_nonconverged(chain_results::Vector, stop_idxs; 
+                                  burnin::Float64=0.5,
+                                  psrf_ub::Float64=1.1,
+                                  n_eff_lb::Float64=10.0)
+    
+    nonconverged = fill([], length(seq_lens))
+    
+    # convergence for lambda?
+    push_nonconverged!(nonconverged, chain_results, ["lambdas"],
+                       stop_idxs, burnin, psrf_up, n_eff_lb)
+    
+    # convergence for edges?
+    V = length(chain_results[1]["parent_sets"])
+    for i=1:V
+        for j=1:V
+            push_nonconverged!(nonconverged, chain_results, ["parent_sets", j, i],
+                       stop_idxs, burnin, psrf_up, n_eff_lb)
+        end
+    end
+    
+    return nonconverged
+end
 
 
 end
