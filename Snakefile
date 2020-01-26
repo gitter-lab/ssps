@@ -77,6 +77,10 @@ CONV_REPLICATES = list(range(CONV_PARAMS["N"]))
 CONV_CHAINS = list(range(CONV_PARAMS["n_chains"]))
 CONV_MAX_SAMPLES = CONV_PARAMS["max_samples"]
 CONV_TIMEOUT = CONV_PARAMS["timeout"]
+CONV_BURNIN = CONV_PARAMS["burnin"]
+CONV_STOPPOINTS = CONV_PARAMS["stop_points"]
+CONV_NEFF = CONV_PARAMS["neff_per_chain"] * len(CONV_CHAINS)
+CONV_PSRF = CONV_PARAMS["psrf_ub"]
 
 
 #############################
@@ -85,15 +89,15 @@ CONV_TIMEOUT = CONV_PARAMS["timeout"]
 rule all:
     input:
         # convergence tests on simulated data
-	#expand(CONV_RAW_DIR+"/v={v}_r={r}_a={a}_t={t}_replicate={rep}/mcmc_d={d}/chain_{c}.json",
-        #       v=CONV_SIM_GRID["V"], r=CONV_SIM_GRID["R"], a=CONV_SIM_GRID["A"],
-        #       t=CONV_SIM_GRID["T"], rep=CONV_REPLICATES, d=CONV_DEGS, c=CONV_CHAINS) 
-        # convergence test results on experimental data
+        expand(CONV_RES_DIR+"/v={v}_r={r}_a={a}_t={t}_replicate={rep}/mcmc_d={d}.json",
+               v=CONV_SIM_GRID["V"], r=CONV_SIM_GRID["R"], a=CONV_SIM_GRID["A"],
+               t=CONV_SIM_GRID["T"], rep=CONV_REPLICATES, d=CONV_DEGS) 
+        ## convergence tests on experimental data
         #expand(CONV_RAW_DIR+"/{dataset}/mcmc_d={d}/chain_{c}.json", 
         #       ds=CONV_DATASETS, d=CONV_DEGS, c=CONV_CHAINS)
-        # simulation study
-        expand(SCORE_DIR+"/mcmc_d={d}/v={v}_r={r}_a={a}_t={t}.json", 
-               d=REG_DEGS, v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]), 
+        ## simulation study
+	#expand(SCORE_DIR+"/mcmc_d={d}/v={v}_r={r}_a={a}_t={t}.json", 
+	#       d=REG_DEGS, v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]), 
         #expand(SCORE_DIR+"/funchisq/v={v}_r={r}_a={a}_t={t}.json",
         #        v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
         #expand(SCORE_DIR+"/hill/v={v}_r={r}_a={a}_t={t}.json",  
@@ -127,6 +131,16 @@ rule score_predictions:
 
 ######################
 # MCMC JOBS
+
+rule postprocess_conv_mcmc_sim:
+    input:
+        pp=BIN_DIR+"/postprocess_samples/postprocess_samples",
+        raw=expand(CONV_RAW_DIR+"/{{dataset}}/{{mcmc_settings}}/{chain}.json", chain=CONV_CHAINS)
+    output:
+        out=CONV_RES_DIR+"/{dataset}/{mcmc_settings}.json"
+    shell:
+        "{input.pp} --chain-samples {input.raw} --output-file {output.out} --burnin {CONV_BURNIN}"\
+        +" --stop-points {CONV_STOPPOINTS} --psrf-ub {CONV_PSRF} --n-eff-lb {CONV_NEFF}"
 
 rule run_conv_mcmc_sim:
     input:
@@ -246,8 +260,11 @@ rule compile_julia:
         src=JULIA_PROJ_DIR+"/{source_name}.jl"
     output:
         exe=BIN_DIR+"/{source_name}/{source_name}"
+    params:
+        outdir=BIN_DIR+"/{source_name}"
+    threads: 2 
     shell:
-        "julia --project={JULIA_PROJ_DIR} {JULIAC_PATH} -d {BIN_DIR}/{output.exe} -vaet {input.src}"
+        "julia --project={JULIA_PROJ_DIR} {JULIAC_PATH} -d {params.outdir} -vaet {input.src}"
 
 
 # END JULIA CODE COMPILATION

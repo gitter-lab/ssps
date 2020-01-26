@@ -2,7 +2,7 @@
 # results for all of the analyses.
 # You need to change it to fit your circumstances,
 # e.g., "/scratch" or wherever you have plenty of disk available.
-temp_dir: "/scratch/dmerrell/dbn_mcmc_temp"
+temp_dir: "/home/dmerrell/projects/graph_ppl/temp"
 
 # Define the convergence analysis
 convergence_analysis:
@@ -11,13 +11,17 @@ convergence_analysis:
         R: [0.25]
         A: [0.25]
         T: [8]
-        M: 4
-    N: 1 # number of 
+        M: 4     # number of time series to generate
+    N: 1 # number of simulation replicates 
     experimental_datasets:
         - "hill-egfr"
         - "big-egfr"
     max_samples: 100000
-    timeout: 86400 # one day 
+    timeout: 3600 #86400 # one day 
+    burnin: 0.5
+    stop_points: [100, 1000, 2000, 5000, 10000, 20000, 50000, 100000]
+    psrf_ub: 1.1
+    neff_per_chain: 10.0
     n_chains: 4
     mcmc_hyperparams:
         regression_deg: [1, 3]

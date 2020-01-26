@@ -9,6 +9,8 @@
 module SamplePostprocess
 
 using JSON
+using ArgParse
+using DataStructures
 
 
 """
@@ -20,8 +22,9 @@ function load_samples(samples_file_path::String)
     str = read(f, String)
     close(f)
     d = JSON.parse(str)
+    d["parent_sets"] = [DefaultDict([], ps) for ps in d["parent_sets"]]
 
-    return d["parent_sets"], d["lambda"], d["n"]
+    return d 
 end
 
 
@@ -35,12 +38,12 @@ end
 ##################################################################
 
 mutable struct ChangepointVec
-    changepoints::Vector{Tuple{Int64,Number}}
+    changepoints::Vector
     len::Int64
     default_v::Number
 end
 
-ChangepointVec(changepoints::Vector{Tuple{Int64,T}}, len::Int64) where T = ChangepointVec(changepoints, len, zero(T))
+ChangepointVec(changepoints::Vector, len::Int64) = ChangepointVec(changepoints, len, 0)
 
 import Base: map, reduce, getindex, length, sum
 
@@ -48,28 +51,25 @@ length(cpv::ChangepointVec) = cpv.len
 
 
 function getindex(cpv::ChangepointVec, r::UnitRange)
-    
+
     # take care of this corner case
     if length(cpv.changepoints) == 0
         return ChangepointVec([], length(r), cpv.default_v)
     end
-    
+
     # Index the range into the changepoints
-    start_idx = searchsortedfirst(cpv.changepoints, r.start; by=x-> x[1])
-    stop_idx = searchsortedfirst(cpv.changepoints, r.stop; by=x-> x[1])
-    
-    # Adjust the stop_idx
-    if stop_idx > length(cpv.changepoints) || r.stop != cpv.changepoints[stop_idx][1]
-        stop_idx -= 1
-    end
-    
+    start_searched = searchsorted(cpv.changepoints, r.start; by=x-> x[1])
+    start_idx, start_2 = start_searched.start, start_searched.stop
+    stop_searched = searchsorted(cpv.changepoints, r.stop; by=x-> x[1])
+    stop_1, stop_idx = stop_searched.start, stop_searched.stop
+
     new_changepoints = cpv.changepoints[start_idx:stop_idx]
-    
+
     # Adjust the start of the vector
-    if r.start != cpv.changepoints[start_idx][1]
-        pushfirst!(new_changepoints, (r.start, cpv.changepoints[end][2]))
+    if start_idx > start_2 && start_2 != 0
+        pushfirst!(new_changepoints, (r.start, cpv.changepoints[start_2][2]))
     end
-    
+
     # Shift their indices so that we start from 1
     new_changepoints = map(x->(x[1] - r.start + 1, x[2]), new_changepoints)
 
@@ -230,12 +230,11 @@ end
 
 
 function correlation_sum(variogram::Vector, varplus::Float64)
-    corrs = 1.0 .- variogram ./ (2.0*varplus)
+    corrs = 1.0 .- (variogram ./ (2.0*varplus))
     s = 0.0
     for i=1:length(corrs)-2 
-        if corrs[i+1] + corrs[i+2] >= 0.0
-            s += corrs[i]
-        else
+        s += corrs[i]
+        if corrs[i+1] + corrs[i+2] < 0.0
             break
         end
     end
@@ -271,6 +270,7 @@ We assume the seqs all have equal length.
 function compute_psrf_neff(seqs::Vector{ChangepointVec})
     seq_means = [mean(seq) for seq in seqs]
     seq_variances = [seq_var(seq, seq_means[i]) for (i, seq) in enumerate(seqs)]
+    println("SEQ_VARS: ", seq_variances)
     m = length(seqs)
     n = length(seqs[1])
     B = b_stat(seq_means, n)
@@ -300,17 +300,22 @@ function evaluate_convergence(whole_seqs::Vector{ChangepointVec}, stop_idxs;
     results = []
     
     for len in stop_idxs
+        println("LEN: ", len)
         # Split the whole sequences into half sequences
         burnin_idx = Int(round(burnin*len))
+        println("BURNIN_IDX: ", burnin_idx)
         split_idx = burnin_idx + div(len - burnin_idx, 2)
-        half_seqs = []
+        println("SPLIT_IDX: ", split_idx) 
+        half_seqs = Vector{ChangepointVec}()
         for ws in whole_seqs
+            println("\tWS: ", typeof(ws))
             push!(half_seqs, ws[burnin_idx+1:split_idx])
             push!(half_seqs, ws[split_idx+1:len])
         end
         
         # compute the convergence diagnostics
         psrf, n_eff = compute_psrf_neff(half_seqs)
+        println("PSRF/N_EFF: ", (psrf,n_eff))
         push!(results, (psrf, n_eff))
     end
     
@@ -336,6 +341,7 @@ end
 function evaluate_convergence_at(dict_vec::Vector, key_vec::Vector, 
                                  stop_idxs, burnin)
     whole_seqs = get_all_at(dict_vec, key_vec)
+    whole_seqs = [ChangepointVec(seq, dict_vec[i]["n"]) for (i, seq) in enumerate(whole_seqs)]
     diag_vec = evaluate_convergence(whole_seqs, stop_idxs; burnin=burnin)
     return diag_vec
 end
@@ -359,18 +365,19 @@ function collect_dbn_nonconverged(chain_results::Vector, stop_idxs;
                                   psrf_ub::Float64=1.1,
                                   n_eff_lb::Float64=10.0)
     
-    nonconverged = fill([], length(seq_lens))
+    nonconverged = fill([], length(stop_idxs))
     
     # convergence for lambda?
-    push_nonconverged!(nonconverged, chain_results, ["lambdas"],
-                       stop_idxs, burnin, psrf_up, n_eff_lb)
+    push_nonconverged!(nonconverged, chain_results, ["lambda"],
+                       stop_idxs, burnin, psrf_ub, n_eff_lb)
     
     # convergence for edges?
     V = length(chain_results[1]["parent_sets"])
+    #println("BIG DICTIONARY: ", chain_results[1]["parent_sets"])
     for i=1:V
         for j=1:V
-            push_nonconverged!(nonconverged, chain_results, ["parent_sets", j, i],
-                       stop_idxs, burnin, psrf_up, n_eff_lb)
+            push_nonconverged!(nonconverged, chain_results, ["parent_sets", i, string(j)],
+                               stop_idxs, burnin, psrf_ub, n_eff_lb)
         end
     end
     
@@ -378,4 +385,83 @@ function collect_dbn_nonconverged(chain_results::Vector, stop_idxs;
 end
 
 
+function get_max_n(dict_vec)
+    n_vec = [d["n"] for d in dict_vec]
+    return minimum(n_vec)
 end
+
+
+function postprocess_sample_files(sample_filenames, output_file::String, stop_points::Vector{Int},
+                                  burnin::Float64, psrf_ub::Float64, n_eff_lb::Float64)
+    
+    dict_vec = [load_samples(fname) for fname in sample_filenames]   
+
+    n_max = get_max_n(dict_vec)
+    stop_points = [sp for sp in stop_points if sp <= n_max] 
+
+    nonconverged = collect_dbn_nonconverged(dict_vec, stop_points; 
+                                            burnin=burnin, 
+                                            psrf_ub=psrf_ub, 
+                                            n_eff_lb=n_eff_lb)
+
+    js_str = JSON.json(nonconverged)
+    f = open(output_file, "w")
+    write(f, js_str)
+    close(f)
+    println("Saved postprocessed MCMC results to ", output_file)
+end
+
+
+function get_args(args::Vector{String})
+    
+    s = ArgParseSettings()
+    @add_arg_table s begin
+        "--chain-samples"
+            help = "mcmc sample files for one or more chains"
+    	    required = true
+            nargs = '+'
+        "--stop-points"
+            help = "points in the sequence where convergence should be analyzed."
+            required = false
+            nargs = '+'
+            default = [-1]
+            arg_type = Int
+        "--burnin"
+            help = "fraction of sequence to discard as burnin."
+            required = false
+            arg_type = Float64
+            default = 0.5
+        "--psrf-ub"
+            help = "upper bound for Potential Scale Reduction Factor. PSRF above this threshold indicates failure to converge."
+            required = false
+            arg_type = Float64
+            default = 1.1
+        "--n-eff-lb"
+            help = "lower bound for effective number of samples. N_eff below this threshold indicates failure to converge."
+            required = false
+            arg_type = Float64
+            default = 10.0
+        "--output-file"
+            help = "name of output JSON file containing convergence information"
+    	    required = true
+            arg_type = String
+    end
+    args = parse_args(args, s)
+
+    arg_vec = [args["chain-samples"], args["output-file"], args["stop-points"],
+               args["burnin"], args["psrf-ub"], args["n-eff-lb"]]
+    return arg_vec
+end
+
+
+# main function -- for purposes of static compilation
+Base.@ccallable function julia_main(args::Vector{String})::Cint
+    arg_vec = get_args(ARGS)
+    postprocess_sample_files(arg_vec...)
+    return 0
+end
+
+
+end
+
+

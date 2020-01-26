@@ -1,7 +1,7 @@
 
 module Simulator
 
-include("sim_data.jl")
+include("data_sim.jl")
 using .DBNDataSim
 
 # Defining this function allows us to statically compile the
