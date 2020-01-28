@@ -270,7 +270,6 @@ We assume the seqs all have equal length.
 function compute_psrf_neff(seqs::Vector{ChangepointVec})
     seq_means = [mean(seq) for seq in seqs]
     seq_variances = [seq_var(seq, seq_means[i]) for (i, seq) in enumerate(seqs)]
-    println("SEQ_VARS: ", seq_variances)
     m = length(seqs)
     n = length(seqs[1])
     B = b_stat(seq_means, n)
@@ -279,8 +278,6 @@ function compute_psrf_neff(seqs::Vector{ChangepointVec})
     psrf = psrf_stat(vp, W)
     
     seq_vgrams = [seq_variogram(seq) for seq in seqs]
-    #println(seq_vgrams)
-    #vgram = combine_variograms(seq_vgrams)
     vgram = sum(seq_vgrams) / m
     corr_sum = correlation_sum(vgram, vp)
     n_eff = n_eff_stat(corr_sum, m, n)
@@ -300,22 +297,17 @@ function evaluate_convergence(whole_seqs::Vector{ChangepointVec}, stop_idxs;
     results = []
     
     for len in stop_idxs
-        println("LEN: ", len)
         # Split the whole sequences into half sequences
         burnin_idx = Int(round(burnin*len))
-        println("BURNIN_IDX: ", burnin_idx)
         split_idx = burnin_idx + div(len - burnin_idx, 2)
-        println("SPLIT_IDX: ", split_idx) 
         half_seqs = Vector{ChangepointVec}()
         for ws in whole_seqs
-            println("\tWS: ", typeof(ws))
             push!(half_seqs, ws[burnin_idx+1:split_idx])
             push!(half_seqs, ws[split_idx+1:len])
         end
         
         # compute the convergence diagnostics
         psrf, n_eff = compute_psrf_neff(half_seqs)
-        println("PSRF/N_EFF: ", (psrf,n_eff))
         push!(results, (psrf, n_eff))
     end
     
@@ -373,7 +365,6 @@ function collect_dbn_nonconverged(chain_results::Vector, stop_idxs;
     
     # convergence for edges?
     V = length(chain_results[1]["parent_sets"])
-    #println("BIG DICTIONARY: ", chain_results[1]["parent_sets"])
     for i=1:V
         for j=1:V
             push_nonconverged!(nonconverged, chain_results, ["parent_sets", i, string(j)],

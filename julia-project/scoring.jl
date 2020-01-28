@@ -80,72 +80,70 @@ Integral is computed via trapezoidal rule.
 
 Has n*log(n) complexity 
 (superlinear expense incurred by sorting; 
- the AUROC loop has linear expense).
+ the AUPRC loop has linear expense).
 """
 function auprc(preds::Vector, truths::Vector{Bool}; return_curve::Bool=false)
 
+    if return_curve
+        curve = Vector{Vector{Float64}}()
+        push!(curve, [0.0;1.0])
+    end
+    
     # Sort the predictions (and corresponding ground truth)
     # by confidence level
     srt_inds = sortperm(preds, order=Base.Order.Reverse)
     srt_preds = preds[srt_inds]
     srt_truths = truths[srt_inds]
 
+    area = 0.0
     tp = 0
     fp = 0
-    prev_p = 0.0
-    prev_r = 1.0
+    prev_p = 1.0
+    prev_r = 0.0
     N = length(srt_truths)
     npos = sum(srt_truths)
     nneg = N - npos
-
-    if return_curve
-        curve = Vector{Vector{Float64}}()
-        push!(curve, [0.0;1.0])
-    end
-
-    area = 0.0
+    
     for i=1:N
-
         if (i>1) && (srt_preds[i] < srt_preds[i-1])
+            
             recall = tp / npos
             precision = tp / (tp + fp)
             if return_curve
-                curve = Vector{Vector{Float64}}()
                 push!(curve, [recall; precision])
             end
-            
             area += 0.5*(precision + prev_p)*(recall - prev_r)
-            
+
             prev_r = recall
             prev_p = precision
         end
-        
+
         if srt_truths[i]
             tp += 1
         else
             fp += 1
         end
     end
-    
+
     recall = tp / npos
     precision = tp / (tp + fp)
     area += 0.5*(precision + prev_p)*(recall - prev_r)
-    
+
     if return_curve
-        curve = Vector{Vector{Float64}}()
         push!(curve, [recall; precision])
-        return area, transpose(hcat(curve...)) 
+        return area, transpose(hcat(curve...))
     end
 
     return area
 end
 
+
 """
 Take a "vector of vectors" representation of the
 network edges and return a single vector in canonical order.
 """
-function ps_to_vec(parent_sets::Vector{Vector})
-    return [e for e in ps for ps in parent_sets]
+function ps_to_vec(parent_sets::Vector)
+    return [e for ps in parent_sets for e in ps]
 end
 
 
@@ -159,7 +157,7 @@ Return a single vector of confidence levels for all edges.
 function load_ps_predictions(pred_fname)
 
     f = open(pred_fname, "r")
-    js_d = JSON.parse(read(f))
+    js_d = JSON.parse(read(f, String))
     close(f)
 
     key = js_d["edge_conf_key"]
@@ -203,7 +201,7 @@ function edge_scores(pred_fnames::Vector{String},
     
     for i=1:N
         # get predicted parents
-        preds = load_ps_preds(pred_fnames[i])
+        preds = load_ps_predictions(pred_fnames[i])
 
         # get true parents
         truths = load_ps_truths(truth_fnames[i])
@@ -216,7 +214,7 @@ function edge_scores(pred_fnames::Vector{String},
 end
 
 
-function get_args(ARGS::Vector{String})
+function get_args(args::Vector{String})
 
     s = ArgParseSettings()
     @add_arg_table s begin
@@ -224,12 +222,12 @@ function get_args(ARGS::Vector{String})
             help="The path(s) of one or more JSON files containing edge predictions"
             required=true
             arg_type=String
-            nargs="+"
+            nargs='+'
         "--truth-files"
             help="The path(s) of one or more CSV files containing true adjacency matrice(s)."
             required=true
             arg_type=String
-            nargs="+"
+            nargs='+'
         "--output-file"
             help="The path of an output JSON file"
             required=true
@@ -240,15 +238,15 @@ function get_args(ARGS::Vector{String})
             default=false
     end
 
-    args = parse_args(ARGS, s)
+    args = parse_args(args, s)
     return args
 end
 
 
 # Main function -- for purposes of static compilation
-Base.@ccallable function julia_main(ARGS::Vector{String})::Cint
+Base.@ccallable function julia_main(args::Vector{String})::Cint
 
-    args = get_args(ARGS)
+    args = get_args(args)
 
     pred_fnames = args["pred-files"]
     truth_fnames = args["truth-files"]

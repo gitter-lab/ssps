@@ -89,15 +89,15 @@ CONV_PSRF = CONV_PARAMS["psrf_ub"]
 rule all:
     input:
         # convergence tests on simulated data
-        expand(CONV_RES_DIR+"/v={v}_r={r}_a={a}_t={t}_replicate={rep}/mcmc_d={d}.json",
-               v=CONV_SIM_GRID["V"], r=CONV_SIM_GRID["R"], a=CONV_SIM_GRID["A"],
-               t=CONV_SIM_GRID["T"], rep=CONV_REPLICATES, d=CONV_DEGS) 
+	#expand(CONV_RES_DIR+"/v={v}_r={r}_a={a}_t={t}_replicate={rep}/mcmc_d={d}.json",
+        #       v=CONV_SIM_GRID["V"], r=CONV_SIM_GRID["R"], a=CONV_SIM_GRID["A"],
+        #       t=CONV_SIM_GRID["T"], rep=CONV_REPLICATES, d=CONV_DEGS) 
         ## convergence tests on experimental data
         #expand(CONV_RAW_DIR+"/{dataset}/mcmc_d={d}/chain_{c}.json", 
         #       ds=CONV_DATASETS, d=CONV_DEGS, c=CONV_CHAINS)
         ## simulation study
-	#expand(SCORE_DIR+"/mcmc_d={d}/v={v}_r={r}_a={a}_t={t}.json", 
-	#       d=REG_DEGS, v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]), 
+        expand(SCORE_DIR+"/mcmc_d={d}/v={v}_r={r}_a={a}_t={t}.json", 
+	       d=REG_DEGS, v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]), 
         #expand(SCORE_DIR+"/funchisq/v={v}_r={r}_a={a}_t={t}.json",
         #        v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
         #expand(SCORE_DIR+"/hill/v={v}_r={r}_a={a}_t={t}.json",  
