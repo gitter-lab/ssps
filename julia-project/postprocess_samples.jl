@@ -346,7 +346,8 @@ function push_nonconverged!(nonconverged::Vector, dict_vec, key_vec,
                                        stop_idx, burnin)
     for (i, diag) in enumerate(diag_vec)
         if !seq_converged(diag[1], diag[2], psrf_ub, n_eff_lb)
-            push!(nonconverged[i], diag)
+            info = vcat(key_vec, [diag[1]; diag[2]])
+            push!(nonconverged[i], info)
         end
     end
 end
