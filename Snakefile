@@ -28,6 +28,7 @@ configfile: "analysis_config.yaml"
 ROOT_DIR = os.getcwd()
 BIN_DIR = os.path.join(ROOT_DIR,"bin")
 FIG_DIR = os.path.join(ROOT_DIR,"figures")
+SCRIPT_DIR = os.path.join(ROOT_DIR, "scripts")
 JULIA_PROJ_DIR = os.path.join(ROOT_DIR, "julia-project")
 HILL_DIR = os.path.join(ROOT_DIR, "hill-method")
 FUNCH_DIR = os.path.join(ROOT_DIR, "funchisq")
@@ -89,15 +90,16 @@ CONV_PSRF = CONV_PARAMS["psrf_ub"]
 rule all:
     input:
         # convergence tests on simulated data
-	#expand(CONV_RES_DIR+"/v={v}_r={r}_a={a}_t={t}_replicate={rep}/mcmc_d={d}.json",
-        #       v=CONV_SIM_GRID["V"], r=CONV_SIM_GRID["R"], a=CONV_SIM_GRID["A"],
-        #       t=CONV_SIM_GRID["T"], rep=CONV_REPLICATES, d=CONV_DEGS) 
+        expand(CONV_RES_DIR+"/v={v}_r={r}_a={a}_t={t}_replicate={rep}/mcmc_d={d}.json",
+               v=CONV_SIM_GRID["V"], r=CONV_SIM_GRID["R"], a=CONV_SIM_GRID["A"],
+               t=CONV_SIM_GRID["T"], rep=CONV_REPLICATES, d=CONV_DEGS) 
         ## convergence tests on experimental data
         #expand(CONV_RAW_DIR+"/{dataset}/mcmc_d={d}/chain_{c}.json", 
         #       ds=CONV_DATASETS, d=CONV_DEGS, c=CONV_CHAINS)
         ## simulation study
-        expand(SCORE_DIR+"/mcmc_d={d}/v={v}_r={r}_a={a}_t={t}.json", 
-	       d=REG_DEGS, v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]), 
+        
+        #expand(SCORE_DIR+"/mcmc_d={d}/v={v}_r={r}_a={a}_t={t}.json", 
+	#       d=REG_DEGS, v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]), 
         #expand(SCORE_DIR+"/funchisq/v={v}_r={r}_a={a}_t={t}.json",
         #        v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
         #expand(SCORE_DIR+"/hill/v={v}_r={r}_a={a}_t={t}.json",  
@@ -128,6 +130,17 @@ rule score_predictions:
         "{input.scorer} --truth-files {input.tr_dg_fs} --pred-files {input.pp_res} --output-file {output.out}"
 
 
+##########################
+# VISUALIZATION RULES
+
+rule sim_study_score_viz:
+    input:
+        expand(SCORE_DIR+"/{{method}}/v={v}_r={r}_a={a}_t={t}.json", 
+	       d=REG_DEGS, v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]), 
+    output:
+        FIG_DIR+"/simulation-study/{method}_aupr.png"
+    script:
+        SCRIPT_DIR+"/sim_study_score_viz.py"
 
 ######################
 # MCMC JOBS

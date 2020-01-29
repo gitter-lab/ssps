@@ -84,6 +84,8 @@ function postprocessor(args::Vector{String}; conf_key::String="parent_sets")
 
     prob_ps = prob_parent_sets(psets, n_vec)
     results[conf_key] = prob_ps
+    results["n"] = n_vec
+
     out_fname = arg_dict["output-file"]
 
     res_str = JSON.json(results)

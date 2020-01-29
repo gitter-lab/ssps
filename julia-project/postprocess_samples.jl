@@ -424,8 +424,11 @@ function postprocess_sample_files(sample_filenames, output_file::String, stop_po
                                             burnin=burnin, 
                                             psrf_ub=psrf_ub, 
                                             n_eff_lb=n_eff_lb)
+    results = Dict()
+    results["nonconverged"] = nonconverged
+    results["lengths"] = stop_points
 
-    js_str = JSON.json(nonconverged)
+    js_str = JSON.json(stop_points)
     f = open(output_file, "w")
     write(f, js_str)
     close(f)
