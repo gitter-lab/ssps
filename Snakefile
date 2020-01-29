@@ -234,7 +234,7 @@ rule tabulate_timetest_hill:
     output:
         FIG_DIR+"/hill_method_timetest.csv"
     script:
-        HILL_DIR+"/tabulate_timetest_results.py"
+        SCRIPT_DIR+"/tabulate_timetest_results.py"
 
 # END HILL JOBS
 #####################
