@@ -12,6 +12,8 @@ using JSON
 using ArgParse
 using DataStructures
 
+#export ChangepointVec, count_nonzero, sum, mean, seq_var, seq_variogram, postprocess_sample_files
+export postprocess_sample_files
 
 """
 Read an MCMC samples output file
@@ -109,39 +111,80 @@ end
 
 
 function sum(cpv::ChangepointVec)
-    s = zero(cpv.default_v)
-    cur_t = 1
-    cur_changepoint = 0
-    cur_v = cpv.default_v
     
     if length(cpv.changepoints) == 0
         return length(cpv) * cpv.default_v
     end
     
-    while cur_changepoint < length(cpv.changepoints)
-        next_t, next_v = cpv.changepoints[cur_changepoint+1]
-        s += cur_v * (next_t - cur_t)
-        cur_changepoint += 1
-        cur_t = next_t
-        cur_v = next_v
+    s = zero(cpv.default_v)
+    if cpv.changepoints[1][1] > 1
+        cur_t_v = (1, cpv.default_v)
+    else
+        cur_t_v = cpv.changepoints[1]
+    end
+    
+    for cur_changepoint=1:length(cpv.changepoints)-1
+        next_t_v = cpv.changepoints[cur_changepoint+1]
+        s += cur_t_v[2] * (next_t_v[1] - cur_t_v[1])
+        cur_t_v = next_t_v
     end 
-    s += cur_v * (length(cpv) - cur_t + 1)
+    s += cur_t_v[2] * (length(cpv) - cur_t_v[1] + 1)
     
     return s
 end
 
-mean(cpv::ChangepointVec) = sum(cpv) / length(cpv)
+function mult_ind(binary_expr, value)
+    if Bool(binary_expr)
+        return value 
+    else
+        return 0
+    end
+end
 
+function count_nonzero(cpv::ChangepointVec)
+
+    if length(cpv.changepoints) == 0
+        return mult_ind(cpv.default_v, length(cpv))
+    end
+    
+    s = zero(cpv.default_v)
+    if cpv.changepoints[1][1] > 1
+        cur_t_v = (1, cpv.default_v)
+    else
+        cur_t_v = cpv.changepoints[1]
+    end
+
+    for cur_changepoint=1:length(cpv.changepoints)-1
+        next_t_v = cpv.changepoints[cur_changepoint+1]
+        s += mult_ind(cur_t_v[2], next_t_v[1] - cur_t_v[1])
+        cur_t_v = next_t_v
+    end
+
+    s += mult_ind(cur_t_v[2], length(cpv) - cur_t_v[1] + 1)
+
+    return s 
+end
+
+
+function mean(cpv::ChangepointVec; is_binary::Bool=false)
+    if is_binary
+        return count_nonzero(cpv) / length(cpv)
+    else
+        return sum(cpv) / length(cpv)
+    end
+end
 
 function binop(f::Function, cpva::ChangepointVec, cpvb::ChangepointVec)
 
     new_default = f(cpva.default_v, cpvb.default_v)
     new_len = length(cpva)
-    new_changepoints = []
+    ncp_a = length(cpva.changepoints)
+    ncp_b = length(cpvb.changepoints)
+    new_changepoints = Vector{Tuple}()
 
     # Handle this corner case
     if new_len == 0
-        return ChangepointVec(new_changepoints, new_len, new_default)
+        return ChangepointVec([], new_len, new_default)
     end
 
     cur_t = 1
@@ -152,13 +195,13 @@ function binop(f::Function, cpva::ChangepointVec, cpvb::ChangepointVec)
 
     while cur_t < new_len
 
-        if cur_cp_a < length(cpva.changepoints)
+        if cur_cp_a < ncp_a
             next_t_a, next_v_a = cpva.changepoints[cur_cp_a+1]
         else
             next_t_a = new_len
             next_v_a = cur_v_a
         end
-        if cur_cp_b < length(cpvb.changepoints)
+        if cur_cp_b < ncp_b
             next_t_b, next_v_b = cpvb.changepoints[cur_cp_b+1]
         else
             next_t_b = new_len
@@ -183,61 +226,42 @@ function binop(f::Function, cpva::ChangepointVec, cpvb::ChangepointVec)
 end
 
 
-function seq_variogram(seq::ChangepointVec)
-    
+function seq_variogram(seq::ChangepointVec, t::Int64; is_binary::Bool=false)
     n = length(seq)
-    result = zeros(n - 1)
-
-    if length(seq.changepoints) == 0
-        return result
-    end    
-
-    changepoints = copy(seq.changepoints)
-    if changepoints[1][1] > 1 
-        pushfirst!(changepoints, (1, seq.default_v))
-    end 
-
-    # Get the sizes of "blocks" of same-valued entries
-    blocksizes = zeros(Int64, length(changepoints))
-    for k=1:length(changepoints) - 1 
-        blocksizes[k] = changepoints[k+1][1] - changepoints[k][1]
-    end 
-    blocksizes[end] = n - changepoints[end][1] + 1 
-
-    for (i, cpi) in enumerate(changepoints)
-        start_i = cpi[1]
-        bsize_i = blocksizes[i] 
-
-        for (j, cpj) in enumerate(changepoints[i+1:end])
-            start_j = cpj[1]
-            bsize_j = blocksizes[j+i]
-                
-            diffsq = abs2(cpi[2] - cpj[2])
-            if diffsq == 0
-                continue
-            end 
-    
-            for ii=start_i:(start_i+bsize_i-1)
-                for jj=start_j:(start_j+bsize_j-1)
-                    result[jj - ii] += diffsq
-                end
-            end 
-        end
-    end 
-    
-    return result ./ (n .- collect(1:n-1))
+    if is_binary
+        return mean(binop(!=, seq[1:n-t], seq[1+t:n]); is_binary=is_binary)
+    else
+        return mean(map(abs2, binop(-, seq[1:n-t], seq[1+t:n])); is_binary=is_binary)
+    end
 end
 
 
-function correlation_sum(variogram::Vector, varplus::Float64)
-    corrs = 1.0 .- (variogram ./ (2.0*varplus))
+function correlation_sum(seqs::Vector{ChangepointVec}, varplus::Float64; is_binary::Bool=false)
+    
     s = 0.0
-    for i=1:length(corrs)-2 
-        s += corrs[i]
-        if corrs[i+1] + corrs[i+2] < 0.0
-            break
+    m = length(seqs)
+    prev2_corr = 0.0
+    prev1_corr = 0.0
+    
+    for t=1:length(seqs[1])-2
+
+        variograms = [seq_variogram(seq, t; is_binary=is_binary) for seq in seqs]
+        comb_variogram = sum(variograms) / m
+
+        corr = 1.0 - (comb_variogram / (2.0*varplus))
+
+        if t > 2 
+            if corr + prev1_corr >= 0.0
+                s += prev2_corr
+            else
+                break
+            end
         end
+        prev2_corr = prev1_corr
+        prev1_corr = corr
+
     end
+    
     return s
 end
 
@@ -249,7 +273,14 @@ n_eff_stat(corr_sum::Float64, m::Int64, n::Int64) = m*n/(1.0 + 2.0*corr_sum)
 # N_eff (diagnostic scores for MCMC convergence)
 #################################################
 
-seq_var(cpv::ChangepointVec, mean::Float64) = sum(map( x->abs2(x-mean), cpv )) / (length(cpv) - 1)
+function seq_var(cpv::ChangepointVec, mean::Float64; is_binary::Bool=false)
+    if is_binary 
+        N = length(cpv)
+        return mean*(1 - mean)*N/(N - 1)
+    else
+        return sum(map( x->abs2(x-mean), cpv )) / (length(cpv) - 1)
+    end
+end
 
 w_stat(variances::Vector{Float64}) = sum(variances) / length(variances)
 
@@ -267,9 +298,9 @@ split in half.
 
 We assume the seqs all have equal length.
 """
-function compute_psrf_neff(seqs::Vector{ChangepointVec})
-    seq_means = [mean(seq) for seq in seqs]
-    seq_variances = [seq_var(seq, seq_means[i]) for (i, seq) in enumerate(seqs)]
+function compute_psrf_neff(seqs::Vector{ChangepointVec}; is_binary::Bool=false)
+    seq_means = [mean(seq; is_binary=is_binary) for seq in seqs]
+    seq_variances = [seq_var(seq, seq_means[i]; is_binary=is_binary) for (i, seq) in enumerate(seqs)]
     m = length(seqs)
     n = length(seqs[1])
     B = b_stat(seq_means, n)
@@ -277,9 +308,7 @@ function compute_psrf_neff(seqs::Vector{ChangepointVec})
     vp = varplus(W, B, n)
     psrf = psrf_stat(vp, W)
     
-    seq_vgrams = [seq_variogram(seq) for seq in seqs]
-    vgram = sum(seq_vgrams) / m
-    corr_sum = correlation_sum(vgram, vp)
+    corr_sum = correlation_sum(seqs, vp; is_binary=is_binary)
     n_eff = n_eff_stat(corr_sum, m, n)
 
     return psrf, n_eff
@@ -291,7 +320,7 @@ Compute convergence diagnostics for a collection of sequences,
 at multiple stop indices
 """
 function evaluate_convergence(whole_seqs::Vector{ChangepointVec}, stop_idxs;
-                              burnin::Float64=0.5)
+                              burnin::Float64=0.5, is_binary::Bool=false)
     
     # We'll collect a list of (psrf, n_eff values) 
     results = []
@@ -307,7 +336,7 @@ function evaluate_convergence(whole_seqs::Vector{ChangepointVec}, stop_idxs;
         end
         
         # compute the convergence diagnostics
-        psrf, n_eff = compute_psrf_neff(half_seqs)
+        psrf, n_eff = compute_psrf_neff(half_seqs; is_binary=is_binary)
         push!(results, (psrf, n_eff))
     end
     
@@ -331,19 +360,19 @@ end
 
 
 function evaluate_convergence_at(dict_vec::Vector, key_vec::Vector, 
-                                 stop_idxs, burnin)
+                                 stop_idxs, burnin; is_binary::Bool=false)
     whole_seqs = get_all_at(dict_vec, key_vec)
     whole_seqs = [ChangepointVec(seq, dict_vec[i]["n"]) for (i, seq) in enumerate(whole_seqs)]
-    diag_vec = evaluate_convergence(whole_seqs, stop_idxs; burnin=burnin)
+    diag_vec = evaluate_convergence(whole_seqs, stop_idxs; burnin=burnin, is_binary=is_binary)
     return diag_vec
 end
 
 
 function push_nonconverged!(nonconverged::Vector, dict_vec, key_vec, 
-                            stop_idx, burnin, psrf_ub, n_eff_lb)
+                            stop_idxs, burnin, psrf_ub, n_eff_lb, is_binary)
     
     diag_vec = evaluate_convergence_at(dict_vec, key_vec, 
-                                       stop_idx, burnin)
+                                       stop_idxs, burnin; is_binary=is_binary)
     for (i, diag) in enumerate(diag_vec)
         if !seq_converged(diag[1], diag[2], psrf_ub, n_eff_lb)
             info = vcat(key_vec, [diag[1]; diag[2]])
@@ -358,18 +387,18 @@ function collect_dbn_nonconverged(chain_results::Vector, stop_idxs;
                                   psrf_ub::Float64=1.1,
                                   n_eff_lb::Float64=10.0)
     
-    nonconverged = fill([], length(stop_idxs))
-    
+    nonconverged = [Vector() for l=1:length(stop_idxs)]
+ 
     # convergence for lambda?
     push_nonconverged!(nonconverged, chain_results, ["lambda"],
-                       stop_idxs, burnin, psrf_ub, n_eff_lb)
+                       stop_idxs, burnin, psrf_ub, n_eff_lb, false)
     
     # convergence for edges?
     V = length(chain_results[1]["parent_sets"])
     for i=1:V
         for j=1:V
             push_nonconverged!(nonconverged, chain_results, ["parent_sets", i, string(j)],
-                               stop_idxs, burnin, psrf_ub, n_eff_lb)
+                               stop_idxs, burnin, psrf_ub, n_eff_lb, true)
         end
     end
     
