@@ -9,7 +9,7 @@ import json
 import sys
 import os
 import pandas as pd
-
+import script_util as su
 
 HILL_TIME_PARAMS = snakemake.config["hill_timetest"]
 HILL_MODES = HILL_TIME_PARAMS["modes"]
@@ -21,11 +21,13 @@ def get_times(fnames):
     times = pd.DataFrame(index=pd.MultiIndex.from_product([HILL_MODES, degs]), columns=vs)
     for fname in fnames:
 
+        kvs = su.parse_path_kvs(fname)
+
         res_dict = json.load(open(fname, "r"))
-        v = os.path.basename(fname).split("_")[0].split("=")[1]
+        v = kvs["v"]
         split_dirname = fname.split(os.path.sep)[-2].split("_")
-        deg = split_dirname[1]
-        mode = split_dirname[2]
+        deg = kvs["deg"]
+        mode = kvs["mode"]
 
         if res_dict['timed_out']:
             times.loc[(mode,deg),v] = "timeout"

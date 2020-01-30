@@ -25,7 +25,8 @@ function hill_dbn_wrapper(timeseries_filename, ref_graph_filename, output_filena
                                                        max_indegree, ref_adj,... 
                                                        lambdas, reg_mode, 1, 0, timeout);
     elapsed = toc;
-
+    edge_probs = transpose(edge_probs);
+    
     write_to_file(output_filename, edge_probs, sign_mat, chosen_lambda, elapsed, timed_out)
 
 end
@@ -34,12 +35,17 @@ end
 function ts_data = read_timeseries_file(timeseries_filename)
 
     ts_table = readtable(timeseries_filename);
-    ts_data = {};
+    p = length(ts_table.Properties.VariableNames)-2;
+    t = length(unique(ts_table.timestep));
     u_ts = unique(ts_table.timeseries);
+    C = length(u_ts);
+    ts_data = zeros(p,t,C);
     
     for i=1:length(u_ts)
-        rows = (ts_table.timeseries == u_ts(i));
-        ts_data{u_ts(i)} = transpose(table2array(ts_table(rows, 3:end)));
+        rows = ts_table(ts_table.timeseries == u_ts(i),:);
+        rows = sortrows(rows, "timestep");
+        rows = rows(:,3:end);
+        ts_data(:,:,i) = transpose(table2array(rows));
     end
 
 end

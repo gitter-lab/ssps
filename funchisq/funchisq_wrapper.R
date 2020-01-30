@@ -68,15 +68,24 @@ run_funchisq <- function(discretized_df){
 
             fcsq_result = fun.chisq.test(contingency, method="nfchisq")
 
-            fcsq_statistics[parent,child] = fcsq_result$statistic
-            fcsq_p_values[parent,child] = fcsq_result$p.value
-            fcsq_estimates[parent,child] = fcsq_result$estimate
-    }
+            # Reverse the indices so that we're storing 
+            # results in "parent set" form
+            fcsq_statistics[child,parent] = fcsq_result$statistic
+            fcsq_p_values[child,parent] = fcsq_result$p.value
+            fcsq_estimates[child,parent] = fcsq_result$estimate
+            #fcsq_statistics[parent, child] = fcsq_result$statistic
+            #fcsq_p_values[parent,child] = fcsq_result$p.value
+            #fcsq_estimates[parent,child] = fcsq_result$estimate
+        }
     }
 
-    return(list("statistic"=fcsq_statistics, 
+    minchisq = min(fcsq_statistics)
+    normed_chisq = (fcsq_statistics - minchisq)/(max(fcsq_statistics) - minchisq)
+
+    return(list("normed_stat"=normed_chisq,
+                "statistic"=fcsq_statistics, 
                 "value"=fcsq_p_values, 
-                "edge_conf_key"="value",
+                "edge_conf_key"="normed_stat",
                 "estimate"=fcsq_estimates))
 
 }
@@ -86,7 +95,7 @@ run_funchisq <- function(discretized_df){
 dump_results <- function(output_filename, fcsq_result){
 
     fileConn = file(output_filename)
-    writeLines(toJSON(fcsq_result), fileConn)
+    writeLines(toJSON(fcsq_result, auto_unbox=TRUE), fileConn)
     close(fileConn)
 
 }

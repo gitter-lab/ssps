@@ -34,6 +34,7 @@ HILL_DIR = os.path.join(ROOT_DIR, "hill-method")
 FUNCH_DIR = os.path.join(ROOT_DIR, "funchisq")
 TEMP_DIR = config["temp_dir"]
 EXP_DATA_DIR = os.path.join(ROOT_DIR,"experimental_data")
+HILL_TIME_DIR = os.path.join(TEMP_DIR, "time_tests")
 
 # simulation study directories
 SIM_DIR = os.path.join(TEMP_DIR, "simulation_study")
@@ -90,24 +91,23 @@ CONV_PSRF = CONV_PARAMS["psrf_ub"]
 rule all:
     input:
         # convergence tests on simulated data
-        expand(CONV_RES_DIR+"/v={v}_r={r}_a={a}_t={t}_replicate={rep}/mcmc_d={d}.json",
-               v=CONV_SIM_GRID["V"], r=CONV_SIM_GRID["R"], a=CONV_SIM_GRID["A"],
-               t=CONV_SIM_GRID["T"], rep=CONV_REPLICATES, d=CONV_DEGS) 
+	#FIG_DIR+"/convergence/convergence_plot.png",
+    #expand(CONV_RES_DIR+"/v={v}_r={r}_a={a}_t={t}_replicate={rep}/mcmc_d={d}.json",
+        #       v=CONV_SIM_GRID["V"], r=CONV_SIM_GRID["R"], a=CONV_SIM_GRID["A"],
+        #       t=CONV_SIM_GRID["T"], rep=CONV_REPLICATES, d=CONV_DEGS) 
         ## convergence tests on experimental data
         #expand(CONV_RAW_DIR+"/{dataset}/mcmc_d={d}/chain_{c}.json", 
         #       ds=CONV_DATASETS, d=CONV_DEGS, c=CONV_CHAINS)
-        ## simulation study
-        
-        #expand(SCORE_DIR+"/mcmc_d={d}/v={v}_r={r}_a={a}_t={t}.json", 
-	#       d=REG_DEGS, v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]), 
-        #expand(SCORE_DIR+"/funchisq/v={v}_r={r}_a={a}_t={t}.json",
-        #        v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
-        #expand(SCORE_DIR+"/hill/v={v}_r={r}_a={a}_t={t}.json",  
-        #        v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
+        ## MCMC simulation scores
+	#expand(FIG_DIR+"/simulation-study/mcmc_d={d}_aupr.png", d=REG_DEGS)
+	#expand(SCORE_DIR+"/funchisq/v={v}_r={r}_a={a}_t={t}.json",
+	#        v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
+        expand(SCORE_DIR+"/hill_deg=2_mode=full/v={v}_r={r}_a={a}_t={t}.json",  
+               v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
         #expand("simulation-study/scores/lasso/v={v}_r={r}_a={a}_t={t}.json",
         #        v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
         ## Hill timetest results
-        #FIG_DIR+"/hill_method_timetest.csv"    
+    #FIG_DIR+"/hill_method_timetest.csv"    
 
 rule simulate_data:
     input:
@@ -133,10 +133,20 @@ rule score_predictions:
 ##########################
 # VISUALIZATION RULES
 
+rule convergence_viz:
+    input:
+        expand(CONV_RES_DIR+"/v={v}_r={r}_a={a}_t={t}_replicate={rep}/mcmc_d={d}.json",
+               v=CONV_SIM_GRID["V"], r=CONV_SIM_GRID["R"], a=CONV_SIM_GRID["A"],
+               t=CONV_SIM_GRID["T"], rep=CONV_REPLICATES, d=CONV_DEGS) 
+    output:
+        FIG_DIR+"/convergence/convergence_plot.png"
+    script:
+        SCRIPT_DIR+"/convergence_viz.py"
+
 rule sim_study_score_viz:
     input:
         expand(SCORE_DIR+"/{{method}}/v={v}_r={r}_a={a}_t={t}.json", 
-	       d=REG_DEGS, v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]), 
+           d=REG_DEGS, v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]), 
     output:
         FIG_DIR+"/simulation-study/{method}_aupr.png"
     script:
@@ -213,7 +223,7 @@ rule run_sim_hill:
         ts_file=TS_DIR+"/{replicate}.csv",
         ref_dg=REF_DIR+"/{replicate}.csv"
     output:
-        PRED_DIR+"/hill_{deg}_{mode}/{replicate}.json"
+        PRED_DIR+"/hill_deg={deg}_mode={mode}/{replicate}.json"
     shell:
         "matlab -nodesktop -nosplash -nojvm -r \'cd(\"{HILL_DIR}\"); try, hill_dbn_wrapper(\"{input.ts_file}\", \"{input.ref_dg}\", \"{output}\", -1, \"full\", {SIM_TIMEOUT}), catch e, quit(1), end, quit\'"
 
@@ -223,14 +233,14 @@ rule run_timetest_hill:
         ts=TS_DIR+"/{replicate}.csv",
         ref=REF_DIR+"/{replicate}.csv"
     output:
-        PRED_DIR+"/hill_{deg}_{mode}/{replicate}.json"
+        HILL_TIME_DIR+"/preds/hill_deg={deg}_mode={mode}/{replicate}.json"
     shell:
         "matlab -nodesktop -nosplash -nojvm -r \'cd(\""+HILL_DIR+"\"); try, hill_dbn_wrapper(\"{input.ts}\", \"{input.ref}\", \"{output}\", {wildcards.deg}, \"{wildcards.mode}\", "+str(HILL_TIME_TIMEOUT)+"), catch e, quit(1), end, quit\'"
 
 
 rule tabulate_timetest_hill:
     input:
-        [PRED_DIR+"/hill_"+str(comb[0])+"_"+str(m)+"/v="+str(comb[1])+"_r="+str(SIM_GRID["R"][0])+"_a="+str(SIM_GRID["A"][0])+"_t="+str(SIM_GRID["T"][0])+"_replicate=0.json" for comb in HILL_TIME_COMBS for m in HILL_MODES]
+        [HILL_TIME_DIR+"/preds/hill_deg="+str(comb[0])+"_mode="+str(m)+"/v="+str(comb[1])+"_r="+str(SIM_GRID["R"][0])+"_a="+str(SIM_GRID["A"][0])+"_t="+str(SIM_GRID["T"][0])+"_replicate=0.json" for comb in HILL_TIME_COMBS for m in HILL_MODES]
     output:
         FIG_DIR+"/hill_method_timetest.csv"
     script:
