@@ -8,6 +8,10 @@ using .DBNDataSim
 # simulator via PackageCompiler.jl
 Base.@ccallable function julia_main(ARGS::Vector{String})::Cint
 
+    ref_dg = nothing
+    true_dg = nothing
+    timeseries = nothing
+        
     V = parse(Int64, ARGS[1])
     T = parse(Int64, ARGS[2])
     p = 5.0/V # 5 parents on average
@@ -21,14 +25,21 @@ Base.@ccallable function julia_main(ARGS::Vector{String})::Cint
     coeff_std = 1.0/sqrt(V)
     regression_std = 1.0/sqrt(T)/1000.0 # TODO: THIS NEEDS TO BE SMALLER.
                                  #       (more signal, less noise)
-    
-    ref_dg = generate_random_digraph(V,p)
-    
-    true_dg, timeseries = modify_and_simulate(ref_dg, remove, add,
-    					  T, N, coeff_std,
-    					  regression_deg,
-    					  regression_std)
-    
+
+    while true
+        
+        ref_dg = generate_random_digraph(V,p)
+        
+        true_dg, timeseries = modify_and_simulate(ref_dg, remove, add,
+        					  T, N, coeff_std,
+        					  regression_deg,
+        					  regression_std)
+        
+        if maximum([maximum(ts) for ts in timeseries]) < 100
+            break
+        end
+    end    
+        
     save_graph(ref_dg, ref_dg_filename)
     save_graph(true_dg, true_dg_filename)
     save_dataset(timeseries, timeseries_filename)

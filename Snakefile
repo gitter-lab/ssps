@@ -58,6 +58,7 @@ POLY_DEG = SIM_PARAMS["polynomial_degree"]
 MC_PARAMS = SIM_PARAMS["mcmc_hyperparams"]
 REG_DEGS = MC_PARAMS["regression_deg"]
 BURNIN = MC_PARAMS["burnin"]
+SIM_MAX_SAMPLES = SIM_PARAMS["max_samples"]
 
 # Hill hyperparameters
 HILL_PARAMS = SIM_PARAMS["hill_hyperparams"]
@@ -91,23 +92,20 @@ CONV_PSRF = CONV_PARAMS["psrf_ub"]
 rule all:
     input:
         # convergence tests on simulated data
-	#FIG_DIR+"/convergence/convergence_plot.png",
-    #expand(CONV_RES_DIR+"/v={v}_r={r}_a={a}_t={t}_replicate={rep}/mcmc_d={d}.json",
-        #       v=CONV_SIM_GRID["V"], r=CONV_SIM_GRID["R"], a=CONV_SIM_GRID["A"],
-        #       t=CONV_SIM_GRID["T"], rep=CONV_REPLICATES, d=CONV_DEGS) 
+        #FIG_DIR+"/convergence/convergence_plot.png",
         ## convergence tests on experimental data
         #expand(CONV_RAW_DIR+"/{dataset}/mcmc_d={d}/chain_{c}.json", 
         #       ds=CONV_DATASETS, d=CONV_DEGS, c=CONV_CHAINS)
-        ## MCMC simulation scores
-	#expand(FIG_DIR+"/simulation-study/mcmc_d={d}_aupr.png", d=REG_DEGS)
-	#expand(SCORE_DIR+"/funchisq/v={v}_r={r}_a={a}_t={t}.json",
+        # MCMC simulation scores
+        #expand(FIG_DIR+"/simulation-study/mcmc_d={d}_aupr.png", d=REG_DEGS)
+        #expand(SCORE_DIR+"/funchisq/v={v}_r={r}_a={a}_t={t}.json",
 	#        v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
-        expand(SCORE_DIR+"/hill_deg=2_mode=full/v={v}_r={r}_a={a}_t={t}.json",  
+        expand(SCORE_DIR+"/hill/v={v}_r={r}_a={a}_t={t}.json",  
                v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
         #expand("simulation-study/scores/lasso/v={v}_r={r}_a={a}_t={t}.json",
         #        v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
-        ## Hill timetest results
-    #FIG_DIR+"/hill_method_timetest.csv"    
+        # Hill timetest results
+        #FIG_DIR+"/hill_method_timetest.csv"    
 
 rule simulate_data:
     input:
@@ -223,7 +221,7 @@ rule run_sim_hill:
         ts_file=TS_DIR+"/{replicate}.csv",
         ref_dg=REF_DIR+"/{replicate}.csv"
     output:
-        PRED_DIR+"/hill_deg={deg}_mode={mode}/{replicate}.json"
+        PRED_DIR+"/hill/{replicate}.json"
     shell:
         "matlab -nodesktop -nosplash -nojvm -r \'cd(\"{HILL_DIR}\"); try, hill_dbn_wrapper(\"{input.ts_file}\", \"{input.ref_dg}\", \"{output}\", -1, \"full\", {SIM_TIMEOUT}), catch e, quit(1), end, quit\'"
 

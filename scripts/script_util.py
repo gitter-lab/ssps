@@ -73,8 +73,6 @@ def extract_from_file(filename, key_list):
     Assume `filename` is the path to a json file.
     Extract the data located by `key_list`.
     """
-    if map_fn is None:
-        map_fn = lambda x: x
 
     f = open(filename,"r")
     file_data = json.load(f)

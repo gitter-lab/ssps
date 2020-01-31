@@ -11,7 +11,9 @@ function hill_dbn_wrapper(timeseries_filename, ref_graph_filename, output_filena
     % If max_indegree=-1, choose it automatically 
     % based on V. 
     if max_indegree == -1
-        if V > 100
+        if v >= 1000
+            max_indegree = 1;
+        elseif V > 100
             max_indegree = 2;
         elseif V > 20
             max_indegree = 3;
@@ -43,7 +45,7 @@ function ts_data = read_timeseries_file(timeseries_filename)
     
     for i=1:length(u_ts)
         rows = ts_table(ts_table.timeseries == u_ts(i),:);
-        rows = sortrows(rows, "timestep");
+        rows = sortrows(rows, 'timestep');
         rows = rows(:,3:end);
         ts_data(:,:,i) = transpose(table2array(rows));
     end
