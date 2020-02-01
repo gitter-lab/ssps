@@ -92,7 +92,7 @@ CONV_PSRF = CONV_PARAMS["psrf_ub"]
 rule all:
     input:
         # convergence tests on simulated data
-        #FIG_DIR+"/convergence/convergence_plot.png",
+        FIG_DIR+"/convergence/convergence_plot.png",
         ## convergence tests on experimental data
         #expand(CONV_RAW_DIR+"/{dataset}/mcmc_d={d}/chain_{c}.json", 
         #       ds=CONV_DATASETS, d=CONV_DEGS, c=CONV_CHAINS)
@@ -100,8 +100,8 @@ rule all:
         #expand(FIG_DIR+"/simulation-study/mcmc_d={d}_aupr.png", d=REG_DEGS)
         #expand(SCORE_DIR+"/funchisq/v={v}_r={r}_a={a}_t={t}.json",
 	#        v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
-        expand(SCORE_DIR+"/hill/v={v}_r={r}_a={a}_t={t}.json",  
-               v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
+        #expand(SCORE_DIR+"/hill/v={v}_r={r}_a={a}_t={t}.json",  
+        #       v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
         #expand("simulation-study/scores/lasso/v={v}_r={r}_a={a}_t={t}.json",
         #        v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
         # Hill timetest results
