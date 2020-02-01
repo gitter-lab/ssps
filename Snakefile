@@ -58,7 +58,6 @@ POLY_DEG = SIM_PARAMS["polynomial_degree"]
 MC_PARAMS = SIM_PARAMS["mcmc_hyperparams"]
 REG_DEGS = MC_PARAMS["regression_deg"]
 BURNIN = MC_PARAMS["burnin"]
-SIM_MAX_SAMPLES = SIM_PARAMS["max_samples"]
 
 # Hill hyperparameters
 HILL_PARAMS = SIM_PARAMS["hill_hyperparams"]
@@ -104,6 +103,8 @@ rule all:
         #       v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
         #expand("simulation-study/scores/lasso/v={v}_r={r}_a={a}_t={t}.json",
         #        v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
+	#expand(SCORE_DIR+"/prior_baseline/v={v}_r={r}_a={a}_t={t}.json",  
+	#       v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
         # Hill timetest results
         #FIG_DIR+"/hill_method_timetest.csv"    
 
@@ -160,8 +161,8 @@ rule postprocess_conv_mcmc_sim:
     output:
         out=CONV_RES_DIR+"/{dataset}/{mcmc_settings}.json"
     shell:
-        "{input.pp} --chain-samples {input.raw} --output-file {output.out} --burnin {CONV_BURNIN}"\
-        +" --stop-points {CONV_STOPPOINTS} --psrf-ub {CONV_PSRF} --n-eff-lb {CONV_NEFF}"
+        "{input.pp} --chain-samples {input.raw} --output-file {output.out} --burnin {CONV_BURNIN}"
+        +" --stop-points {CONV_STOPPOINTS}" 
 
 rule run_conv_mcmc_sim:
     input:
@@ -267,6 +268,20 @@ rule run_sim_lasso:
 
 # END LASSO JOBS
 ########################
+
+########################
+# BASELINE JOBS 
+rule run_sim_prior_baseline:
+    input:
+        method=BIN_DIR+"/prior_baseline/prior_baseline",
+	ref=REF_DIR+"/{replicate}.csv"
+    output:
+        PRED_DIR+"/prior_baseline/{replicate}.json"
+    shell:
+        "{input.method} {input.ref} {output}"
+
+# END BASELINE JOBS
+#######################
 
 ########################
 # JULIA CODE COMPILATION
