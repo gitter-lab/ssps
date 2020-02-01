@@ -91,7 +91,7 @@ CONV_PSRF = CONV_PARAMS["psrf_ub"]
 rule all:
     input:
         # convergence tests on simulated data
-        #FIG_DIR+"/convergence/convergence_plot.png",
+        FIG_DIR+"/convergence/convergence_plot.png",
         ## convergence tests on experimental data
         #expand(CONV_RAW_DIR+"/{dataset}/mcmc_d={d}/chain_{c}.json", 
         #       ds=CONV_DATASETS, d=CONV_DEGS, c=CONV_CHAINS)
@@ -103,8 +103,8 @@ rule all:
 	#       v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
         #expand("simulation-study/scores/lasso/v={v}_r={r}_a={a}_t={t}.json",
         #        v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
-        expand(SCORE_DIR+"/prior_baseline/v={v}_r={r}_a={a}_t={t}.json",  
-               v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
+	#expand(SCORE_DIR+"/prior_baseline/v={v}_r={r}_a={a}_t={t}.json",  
+	#       v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
         # Hill timetest results
         #FIG_DIR+"/hill_method_timetest.csv"    
 
@@ -161,8 +161,8 @@ rule postprocess_conv_mcmc_sim:
     output:
         out=CONV_RES_DIR+"/{dataset}/{mcmc_settings}.json"
     shell:
-        "{input.pp} --chain-samples {input.raw} --output-file {output.out} --burnin {CONV_BURNIN}"\
-        +" --stop-points {CONV_STOPPOINTS} --psrf-ub {CONV_PSRF} --n-eff-lb {CONV_NEFF}"
+        "{input.pp} --chain-samples {input.raw} --output-file {output.out} --burnin {CONV_BURNIN}"
+        +" --stop-points {CONV_STOPPOINTS}" 
 
 rule run_conv_mcmc_sim:
     input:

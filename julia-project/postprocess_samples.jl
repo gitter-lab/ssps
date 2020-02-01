@@ -368,42 +368,54 @@ function evaluate_convergence_at(dict_vec::Vector, key_vec::Vector,
 end
 
 
-function push_nonconverged!(nonconverged::Vector, dict_vec, key_vec, 
-                            stop_idxs, burnin, psrf_ub, n_eff_lb, is_binary)
-    
-    diag_vec = evaluate_convergence_at(dict_vec, key_vec, 
-                                       stop_idxs, burnin; is_binary=is_binary)
-    for (i, diag) in enumerate(diag_vec)
-        if !seq_converged(diag[1], diag[2], psrf_ub, n_eff_lb)
-            info = vcat(key_vec, [diag[1]; diag[2]])
-            push!(nonconverged[i], info)
-        end
-    end
-end
+function collect_conv_stats(dict_vec, stop_points; burnin::Float64=0.5)
 
+    V = length(dict_vec[1]["parent_sets"])
+    
+    conv_stats = Dict("lambda"=> [],
+                      "parent_sets" => [[] for i=1:V] )
 
-function collect_dbn_nonconverged(chain_results::Vector, stop_idxs; 
-                                  burnin::Float64=0.5,
-                                  psrf_ub::Float64=1.1,
-                                  n_eff_lb::Float64=10.0)
+    conv_stats["lambda"] = evaluate_convergence_at(dict_vec, ["lambda"], 
+                                                   stop_points, burnin;
+                                                   is_binary=false)
     
-    nonconverged = [Vector() for l=1:length(stop_idxs)]
- 
-    # convergence for lambda?
-    push_nonconverged!(nonconverged, chain_results, ["lambda"],
-                       stop_idxs, burnin, psrf_ub, n_eff_lb, false)
-    
-    # convergence for edges?
-    V = length(chain_results[1]["parent_sets"])
     for i=1:V
         for j=1:V
-            push_nonconverged!(nonconverged, chain_results, ["parent_sets", i, string(j)],
-                               stop_idxs, burnin, psrf_ub, n_eff_lb, true)
+            push!(conv_stats["parent_sets"][i],
+                  evaluate_convergence_at(dict_vec, 
+                                          ["parent_sets", i, string(j)],
+                                          stop_points, burnin; is_binary=true)
+                 )
         end
     end
+    results = Dict()
+    results["stop_points"] = stop_points
+    results["conv_stats"] = conv_stats
     
-    return nonconverged
+    return results
 end
+#function collect_dbn_nonconverged(chain_results::Vector, stop_idxs; 
+#                                  burnin::Float64=0.5,
+#                                  psrf_ub::Float64=1.1,
+#                                  n_eff_lb::Float64=10.0)
+#    
+#    nonconverged = [Vector() for l=1:length(stop_idxs)]
+# 
+#    # convergence for lambda?
+#    push_nonconverged!(nonconverged, chain_results, ["lambda"],
+#                       stop_idxs, burnin, psrf_ub, n_eff_lb, false)
+#    
+#    # convergence for edges?
+#    V = length(chain_results[1]["parent_sets"])
+#    for i=1:V
+#        for j=1:V
+#            push_nonconverged!(nonconverged, chain_results, ["parent_sets", i, string(j)],
+#                               stop_idxs, burnin, psrf_ub, n_eff_lb, true)
+#        end
+#    end
+#    
+#    return nonconverged
+#end
 
 
 function get_max_n(dict_vec)
@@ -413,22 +425,17 @@ end
 
 
 function postprocess_sample_files(sample_filenames, output_file::String, stop_points::Vector{Int},
-                                  burnin::Float64, psrf_ub::Float64, n_eff_lb::Float64)
+                                  burnin::Float64)
     
     dict_vec = [load_samples(fname) for fname in sample_filenames]   
 
     n_max = get_max_n(dict_vec)
     stop_points = [sp for sp in stop_points if sp <= n_max] 
 
-    nonconverged = collect_dbn_nonconverged(dict_vec, stop_points; 
-                                            burnin=burnin, 
-                                            psrf_ub=psrf_ub, 
-                                            n_eff_lb=n_eff_lb)
-    results = Dict()
-    results["nonconverged"] = nonconverged
-    results["lengths"] = stop_points
-
-    js_str = JSON.json(stop_points)
+    results = collect_conv_stats(dict_vec, stop_points;
+                                 burnin=burnin)
+    
+    js_str = JSON.json(results)
     f = open(output_file, "w")
     write(f, js_str)
     close(f)
@@ -455,16 +462,6 @@ function get_args(args::Vector{String})
             required = false
             arg_type = Float64
             default = 0.5
-        "--psrf-ub"
-            help = "upper bound for Potential Scale Reduction Factor. PSRF above this threshold indicates failure to converge."
-            required = false
-            arg_type = Float64
-            default = 1.1
-        "--n-eff-lb"
-            help = "lower bound for effective number of samples. N_eff below this threshold indicates failure to converge."
-            required = false
-            arg_type = Float64
-            default = 10.0
         "--output-file"
             help = "name of output JSON file containing convergence information"
     	    required = true
@@ -473,7 +470,7 @@ function get_args(args::Vector{String})
     args = parse_args(args, s)
 
     arg_vec = [args["chain-samples"], args["output-file"], args["stop-points"],
-               args["burnin"], args["psrf-ub"], args["n-eff-lb"]]
+               args["burnin"]]
     return arg_vec
 end
 
