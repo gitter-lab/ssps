@@ -8,18 +8,54 @@ import os
 import pandas as pd
 import matplotlib.pyplot as plt
 import script_util as su
+import numpy as np
 
 print("I'M THE INPUT: ", snakemake.input)
 print("I'M THE OUTPUT: ", snakemake.output[0])
 
+out_dirname = os.path.dirname(snakemake.output[0])
 
 table = su.tabulate_results(snakemake.input, [["auprc"],["auroc"]])
+table.to_csv(snakemake.output[0], index=False)
 
-pr = su.extract_from_file(snakemake.input[1], ["pr_curves",0])
+method_str = snakemake.wildcards[0]
+score_str = "mean_aucpr"
+my_mean = lambda x: sum(x)/len(x)
 
-plt.plot(pr[0],pr[1])
-plt.xlim(0.0,1.0)
-plt.ylim(0.0,1.0)
-plt.savefig(snakemake.output[0])
+# Average scores over replicates
+table[score_str] = table["auprc"].map(my_mean)
+table["mean_aucroc"] = table["auroc"].map(my_mean) 
 
-#table.to_csv(snakemake.output[0], index=False)
+# Get the unique combinations of (problem size) x (mcmc_config)
+vtd_combs = table[["v","t","d"]]
+table["vtd_combs"] = vtd_combs.apply(lambda x: tuple(x), axis=1)
+u_vtd = table["vtd_combs"].unique()
+
+# for each combination, produce a score heatmap
+for comb in u_vtd:
+
+    relevant = table[table["vtd_combs"] == comb]
+    u_r = table["r"].unique()
+    u_r = sorted(u_r, reverse=True)
+    u_a = table["a"].unique()
+
+    result_mat = np.zeros((len(u_r),len(u_a)))
+
+    means = relevant.groupby(["r","a"])[score_str].mean()
+    for i, r in enumerate(u_r):
+        for j, a in enumerate(u_a):
+            result_mat[i,j] = means[(r,a)]
+
+    plt.imshow(result_mat, cmap="Greys")#, vmin=0.0, vmax=1.0)
+    plt.colorbar()
+    plt.xticks(range(len(u_a)), u_a)
+    plt.yticks(range(len(u_r)), u_r)
+    plt.xlabel("a")
+    plt.ylabel("r")
+    plt.title("{}: {}".format(score_str, comb))
+    comb_str = "_".join(["{}".format(c) for c in comb])
+    plt.savefig(os.path.join(out_dirname, "{}_{}.png".format(score_str, comb_str)))
+
+
+
+ 
