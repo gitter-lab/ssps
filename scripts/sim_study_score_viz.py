@@ -13,7 +13,11 @@ import numpy as np
 print("I'M THE INPUT: ", snakemake.input)
 print("I'M THE OUTPUT: ", snakemake.output[0])
 
-out_dirname = os.path.dirname(snakemake.output[0])
+fig_dir = os.path.dirname(snakemake.output[0])
+simfig_dir = os.path.join(fig_dir, "simulation_study")
+scores_dir = os.path.join(simfig_dir, "abs_scores")
+compare_dir = os.path.join(simfig_dir, "rel_scores")
+pr_curve_dir = os.path.join(simfig_dir, "pr_curves")
 
 table = su.tabulate_results(snakemake.input, [["auprc"],["auroc"]])
 table.to_csv(snakemake.output[0], index=False)
@@ -54,7 +58,7 @@ for comb in u_vtd:
     plt.ylabel("r")
     plt.title("{}: {}".format(score_str, comb))
     comb_str = "_".join(["{}".format(c) for c in comb])
-    plt.savefig(os.path.join(out_dirname, "{}_{}.png".format(score_str, comb_str)))
+    plt.savefig(os.path.join(scores_dir, "{}_{}.png".format(score_str, comb_str)))
 
 
 

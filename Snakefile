@@ -91,20 +91,23 @@ CONV_PSRF = CONV_PARAMS["psrf_ub"]
 rule all:
     input:
         # convergence tests on simulated data
-        FIG_DIR+"/convergence/convergence_plot.png",
+        expand(FIG_DIR+"/convergence/v={v}_r={r}_a={a}_t={t}_d={d}.png",
+               v=CONV_SIM_GRID["V"], r=CONV_SIM_GRID["R"], a=CONV_SIM_GRID["A"],
+               t=CONV_SIM_GRID["T"], d=CONV_DEGS)
         ## convergence tests on experimental data
         #expand(CONV_RAW_DIR+"/{dataset}/mcmc_d={d}/chain_{c}.json", 
         #       ds=CONV_DATASETS, d=CONV_DEGS, c=CONV_CHAINS)
         # MCMC simulation scores
-        #expand(FIG_DIR+"/simulation-study/mcmc_d={d}_aupr.png", d=REG_DEGS)
+        #expand(FIG_DIR+"/simulation-study/mcmc_d={d}_v={v}_t={t}.png", 
+        #       d=REG_DEGS, v=SIM_GRID["V"], t=SIM_GRID["T"])
         #expand(SCORE_DIR+"/funchisq/v={v}_r={r}_a={a}_t={t}.json",
-	#        v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
+        #        v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
         #expand(SCORE_DIR+"/hill/v={v}_r={r}_a={a}_t={t}.json",  
         #       v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
         #expand("simulation-study/scores/lasso/v={v}_r={r}_a={a}_t={t}.json",
         #        v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
-	#expand(SCORE_DIR+"/prior_baseline/v={v}_r={r}_a={a}_t={t}.json",  
-	#       v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
+        #expand(SCORE_DIR+"/prior_baseline/v={v}_r={r}_a={a}_t={t}.json",  
+        #       v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
         # Hill timetest results
         #FIG_DIR+"/hill_method_timetest.csv"    
 
@@ -134,20 +137,19 @@ rule score_predictions:
 
 rule convergence_viz:
     input:
-        expand(CONV_RES_DIR+"/v={v}_r={r}_a={a}_t={t}_replicate={rep}/mcmc_d={d}.json",
-               v=CONV_SIM_GRID["V"], r=CONV_SIM_GRID["R"], a=CONV_SIM_GRID["A"],
-               t=CONV_SIM_GRID["T"], rep=CONV_REPLICATES, d=CONV_DEGS) 
+        expand(CONV_RES_DIR+"/v={{v}}_r={{r}}_a={{a}}_t={{t}}_replicate={rep}/mcmc_d={{d}}.json",
+               rep=CONV_REPLICATES) 
     output:
-        FIG_DIR+"/convergence/convergence_plot.png"
+        FIG_DIR+"/convergence/v={v}_r={r}_a={a}_t={t}_d={d}.png"
     script:
         SCRIPT_DIR+"/convergence_viz.py"
 
 rule sim_study_score_viz:
     input:
-        expand(SCORE_DIR+"/{{method}}/v={v}_r={r}_a={a}_t={t}.json", 
-           d=REG_DEGS, v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]), 
+        expand(SCORE_DIR+"/{{method}}/v={{v}}_r={r}_a={a}_t={{t}}.json", 
+               r=SIM_GRID["R"], a=SIM_GRID["A"]), 
     output:
-        FIG_DIR+"/simulation-study/{method}_aupr.png"
+        FIG_DIR+"/simulation_prior_heatmap/{method}_v={v}_t={t}.png"
     script:
         SCRIPT_DIR+"/sim_study_score_viz.py"
 
@@ -274,7 +276,7 @@ rule run_sim_lasso:
 rule run_sim_prior_baseline:
     input:
         method=BIN_DIR+"/prior_baseline/prior_baseline",
-	ref=REF_DIR+"/{replicate}.csv"
+        ref=REF_DIR+"/{replicate}.csv"
     output:
         PRED_DIR+"/prior_baseline/{replicate}.json"
     shell:

@@ -68,7 +68,7 @@ def tabulate_results(filenames, key_lists, map_fn=None):
     return table
    
 
-def extract_from_file(filename, key_list):
+def extract_from_file(filename, key_list=[]):
     """
     Assume `filename` is the path to a json file.
     Extract the data located by `key_list`.
