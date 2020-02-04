@@ -56,6 +56,7 @@ POLY_DEG = SIM_PARAMS["polynomial_degree"]
 
 # MCMC hyperparameters (for simulation study)
 MC_PARAMS = SIM_PARAMS["mcmc_hyperparams"]
+SIM_MAX_SAMPLES = MC_PARAMS["n_samples"]
 REG_DEGS = MC_PARAMS["regression_deg"]
 BURNIN = MC_PARAMS["burnin"]
 
@@ -195,7 +196,7 @@ rule run_sim_mcmc:
         RAW_DIR+"/mcmc_d={d}/{replicate}.json"
     shell:
         "{input.method} {input.ts_file} {input.ref_dg} {output} {SIM_TIMEOUT}"\
-        +" --regression-deg {wildcards.d}"
+        +" --regression-deg {wildcards.d} --n-samples {SIM_MAX_SAMPLES}"
         
 
 # END MCMC JOBS
