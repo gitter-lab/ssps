@@ -11,14 +11,24 @@ function hill_dbn_wrapper(timeseries_filename, ref_graph_filename, output_filena
     % If max_indegree=-1, choose it automatically 
     % based on V. 
     if max_indegree == -1
-        if v >= 1000
+        if V >= 1000
             max_indegree = 1;
         elseif V > 100
             max_indegree = 2;
-        elseif V > 20
+        elseif V > 40
             max_indegree = 3;
         else
             max_indegree = 5;
+        end
+    end
+
+    if reg_mode == "auto"
+        if V >= 1000
+            reg_mode = "linear"
+        elseif V >= 100
+            reg_mode = "quadratic"
+        else
+            reg_mode = "full"
         end
     end
 

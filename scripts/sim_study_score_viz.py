@@ -13,11 +13,14 @@ import numpy as np
 print("I'M THE INPUT: ", snakemake.input)
 print("I'M THE OUTPUT: ", snakemake.output[0])
 
-fig_dir = os.path.dirname(snakemake.output[0])
-simfig_dir = os.path.join(fig_dir, "simulation_study")
+simfig_dir = os.path.dirname(snakemake.output[0])
+os.makedirs(simfig_dir, exist_ok=True)
 scores_dir = os.path.join(simfig_dir, "abs_scores")
+os.makedirs(scores_dir, exist_ok=True)
 compare_dir = os.path.join(simfig_dir, "rel_scores")
+os.makedirs(compare_dir, exist_ok=True)
 pr_curve_dir = os.path.join(simfig_dir, "pr_curves")
+os.makedirs(pr_curve_dir, exist_ok=True)
 
 table = su.tabulate_results(snakemake.input, [["auprc"],["auroc"]])
 table.to_csv(snakemake.output[0], index=False)

@@ -74,9 +74,10 @@ function dbn_mcmc_inference(reference_parents::Vector{Vector{Int64}},
     # Burn-in loop:
     burnin_count = 0
     t_burn = burnin*timeout
-    println("Burning in for ", round(t_burn - t_elapsed), " seconds.")
+    n_burn = burnin*n_steps
+    println("Burning in for ", round(t_burn - t_elapsed), " seconds. (or ", n_burn, " steps).")
     t_print = 0.0
-    while t_elapsed < t_burn
+    while t_elapsed < t_burn && burnin_count < n_burn
 
         if (burnin_count > 0) && (t_elapsed - t_print >= t_burn/10.0)
             println("\t", burnin_count, " updates in ", round(t_elapsed), " seconds." )
@@ -87,19 +88,20 @@ function dbn_mcmc_inference(reference_parents::Vector{Vector{Int64}},
         t_elapsed = time() - t_start
         burnin_count += 1
     end
+    t_end_burn = time()
 
     # Sampling loop
     prop_count = 0
-    println("Sampling for ", round(timeout - t_burn), " seconds.")
+    println("Sampling for ", round(timeout - t_end_burn), " seconds.")
     t_print = 0.0
-    while t_elapsed < timeout && prop_count < n_steps
+    while t_elapsed < timeout && prop_count <= n_steps
         
         # thinning loop (if applicable)
         for i=1:thinning
             
             # Print progress
             if (prop_count > 0) && (t_elapsed - t_print >= 20.0)
-                println("\t", prop_count," updates in ", round(t_elapsed), " seconds.")
+                println("\t", prop_count," updates in ", round(t_elapsed - t_end_burn), " seconds.")
                 t_print = t_elapsed 
             end
 

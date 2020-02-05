@@ -56,13 +56,12 @@ POLY_DEG = SIM_PARAMS["polynomial_degree"]
 
 # MCMC hyperparameters (for simulation study)
 MC_PARAMS = SIM_PARAMS["mcmc_hyperparams"]
-SIM_MAX_SAMPLES = MC_PARAMS["n_samples"]
+SIM_MAX_SAMPLES = MC_PARAMS["max_samples"]
 REG_DEGS = MC_PARAMS["regression_deg"]
 BURNIN = MC_PARAMS["burnin"]
+SIM_CHAINS=list(range(MC_PARAMS["n_chains"]))
 
 # Hill hyperparameters
-HILL_PARAMS = SIM_PARAMS["hill_hyperparams"]
-HILL_MAX_INDEG = HILL_PARAMS["max_indeg"]
 HILL_TIME_PARAMS = config["hill_timetest"]
 HILL_TIME_COMBS = HILL_TIME_PARAMS["deg_v_combs"]
 HILL_MODES = HILL_TIME_PARAMS["modes"]
@@ -92,19 +91,19 @@ CONV_PSRF = CONV_PARAMS["psrf_ub"]
 rule all:
     input:
         # convergence tests on simulated data
-        expand(FIG_DIR+"/convergence/v={v}_r={r}_a={a}_t={t}_d={d}.png",
-               v=CONV_SIM_GRID["V"], r=CONV_SIM_GRID["R"], a=CONV_SIM_GRID["A"],
-               t=CONV_SIM_GRID["T"], d=CONV_DEGS)
+        #expand(FIG_DIR+"/convergence/v={v}_r={r}_a={a}_t={t}_d={d}.png",
+        #       v=CONV_SIM_GRID["V"], r=CONV_SIM_GRID["R"], a=CONV_SIM_GRID["A"],
+        #       t=CONV_SIM_GRID["T"], d=CONV_DEGS)
         ## convergence tests on experimental data
         #expand(CONV_RAW_DIR+"/{dataset}/mcmc_d={d}/chain_{c}.json", 
         #       ds=CONV_DATASETS, d=CONV_DEGS, c=CONV_CHAINS)
         # MCMC simulation scores
-        #expand(FIG_DIR+"/simulation-study/mcmc_d={d}_v={v}_t={t}.png", 
+        #expand(FIG_DIR+"/simulation_study/mcmc_d={d}/v={v}_t={t}.csv", 
         #       d=REG_DEGS, v=SIM_GRID["V"], t=SIM_GRID["T"])
         #expand(SCORE_DIR+"/funchisq/v={v}_r={r}_a={a}_t={t}.json",
         #        v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
-        #expand(SCORE_DIR+"/hill/v={v}_r={r}_a={a}_t={t}.json",  
-        #       v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
+        expand(SCORE_DIR+"/hill/v={v}_r={r}_a={a}_t={t}.json",  
+               v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
         #expand("simulation-study/scores/lasso/v={v}_r={r}_a={a}_t={t}.json",
         #        v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
         #expand(SCORE_DIR+"/prior_baseline/v={v}_r={r}_a={a}_t={t}.json",  
@@ -150,7 +149,7 @@ rule sim_study_score_viz:
         expand(SCORE_DIR+"/{{method}}/v={{v}}_r={r}_a={a}_t={{t}}.json", 
                r=SIM_GRID["R"], a=SIM_GRID["A"]), 
     output:
-        FIG_DIR+"/simulation_prior_heatmap/{method}_v={v}_t={t}.png"
+        FIG_DIR+"/simulation_study/{method}/v={v}_t={t}.csv"
     script:
         SCRIPT_DIR+"/sim_study_score_viz.py"
 
@@ -181,7 +180,8 @@ rule run_conv_mcmc_sim:
 rule postprocess_sim_mcmc:
     input:
         pp=BIN_DIR+"/postprocess_counts/postprocess_counts",
-        raw=RAW_DIR+"/mcmc_{mcmc_settings}/{replicate}.json" 
+        raw=expand(RAW_DIR+"/mcmc_{{mcmc_settings}}/{{replicate}}/{chain}.json",
+                   chain=SIM_CHAINS)
     output:
         out=PRED_DIR+"/mcmc_{mcmc_settings}/{replicate}.json"
     shell:
@@ -193,10 +193,10 @@ rule run_sim_mcmc:
         ts_file=TS_DIR+"/{replicate}.csv",
         ref_dg=REF_DIR+"/{replicate}.csv",
     output:
-        RAW_DIR+"/mcmc_d={d}/{replicate}.json"
+        RAW_DIR+"/mcmc_d={d}/{replicate}/{chain}.json"
     shell:
         "{input.method} {input.ts_file} {input.ref_dg} {output} {SIM_TIMEOUT}"\
-        +" --regression-deg {wildcards.d} --n-samples {SIM_MAX_SAMPLES}"
+        +" --regression-deg {wildcards.d} --n-steps {SIM_MAX_SAMPLES}"
         
 
 # END MCMC JOBS
