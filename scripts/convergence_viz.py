@@ -63,8 +63,8 @@ maxes = [max(res) for res in nonconv_counts]
 
 # Plot mean, min, max
 plt.plot(stop_points, [0 for sp in stop_points], color="blue", linestyle="--")
-plt.fill_between(stop_points, mins, maxes, color="grey", label="Range over {} replicates".format(n_replicates))
-plt.plot(stop_points, means, color="k", label="Mean over {} replicates".format(n_replicates))
+plt.fill_between(stop_points, mins, maxes, color="grey", label="Range ({} replicates)".format(n_replicates))
+plt.plot(stop_points, means, color="k", label="Mean ({} replicates)".format(n_replicates))
 
 plt.legend()
 
@@ -77,5 +77,5 @@ plt.xlabel("Sampling Chain Length", family="serif")
 plt.title("MCMC Convergence: {} variables".format(v), family="serif")
 plt.tight_layout()
 #savefig
-plt.savefig(snakemake.output[0])
+plt.savefig(snakemake.output[0], dpi=300)
 

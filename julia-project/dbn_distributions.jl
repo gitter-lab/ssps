@@ -95,15 +95,40 @@ function construct_B(parent_inds::Vector{Int64}, Xminus::Array{Float64,2}, regre
 end
 
 
-#function construct_B2invconj(parent_inds::Vector{Int64}, Xminus::Array{Float64,2}, regression_deg::Int64)
-#    if length(parent_inds) == 0
-#        return zeros(size(Xminus)[1], size(Xminus)[1])
-#    end
-#    B = construct_B(parent_inds, Xminus, regression_deg)
-#    B2inv = LinearAlgebra.inv(LinearAlgebra.Symmetric(transpose(B) * B + 0.001*I))
-#    return B * (B2inv * transpose(B))
-#end
+"""
+Wrap Julia's linear solver so that singular matrices have
+small "ridge" terms added to them until they become nonsingular.
+""" 
+function safe_solve(A, y; step=1e-6, max_steps=5)
+    try
+        return A\y
+    catch e
+        if isa(e, LinearAlgebra.SingularException)
+            AA = transpose(A) * A + step*I
+            Ay = transpose(A) * y
+            steps = 1
+            while steps <= max_steps
+                try
+                    solved = AA\Ay
+                    return solved
+                catch ee
+                    if isa(ee, LinearAlgebra.SingularException)
+                        AA += step*I
+                        steps += 1
+                        continue
+                    else
+                        throw(ee)
+                    end
+                end
+            end
+        else
+            throw(e)
+        end
 
+    end
+    throw(LinearAlgebra.SingularException)
+end
+ 
 
 """
 
@@ -112,14 +137,13 @@ function compute_lml(parent_inds::Vector{Int64},
 		     Xminus::Array{Float64,2}, Xp::Vector{Float64},
 		     regression_deg::Int64)
     
-    #B2invconj = construct_B2invconj(parent_inds, Xminus, regression_deg)
-   
     B = construct_B(parent_inds, Xminus, regression_deg) 
     m = length(parent_inds)
-    Bwidth = size(B,2) #sum([Base.binomial(m, i) for i=1:min(m,regression_deg)])
+    Bwidth = size(B,2)
     
     n = size(Xp)[1]
-    ip = dot(Xp, Xp - (n/(n+1.0))*B*(B\Xp))
+
+    ip = dot(Xp, Xp - (n/(n+1.0))*B*safe_solve(B, Xp))
     return -0.5*Bwidth*log(1.0 + n) - 0.5*n*log(ip)
 
 end
