@@ -3,7 +3,8 @@
 # You need to change it to fit your circumstances,
 # e.g., "/scratch" or wherever you have plenty of disk available.
 #temp_dir: "/home/dmerrell/projects/graph_ppl/temp"
-temp_dir: "/ua/dmerrell/dbn_mcmc_temp"
+#temp_dir: "/ua/dmerrell/dbn_mcmc_temp"
+temp_dir: "/mnt/ws/home/dmerrell/projects/graph-ppl/temp"
 
 # Define the convergence analysis
 convergence_analysis:
@@ -34,9 +35,9 @@ simulation_study:
     timeout: 7200 # seconds
     # the grid of simulated datasets
     simulation_grid:
-        V: [100] #, 100] #, 200]     # number of variables
-        R: [0.1, 0.5, 1.0]    # fraction of edges to remove
-        A: [0.1, 0.5, 1.0]    # fraction of new edges to add
+        V: [500] #, 100] #, 200]     # number of variables
+        R: [0.5] #[0.1, 0.5, 1.0]    # fraction of edges to remove
+        A: [0.5] #[0.1, 0.5, 1.0]    # fraction of new edges to add
         T: [8] #, 20]             # length of each time series 
         M: 4                   # number of time series
     # polynomial degree used by autoregression *data generator*
