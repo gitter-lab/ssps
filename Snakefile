@@ -96,20 +96,21 @@ rule all:
         #       t=CONV_SIM_GRID["T"], d=CONV_DEGS)
         ## convergence tests on experimental data
         #expand(CONV_RAW_DIR+"/{dataset}/mcmc_d={d}/chain_{c}.json", 
-        #       ds=CONV_DATASETS, d=CONV_DEGS, c=CONV_CHAINS)
+        #       dataset=CONV_DATASETS, d=CONV_DEGS, c=CONV_CHAINS)
         # MCMC simulation scores
-        #expand(FIG_DIR+"/simulation_study/mcmc_d={d}/v={v}_t={t}.csv", 
-        #       d=REG_DEGS, v=SIM_GRID["V"], t=SIM_GRID["T"])
+        expand(FIG_DIR+"/simulation_study/mcmc_d={d}/v={v}_t={t}.csv", 
+               d=REG_DEGS, v=SIM_GRID["V"], t=SIM_GRID["T"])
         #expand(SCORE_DIR+"/funchisq/v={v}_r={r}_a={a}_t={t}.json",
         #        v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
-        expand(SCORE_DIR+"/hill/v={v}_r={r}_a={a}_t={t}.json",  
-               v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
+        #expand(SCORE_DIR+"/hill/v={v}_r={r}_a={a}_t={t}.json",  
+        #       v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
         #expand("simulation-study/scores/lasso/v={v}_r={r}_a={a}_t={t}.json",
         #        v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
         #expand(SCORE_DIR+"/prior_baseline/v={v}_r={r}_a={a}_t={t}.json",  
         #       v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
         # Hill timetest results
         #FIG_DIR+"/hill_method_timetest.csv"    
+
 
 rule simulate_data:
     input:
@@ -118,6 +119,9 @@ rule simulate_data:
         ts=TS_DIR+"/v={v}_r={r}_a={a}_t={t}_replicate={rep}.csv",
         ref=REF_DIR+"/v={v}_r={r}_a={a}_t={t}_replicate={rep}.csv",
         true=TRU_DIR+"/v={v}_r={r}_a={a}_t={t}_replicate={rep}.csv"
+    resources:
+        mem_mb=10,
+        threads=1
     shell:
         "{input.simulator} {wildcards.v} {wildcards.t} {SIM_M} {wildcards.r} {wildcards.a} {POLY_DEG} {output.ref} {output.true} {output.ts}"
 
@@ -128,6 +132,9 @@ rule score_predictions:
         pp_res=[PRED_DIR+"/{method}/{sim_gridpoint}_replicate="+str(rep)+".json" for rep in SIM_REPLICATES]
     output:
         out=SCORE_DIR+"/{method}/{sim_gridpoint}.json" 
+    resources:
+        mem_mb=100,
+        threads=1
     shell:
         "{input.scorer} --truth-files {input.tr_dg_fs} --pred-files {input.pp_res} --output-file {output.out}"
 
@@ -152,6 +159,7 @@ rule sim_study_score_viz:
         FIG_DIR+"/simulation_study/{method}/v={v}_t={t}.csv"
     script:
         SCRIPT_DIR+"/sim_study_score_viz.py"
+
 
 ######################
 # MCMC JOBS
@@ -184,6 +192,10 @@ rule postprocess_sim_mcmc:
                    chain=SIM_CHAINS)
     output:
         out=PRED_DIR+"/mcmc_{mcmc_settings}/{replicate}.json"
+    resources:
+        runtime=60,
+        threads=1,
+        mem_mb=2000
     shell:
         "{input.pp} {input.raw} --output-file {output.out}"
 
@@ -194,6 +206,10 @@ rule run_sim_mcmc:
         ref_dg=REF_DIR+"/{replicate}.csv",
     output:
         RAW_DIR+"/mcmc_d={d}/{replicate}/{chain}.json"
+    resources:
+        runtime=SIM_TIMEOUT,
+        threads=1,
+        mem_mb=2000
     shell:
         "{input.method} {input.ts_file} {input.ref_dg} {output} {SIM_TIMEOUT}"\
         +" --regression-deg {wildcards.d} --n-steps {SIM_MAX_SAMPLES}"
@@ -211,6 +227,11 @@ rule run_sim_funchisq:
         ts_file=TS_DIR+"/{replicate}.csv"
     output:
         PRED_DIR+"/funchisq/{replicate}.json"
+    group: "sim_funchisq"
+    resources:
+        runtime=60,
+        threads=1,
+        mem_mb=500
     shell:
         "Rscript {FUNCH_DIR}/funchisq_wrapper.R {input.ts_file} {output}"
 
@@ -290,7 +311,8 @@ rule run_sim_prior_baseline:
 # JULIA CODE COMPILATION
 
 # Get the path of the Julia PackageCompiler
-JULIAC_PATH = glob.glob(os.path.join(os.environ["HOME"],
+#JULIAC_PATH = glob.glob(os.path.join(os.environ["HOME"],
+JULIAC_PATH = glob.glob(os.path.join("/mnt/ws/home/dmerrell",
           ".julia/packages/PackageCompiler/*/juliac.jl")
           )[0]
 
@@ -300,8 +322,10 @@ rule compile_julia:
     output:
         exe=BIN_DIR+"/{source_name}/{source_name}"
     params:
-        outdir=BIN_DIR+"/{source_name}"
-    threads: 2 
+        outdir=BIN_DIR+"/{source_name}",
+    resources:
+        threads=1,
+        mem_mb=2000
     shell:
         "julia --project={JULIA_PROJ_DIR} {JULIAC_PATH} -d {params.outdir} -vaet {input.src}"
 

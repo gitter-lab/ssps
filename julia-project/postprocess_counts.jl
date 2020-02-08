@@ -88,10 +88,11 @@ function postprocessor(args::Vector{String}; conf_key::String="parent_sets")
 
     out_fname = arg_dict["output-file"]
 
-    res_str = JSON.json(results)
+    #res_str = JSON.json(results)
 
     f = open(out_fname, "w")
-    write(f, res_str)
+    # write(f, res_str)
+    JSON.print(f, results)
     close(f)
 
     println("Saved postprocessed MCMC results to ", out_fname)
