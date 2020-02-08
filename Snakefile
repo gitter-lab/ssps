@@ -227,7 +227,7 @@ rule run_sim_hill:
     output:
         PRED_DIR+"/hill/{replicate}.json"
     shell:
-        "matlab -nodesktop -nosplash -nojvm -r \'cd(\"{HILL_DIR}\"); try, hill_dbn_wrapper(\"{input.ts_file}\", \"{input.ref_dg}\", \"{output}\", -1, \"full\", {SIM_TIMEOUT}), catch e, quit(1), end, quit\'"
+        "matlab -nodesktop -nosplash -nojvm -r \'cd(\"{HILL_DIR}\"); try, hill_dbn_wrapper(\"{input.ts_file}\", \"{input.ref_dg}\", \"{output}\", -1, \"auto\", {SIM_TIMEOUT}), catch e, quit(1), end, quit\'"
 
 
 rule run_timetest_hill:
