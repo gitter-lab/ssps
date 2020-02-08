@@ -119,8 +119,8 @@ Base.@ccallable function julia_main(args::Vector{String})::Cint
     result["abs_coeffs"] = pred
 
     f = open(arg_dict["outfile"], "w")
-    js_str = JSON.json(result)
-    write(f, js_str)
+    #js_str = JSON.json(result)
+    JSON.print(f, result)
     close(f)
 end
 

@@ -435,9 +435,10 @@ function postprocess_sample_files(sample_filenames, output_file::String, stop_po
     results = collect_conv_stats(dict_vec, stop_points;
                                  burnin=burnin)
     
-    js_str = JSON.json(results)
+    #js_str = JSON.json(results)
     f = open(output_file, "w")
-    write(f, js_str)
+    #write(f, js_str)
+    JSON.print(f, results)
     close(f)
     println("Saved postprocessed MCMC results to ", output_file)
 end

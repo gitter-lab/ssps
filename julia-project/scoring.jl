@@ -270,8 +270,9 @@ Base.@ccallable function julia_main(args::Vector{String})::Cint
     end
 
     f = open(output_fname, "w")
-    js_str = JSON.json(result)
-    write(f, js_str)
+    #js_str = JSON.json(result)
+    #write(f, js_str)
+    JSON.print(f, result)
     close(f)
 
     return 0

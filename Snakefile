@@ -170,7 +170,6 @@ rule postprocess_conv_mcmc_sim:
         raw=expand(CONV_RAW_DIR+"/{{dataset}}/{{mcmc_settings}}/{chain}.json", chain=CONV_CHAINS)
     output:
         out=CONV_RES_DIR+"/{dataset}/{mcmc_settings}.json"
-    group: "conv_sim_mcmc"
     shell:
         "{input.pp} --chain-samples {input.raw} --output-file {output.out} --burnin {CONV_BURNIN}"
         +" --stop-points {CONV_STOPPOINTS}" 
@@ -182,7 +181,6 @@ rule run_conv_mcmc_sim:
         ref_dg=REF_DIR+"/{dataset}.csv",
     output:
         CONV_RAW_DIR+"/{dataset}/mcmc_d={d}/{chain}.json"
-    group: "conv_sim_mcmc"
     shell:
         "{input.method} {input.ts_file} {input.ref_dg} {output} {CONV_TIMEOUT}"\
         +" --store-samples --n-steps {CONV_MAX_SAMPLES} --regression-deg {wildcards.d}"
@@ -194,11 +192,10 @@ rule postprocess_sim_mcmc:
                    chain=SIM_CHAINS)
     output:
         out=PRED_DIR+"/mcmc_{mcmc_settings}/{replicate}.json"
-    group: "sim_mcmc"
     resources:
         runtime=60,
         threads=1,
-        mem_mb=1000
+        mem_mb=2000
     shell:
         "{input.pp} {input.raw} --output-file {output.out}"
 
@@ -209,11 +206,10 @@ rule run_sim_mcmc:
         ref_dg=REF_DIR+"/{replicate}.csv",
     output:
         RAW_DIR+"/mcmc_d={d}/{replicate}/{chain}.json"
-    group: "sim_mcmc"
     resources:
         runtime=SIM_TIMEOUT,
         threads=1,
-        mem_mb=1000
+        mem_mb=2000
     shell:
         "{input.method} {input.ts_file} {input.ref_dg} {output} {SIM_TIMEOUT}"\
         +" --regression-deg {wildcards.d} --n-steps {SIM_MAX_SAMPLES}"
@@ -315,7 +311,8 @@ rule run_sim_prior_baseline:
 # JULIA CODE COMPILATION
 
 # Get the path of the Julia PackageCompiler
-JULIAC_PATH = glob.glob(os.path.join(os.environ["HOME"],
+#JULIAC_PATH = glob.glob(os.path.join(os.environ["HOME"],
+JULIAC_PATH = glob.glob(os.path.join("/mnt/ws/home/dmerrell",
           ".julia/packages/PackageCompiler/*/juliac.jl")
           )[0]
 
