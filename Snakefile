@@ -33,7 +33,6 @@ JULIA_PROJ_DIR = os.path.join(ROOT_DIR, "julia-project")
 HILL_DIR = os.path.join(ROOT_DIR, "hill-method")
 FUNCH_DIR = os.path.join(ROOT_DIR, "funchisq")
 TEMP_DIR = config["temp_dir"]
-EXP_DATA_DIR = os.path.join(ROOT_DIR,"experimental_data")
 HILL_TIME_DIR = os.path.join(TEMP_DIR, "time_tests")
 
 # simulation study directories
@@ -60,6 +59,16 @@ SIM_MAX_SAMPLES = MC_PARAMS["max_samples"]
 REG_DEGS = MC_PARAMS["regression_deg"]
 BURNIN = MC_PARAMS["burnin"]
 SIM_CHAINS=list(range(MC_PARAMS["n_chains"]))
+
+# Experimental evaluation directories
+EXP_DIR = os.path.join(TEMP_DIR,"experimental_eval")
+EXPDAT_DIR = os.path.join(EXP_DIR, "datasets")
+EXP_TS_DIR = os.path.join(EXPDAT_DIR, "timeseries")
+EXP_REF_DIR = os.path.join(EXPDAT_DIR, "ref_graphs")
+EXP_TRU_DIR = os.path.join(EXPDAT_DIR, "true_ds")
+EXP_RAW_DIR = os.path.join(EXP_DIR, "raw")
+EXP_PRED_DIR = os.path.join(EXP_DIR, "predictions")
+EXP_SCORE_DIR = os.path.join(EXP_DIR, "scores")
 
 # Hill hyperparameters
 HILL_TIME_PARAMS = config["hill_timetest"]
@@ -94,12 +103,12 @@ rule all:
         #expand(FIG_DIR+"/convergence/v={v}_r={r}_a={a}_t={t}_d={d}.png",
         #       v=CONV_SIM_GRID["V"], r=CONV_SIM_GRID["R"], a=CONV_SIM_GRID["A"],
         #       t=CONV_SIM_GRID["T"], d=CONV_DEGS)
-        ## convergence tests on experimental data
-        #expand(CONV_RAW_DIR+"/{dataset}/mcmc_d={d}/chain_{c}.json", 
-        #       dataset=CONV_DATASETS, d=CONV_DEGS, c=CONV_CHAINS)
+        # convergence tests on experimental data
+        expand(EXP_SCORE_DIR+"/{dataset}/mcmc_d={d}/chain_{c}.json", 
+               dataset=EXP_DATASETS, d=CONV_DEGS, c=CONV_CHAINS)
         # MCMC simulation scores
-        expand(FIG_DIR+"/simulation_study/mcmc_d={d}/v={v}_t={t}.csv", 
-               d=REG_DEGS, v=SIM_GRID["V"], t=SIM_GRID["T"])
+	#expand(FIG_DIR+"/simulation_study/mcmc_d={d}/v={v}_t={t}.csv", 
+	#       d=REG_DEGS, v=SIM_GRID["V"], t=SIM_GRID["T"])
         #expand(SCORE_DIR+"/funchisq/v={v}_r={r}_a={a}_t={t}.json",
         #        v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
         #expand(SCORE_DIR+"/hill/v={v}_r={r}_a={a}_t={t}.json",  
@@ -310,6 +319,32 @@ rule run_sim_prior_baseline:
 
 # END BASELINE JOBS
 #######################
+
+
+##############################
+# EXPERIMENTAL DATA JOBS
+
+rule run_experiment_conv:
+    input:
+        ""
+    output:
+        ""
+    shell:
+        ""
+
+
+
+rule preprocess_dream:
+    input:
+        ""
+    output:
+        ""
+    shell:
+        ""
+
+# END EXPERIMENTAL DATA JOBS
+##############################
+
 
 ########################
 # JULIA CODE COMPILATION

@@ -2,9 +2,9 @@
 # results for all of the analyses.
 # You need to change it to fit your circumstances,
 # e.g., "/scratch" or wherever you have plenty of disk available.
-#temp_dir: "/home/dmerrell/projects/graph_ppl/temp"
+temp_dir: "/home/dmerrell/projects/graph_ppl/temp"
 #temp_dir: "/ua/dmerrell/dbn_mcmc_temp"
-temp_dir: "/mnt/ws/home/dmerrell/projects/graph-ppl/temp"
+#temp_dir: "/mnt/ws/home/dmerrell/projects/graph-ppl/temp"
 
 # Define the convergence analysis
 convergence_analysis:
@@ -62,5 +62,11 @@ hill_timetest:
                   #[4,20],
                   #[5,20]]
     timeout: 30 #3600
+
+
+
+experimental_analysis:
+    dream_ts_relpath: "dream-challenge/raw/timeseries"
+    dream_ref_relpath: "dream-challenge/raw/ref_graph"
 
 
