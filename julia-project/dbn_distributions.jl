@@ -26,11 +26,11 @@ function random(pp::ParentPrior, V::Int64,
     parents = Vector{Int64}()
     for v=1:V
         if v in ref_parents
-            if rand(Bernoulli(0.5))
+            if Bool(rand(Bernoulli(0.5)))
                 push!(parents, v)
             end
         else
-            if rand(Bernoulli(p))
+            if Bool(rand(Bernoulli(p)))
                 push!(parents, v)
             end
         end

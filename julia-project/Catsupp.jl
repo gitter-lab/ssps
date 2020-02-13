@@ -7,7 +7,7 @@ using GLMNet
 using ArgParse
 using JSON
 
-export parse_script_arguments, perform_inference, make_output_json 
+export parse_script_arguments, perform_inference, make_output_dict 
 
 include("dbn_preprocess.jl")
 include("dbn_models.jl")
@@ -20,7 +20,7 @@ Gen.load_generated_functions()
 make a json string containing all of the relevant
 outputs of MCMC, structured in a sensible way.
 """
-function make_output_json(results, acc)
+function make_output_dict(results, acc)
 
     if acc == nothing
         acc = Dict("lambdas" => nothing,
@@ -32,7 +32,7 @@ function make_output_json(results, acc)
     results["parent_sets_acc"] = acc["parent_sets"]
     results["lambdas_acc"] = acc["lambdas"]
 
-    return JSON.json(results)
+    return results
 end
 
 
@@ -164,10 +164,10 @@ function perform_inference(timeseries_filename::String,
 
  
     println("Saving results to JSON file:")
-    js_str = make_output_json(results, acc)
+    out_dict = make_output_dict(results, acc)
 
     f = open(output_path, "w")
-    write(f, js_str)
+    JSON.print(f, out_dict)
     close(f)
     println("\t", output_path) 
 

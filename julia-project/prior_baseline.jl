@@ -41,9 +41,10 @@ function make_output(argd::Dict)
     results["edge_conf_key"] = "parent_sets"
     results["parent_sets"] = ref_ps
 
-    res_json = JSON.json(results)
+    #res_json = JSON.json(results)
     f = open(outfile, "w")
-    write(f, res_json)
+    #write(f, res_json)
+    JSON.print(f, results)
     close(f)
 end
 
