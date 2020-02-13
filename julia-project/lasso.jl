@@ -87,8 +87,8 @@ function get_args(ARGS::Vector{String})
             help="Path to a TSV file containing time series data"
             required=true
             arg_type=String
-        "ref_dag_fname"
-            help="Path to a CSV file containing a reference dag"
+        "graph_prior"
+            help="Path to a CSV file containing a prior distribution for edges"
             required=true
             arg_type=String
         "outfile"
