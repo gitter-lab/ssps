@@ -1,4 +1,4 @@
-# preprocess_dream.py
+# preprocess_dream_ts.py
 # David Merrell
 # 2020-02
 # 
@@ -8,6 +8,9 @@
 import pandas as pd
 import os
 import argparse
+import numpy as np
+
+EXCLUDE = {"foxo3a_ps318_s321", "taz_ps89"}
 
 
 def to_minutes(timestr):
@@ -24,6 +27,21 @@ def to_minutes(timestr):
     return num
 
 
+def get_antibody_row(df):
+    for i, row in df.iterrows():
+        if "Antibody Name" in row.values:
+            return i
+    return -1
+
+
+def get_start_idxs(df):
+    for i, row in df.iterrows():
+        cols = np.where(row.values == "Timepoint")
+        if len(cols[0]) > 0:
+            return i, cols[0][0]+1
+    return -1, -1
+
+
 def load_dream_ts(csv_path, keep_start=False):
     """
     Read in a DREAM challenge time series CSV file
@@ -34,11 +52,14 @@ def load_dream_ts(csv_path, keep_start=False):
     # an extra column and a multi-line header.
     df = pd.read_csv(csv_path)
     df.drop("Unnamed: 0", axis=1, inplace=True)
-    df.iloc[2,3:] = df.iloc[1,3:].values
-    df.columns = df.loc[2,:].values
-    df = df.loc[3:,:]
-    df.index = range(df.shape[0])
 
+    antibody_row = get_antibody_row(df)
+    data_start_row, data_start_col = get_start_idxs(df)
+
+    df.iloc[data_start_row, data_start_col:] = df.iloc[antibody_row, data_start_col:].values
+    df.columns = df.loc[data_start_row,:].values
+    df = df.loc[(data_start_row + 1):,:]
+    df.index = range(df.shape[0])
 
     # The original format doesn't give a "Stimulus" label
     # at timepoint 0; we'll restore the label if necessary
@@ -53,7 +74,7 @@ def load_dream_ts(csv_path, keep_start=False):
 
 
 def create_standard_dataframe(dream_df, ignore_stim=False,
-                                         ignore_inhib=False):
+                                        ignore_inhib=False):
     """
     For each context contained in `dream_df`, create a time series
     dataframe.
@@ -76,12 +97,21 @@ def create_standard_dataframe(dream_df, ignore_stim=False,
     dream_df.sort_values(["context","timeseries","timestep"], inplace=True)
 
     keep_cols = ["context", "timeseries", "timestep"]
+    idx_cols = keep_cols+["Inhibitor", "Stimulus"]
 
     # IMPORTANT: standard order of variables = lexicographic
-    var_cols = sorted([c for c in dream_df.columns if c not in keep_cols+["Inhibitor", "Stimulus"]])
+    var_cols = [c for c in dream_df.columns if c not in idx_cols]
+    var_cols = [c for c in var_cols if c not in EXCLUDE] 
 
     dream_df = dream_df[keep_cols + var_cols]
     
+    dream_df = dream_df.astype({v:"float64" for v in var_cols})
+ 
+    # Deduplicate by taking means... not sure if this is the right way to go
+    gp = dream_df.groupby(keep_cols)
+    dream_df = gp.mean()
+    dream_df.reset_index(inplace=True)
+
     return dream_df 
 
 
