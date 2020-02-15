@@ -10,7 +10,7 @@
 Generic MCMC inference wrapper for DBN model.
 Some important arguments:
 """
-function dbn_mcmc_inference(reference_parents::Vector{Vector{Int64}},
+function dbn_mcmc_inference(reference_parents::Vector,
 			    X::Vector{Array{Float64,2}};
                             regression_deg::Int64=3,
                             timeout::Float64=3600.0,
@@ -24,7 +24,8 @@ function dbn_mcmc_inference(reference_parents::Vector{Vector{Int64}},
 			    lambda_max::Float64=15.0,
 			    lambda_prop_std::Float64=0.25,
 			    track_acceptance::Bool=false,
-			    update_acc_fn::Function=update_acc)
+			    update_acc_fn::Function=update_acc,
+                            bool_prior::Bool=true)
 
     # Some data preprocessing
     Xminus, Xplus  = combine_X(X)
@@ -36,7 +37,11 @@ function dbn_mcmc_inference(reference_parents::Vector{Vector{Int64}},
 
     # prepare some useful parameters
     V = length(Xplus)
-    ref_parent_counts = [max(length(ps),1) for ps in reference_parents]
+    if bool_prior
+        ref_parent_counts = [max(length(ps),1) for ps in reference_parents]
+    else
+        ref_parent_counts = [max(sum(values(ps)), 2.0) for ps in reference_parents]
+    end
     proposal_param_vec = 1.0 ./ log2.(V ./ ref_parent_counts)
     lambda_min = log(max(V/large_indeg - 1.0, exp(0.5)))
     
@@ -58,8 +63,16 @@ function dbn_mcmc_inference(reference_parents::Vector{Vector{Int64}},
         observations[:Xplus => i => :Xp] = Xp
     end
 
+    # Determine which generative model we should use
+    # (it depends on the kind of prior knowledge available)
+    if bool_prior
+        gen_model = dbn_model
+    else
+        gen_model = conf_dbn_model
+    end
+
     # Generate an initial trace
-    tr, _ = Gen.generate(dbn_model, (reference_parents, 
+    tr, _ = Gen.generate(gen_model, (reference_parents, 
 				     Xminus, 
                                      Xplus,
                                      lambda_min, 
@@ -276,7 +289,7 @@ end
 Helper function for updating edge counts during inference.
 
 The entry
-tr[:adjacency => :edges => i => j => :z] 
+tr[:parent_sets => i => :parents] 
 indicates existence of edge j --> i
 (kind of backward from what you might expect.)
 
@@ -292,7 +305,5 @@ function increment_counts!(edge_counts, tr)
 	end
     end
 end
-
-
 
 

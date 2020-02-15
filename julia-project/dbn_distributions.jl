@@ -3,24 +3,25 @@ using Combinatorics
 using LinearAlgebra
 import Distributions: Bernoulli
 import Gen: Distribution, random, logpdf
-import FunctionalCollections: PersistentVector
-
 
 ###########################################
-# PARENT SET PRIOR DISTRIBUTION
+# PARENT SET PRIOR DISTRIBUTIONS
 ###########################################
 
-struct ParentPrior <: Distribution{Vector{Int64}} end
-const parentprior = ParentPrior()
+# This distribution assumes prior knowledge in the form of
+# "reference edges" -- roughly speaking, it assigns uniform probability
+# to all subsets of the reference parent set.
+struct RefParentPrior <: Distribution{Vector{Int64}} end
+const refparentprior = RefParentPrior()
 
-parentprior(V::Int64,
-            ref_parents::Vector{Vector{Int64}}, 
-            lambda::Float64) = random(parentprior,
-                                      V, ref_parents, lambda)
+refparentprior(V::Int64,
+               ref_parents::Vector{Int64}, 
+               lambda::Float64) = random(refparentprior,
+                                         V, ref_parents, lambda)
 
-function random(pp::ParentPrior, V::Int64, 
-                               ref_parents::Vector{Int64}, 
-                               lambda::Float64)
+function random(pp::RefParentPrior, V::Int64, 
+                                    ref_parents::Vector{Int64}, 
+                                    lambda::Float64)
     enl = exp(-lambda)
     p = enl /(1.0+enl)
     parents = Vector{Int64}()
@@ -39,7 +40,8 @@ function random(pp::ParentPrior, V::Int64,
     return parents
 end
 
-function logpdf(pp::ParentPrior, x_parents, V, ref_parents, lambda)
+
+function logpdf(pp::RefParentPrior, x_parents, V, ref_parents, lambda)
 
     lp = -log(1.0 + exp(-lambda))
     lhalf = -log(2)
@@ -52,18 +54,72 @@ function logpdf(pp::ParentPrior, x_parents, V, ref_parents, lambda)
     return total
 end
 
+# This distribution assumes prior knowledge in the form of 
+# edge confidences -- it's a "smooth" variant of the 
+# RefParentPrior distribution.
+struct ConfParentPrior <: Distribution{Vector{Int64}} end
+const confparentprior = ConfParentPrior()
+
+
+confparentprior(V, parent_confs::Dict,
+                lambda::Float64) = random(confparentprior, V, parent_confs, lambda)
+
+function random(pp::ConfParentPrior, V, parent_confs::Dict, lambda::Float64)
+
+    enl = exp(-lambda)
+
+    parents = Vector{Int64}()
+    for i=1:V
+        conf = get(parent_confs, i, 0.0)
+        p = enl/(enl + exp(-conf * lambda))
+        if Bool(rand(Bernoulli(p)))
+            push!(parents, i)
+        end
+    end
+
+    return parents
+end
+
+
+
+function logpdf(pp::ConfParentPrior, x_parents::Vector{Int64}, V,
+                                     parent_confs::Dict, 
+                                     lambda::Float64)
+    
+    enl = exp(-lambda)
+    ref_nonzero = keys(parent_confs)
+    lp = 0.0
+
+    # parents 
+    for parent in x_parents
+        conf = get(parent_confs, parent, 0.0)
+        lp += -lambda - log(enl + exp(-conf*lambda))
+    end
+    
+    # nonparents AND ref_nonzero 
+    for nonparent in setdiff(ref_nonzero, x_parents)
+        npl = -parent_confs[nonparent]*lambda
+        lp += npl - log(enl + exp(npl))
+    end 
+    
+    # nonparents AND NOT ref_nonzero
+    zero_n_lp = - log(1.0 + enl)
+    lp += zero_n_lp*(V - length(union(ref_nonzero, x_parents)))
+
+    return lp
+end
+
 
 ###########################################
 # DBN MARGINAL LIKELIHOOD HELPERS
 ###########################################
 
 # We use LRU caching to reduce redundant computation.
-const TENMB = 10000000
-
-global lp_cache = LRU{Vector{Int64}, Float64}(maxsize=10*TENMB, by=Base.summarysize)
+TENMB = 10000000
+global lml_cache = LRU{Vector{Int64}, Float64}(maxsize=10*TENMB, by=Base.summarysize)
 
 function clear_caches()
-    empty!(lp_cache)
+    empty!(lml_cache)
 end
 
 function compute_B_col(inds::Vector{Int64}, Xminus)
@@ -157,7 +213,7 @@ function log_marg_lik(ind::Int64, parent_inds::Vector{Int64},
 		      Xminus::Array{Float64,2}, Xp::Vector{Float64}, 
 		      regression_deg::Int64)
 
-    lml = get!(lp_cache, pushfirst!(copy(parent_inds), ind)) do
+    lml = get!(lml_cache, pushfirst!(copy(parent_inds), ind)) do
         compute_lml(parent_inds, Xminus, Xp, regression_deg)
     end
 

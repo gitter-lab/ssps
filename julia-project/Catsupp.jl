@@ -87,6 +87,9 @@ function parse_script_arguments()
             help = "Terminate the markov chain after it runs this many steps."
             arg_type = Int64
             default = -1
+        "--continuous-reference"
+            help = "Allow continuous-valued weights in [0,1] in the reference graph."
+            action = :store_true
     end
 
     args = parse_args(s)
@@ -112,6 +115,7 @@ function transform_arguments(parsed_arg_dict)
     push!(arg_vec, parsed_arg_dict["lambda-prop-std"])
     push!(arg_vec, parsed_arg_dict["track-acceptance"])
     push!(arg_vec, parsed_arg_dict["store-samples"])
+    push!(arg_vec, parsed_arg_dict["continuous-reference"])
 
     return arg_vec
 end
@@ -129,12 +133,14 @@ function perform_inference(timeseries_filename::String,
 			   regression_deg::Int64,
 			   lambda_prop_std::Float64,
                            track_acceptance::Bool,
-                           store_samples::Bool)
+                           store_samples::Bool,
+                           continuous_reference::Bool)
 
     clear_caches()
 
-    ts_vec, ref_ps = load_simulated_data(timeseries_filename, 
-					 ref_graph_filename) 
+    ts_vec, ref_ps = load_formatted_data(timeseries_filename, 
+					 ref_graph_filename;
+                                         boolean_adj= !continuous_reference) 
   
     println("Invoking Catsupp on input files:\n\t", 
 	    timeseries_filename, "\n\t", ref_graph_filename)
@@ -160,7 +166,8 @@ function perform_inference(timeseries_filename::String,
                                       lambda_max=lambda_max,
 				      lambda_prop_std=lambda_prop_std,
 			              track_acceptance=track_acceptance,
-			              update_acc_fn=update_acc)
+			              update_acc_fn=update_acc,
+                                      bool_prior= !continuous_reference)
 
  
     println("Saving results to JSON file:")
