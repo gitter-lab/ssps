@@ -32,6 +32,7 @@ SCRIPT_DIR = os.path.join(ROOT_DIR, "scripts")
 JULIA_PROJ_DIR = os.path.join(ROOT_DIR, "julia-project")
 HILL_DIR = os.path.join(ROOT_DIR, "hill-method")
 FUNCH_DIR = os.path.join(ROOT_DIR, "funchisq")
+DREAM_DIR = os.path.join(ROOT_DIR, "dream-challenge")
 TEMP_DIR = config["temp_dir"]
 HILL_TIME_DIR = os.path.join(TEMP_DIR, "time_tests")
 
@@ -69,6 +70,8 @@ EXP_TRU_DIR = os.path.join(EXPDAT_DIR, "true_ds")
 EXP_RAW_DIR = os.path.join(EXP_DIR, "raw")
 EXP_PRED_DIR = os.path.join(EXP_DIR, "predictions")
 EXP_SCORE_DIR = os.path.join(EXP_DIR, "scores")
+DREAM_TS_DIR = os.path.join(DREAM_DIR, "train")
+DREAM_REF_DIR = os.path.join(DREAM_DIR, "prior")
 
 # Hill hyperparameters
 HILL_TIME_PARAMS = config["hill_timetest"]
@@ -82,7 +85,6 @@ CONV_RES_DIR = os.path.join(CONV_DIR, "results")
 CONV_RAW_DIR = os.path.join(CONV_DIR, "raw")
 CONV_PARAMS = config["convergence_analysis"]
 CONV_SIM_GRID = CONV_PARAMS["simulation_grid"]
-CONV_DATASETS = CONV_PARAMS["experimental_datasets"]
 CONV_DEGS = CONV_PARAMS["mcmc_hyperparams"]["regression_deg"]
 CONV_REPLICATES = list(range(CONV_PARAMS["N"]))
 CONV_CHAINS = list(range(CONV_PARAMS["n_chains"]))
@@ -92,6 +94,8 @@ CONV_BURNIN = CONV_PARAMS["burnin"]
 CONV_STOPPOINTS = CONV_PARAMS["stop_points"]
 CONV_NEFF = CONV_PARAMS["neff_per_chain"] * len(CONV_CHAINS)
 CONV_PSRF = CONV_PARAMS["psrf_ub"]
+EXP_CELL_LINES = CONV_PARAMS["experiments"]["cell_lines"]
+STIMULI = CONV_PARAMS["experiments"]["stimuli"]
 
 
 #############################
@@ -104,8 +108,8 @@ rule all:
         #       v=CONV_SIM_GRID["V"], r=CONV_SIM_GRID["R"], a=CONV_SIM_GRID["A"],
         #       t=CONV_SIM_GRID["T"], d=CONV_DEGS)
         # convergence tests on experimental data
-        expand(EXP_SCORE_DIR+"/{dataset}/mcmc_d={d}/chain_{c}.json", 
-               dataset=EXP_DATASETS, d=CONV_DEGS, c=CONV_CHAINS)
+        expand(FIG_DIR+"/convergence/{cell_line}_{stimulus}_d={d}.png", 
+	       cell_line=EXP_CELL_LINES, stimulus=STIMULI, d=CONV_DEGS)
         # MCMC simulation scores
 	#expand(FIG_DIR+"/simulation_study/mcmc_d={d}/v={v}_t={t}.csv", 
 	#       d=REG_DEGS, v=SIM_GRID["V"], t=SIM_GRID["T"])
@@ -153,10 +157,10 @@ rule score_predictions:
 
 rule convergence_viz:
     input:
-        expand(CONV_RES_DIR+"/v={{v}}_r={{r}}_a={{a}}_t={{t}}_replicate={rep}/mcmc_d={{d}}.json",
+        expand(CONV_RES_DIR+"/{{dataset}}_replicate={rep}/mcmc_d={{d}}.json",
                rep=CONV_REPLICATES) 
     output:
-        FIG_DIR+"/convergence/v={v}_r={r}_a={a}_t={t}_d={d}.png"
+        FIG_DIR+"/convergence/{dataset}_d={d}.png"
     script:
         SCRIPT_DIR+"/convergence_viz.py"
 
@@ -221,7 +225,7 @@ rule run_sim_mcmc:
         mem_mb=2000
     shell:
         "{input.method} {input.ts_file} {input.ref_dg} {output} {SIM_TIMEOUT}"\
-        +" --regression-deg {wildcards.d} --n-steps {SIM_MAX_SAMPLES}"
+        +" --regression-deg {wildcards.d} --n-steps {SIM_MAX_SAMPLES} --continuous-reference"
         
 
 # END MCMC JOBS
@@ -322,21 +326,33 @@ rule run_sim_prior_baseline:
 
 rule run_experiment_conv:
     input:
-        ""
+        method=BIN_DIR+"/Catsupp/Catsupp",
+        ts_file=EXP_TS_DIR+"/{cell_line}_{stimulus}.csv",
+        ref_dg=EXP_REF_DIR+"/{cell_line}.csv",
     output:
-        ""
+        CONV_RAW_DIR+"/{cell_line}_{stimulus}_replicate={replicate}/mcmc_d={d}/{chain}.json"
     shell:
-        ""
+        "{input.method} {input.ts_file} {input.ref_dg} {output} {CONV_TIMEOUT}"\
+        +" --store-samples --n-steps {CONV_MAX_SAMPLES} --regression-deg {wildcards.d}"
+	+" --continuous-reference"
 
 
-
-rule preprocess_dream:
+rule preprocess_dream_timeseries:
     input:
-        ""
+        DREAM_TS_DIR+"/{cell_line}_main.csv"
     output:
-        ""
+        expand(EXP_TS_DIR+"/{{cell_line}}_{stimulus}.csv", stimulus=STIMULI)
     shell:
-        ""
+        "python scripts/preprocess_dream_ts.py {input} {EXP_TS_DIR}"
+
+
+rule preprocess_dream_prior:
+    input:
+        DREAM_REF_DIR+"/{cell_line}.eda"
+    output:
+        EXP_REF_DIR+"/{cell_line}.csv"
+    shell:
+        "python scripts/preprocess_dream_prior.py {input} {output}"
 
 # END EXPERIMENTAL DATA JOBS
 ##############################
@@ -346,8 +362,8 @@ rule preprocess_dream:
 # JULIA CODE COMPILATION
 
 # Get the path of the Julia PackageCompiler
-#JULIAC_PATH = glob.glob(os.path.join(os.environ["HOME"],
-JULIAC_PATH = glob.glob(os.path.join("/mnt/ws/home/dmerrell",
+JULIAC_PATH = glob.glob(os.path.join(os.environ["HOME"],
+#JULIAC_PATH = glob.glob(os.path.join("/mnt/ws/home/dmerrell",
           ".julia/packages/PackageCompiler/*/juliac.jl")
           )[0]
 

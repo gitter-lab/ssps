@@ -15,9 +15,9 @@ convergence_analysis:
         T: [8]
         M: 4     # number of time series to generate
     N: 3 #5 # number of simulation replicates 
-    experimental_datasets:
-        - "hill-egfr"
-        - "big-egfr"
+    experiments:
+        cell_lines: ["BT20", "BT549", "MCF7", "UACC812"]
+        stimuli: ["EGF", "FGF1", "HGF", "IGF1", "Insulin", "NRG1", "PBS", "Serum"]
     max_samples: 50000
     timeout: 2400 #86400 # one day 
     burnin: 0.5
@@ -32,10 +32,10 @@ convergence_analysis:
 # Define the simulation study
 simulation_study:
     # timeout for each method 
-    timeout: 7200 # seconds
+    timeout: 60 # seconds
     # the grid of simulated datasets
     simulation_grid:
-        V: [500] #, 100] #, 200]     # number of variables
+        V: [20] #, 100] #, 200]     # number of variables
         R: [0.5] #[0.1, 0.5, 1.0]    # fraction of edges to remove
         A: [0.5] #[0.1, 0.5, 1.0]    # fraction of new edges to add
         T: [8] #, 20]             # length of each time series 
