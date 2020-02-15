@@ -91,15 +91,15 @@ CONV_PSRF = CONV_PARAMS["psrf_ub"]
 rule all:
     input:
         # convergence tests on simulated data
-        #expand(FIG_DIR+"/convergence/v={v}_r={r}_a={a}_t={t}_d={d}.png",
-        #       v=CONV_SIM_GRID["V"], r=CONV_SIM_GRID["R"], a=CONV_SIM_GRID["A"],
-        #       t=CONV_SIM_GRID["T"], d=CONV_DEGS)
+        expand(FIG_DIR+"/convergence/v={v}_r={r}_a={a}_t={t}_d={d}.png",
+               v=CONV_SIM_GRID["V"], r=CONV_SIM_GRID["R"], a=CONV_SIM_GRID["A"],
+               t=CONV_SIM_GRID["T"], d=CONV_DEGS)
         ## convergence tests on experimental data
         #expand(CONV_RAW_DIR+"/{dataset}/mcmc_d={d}/chain_{c}.json", 
         #       dataset=CONV_DATASETS, d=CONV_DEGS, c=CONV_CHAINS)
         # MCMC simulation scores
-        expand(FIG_DIR+"/simulation_study/mcmc_d={d}/v={v}_t={t}.csv", 
-               d=REG_DEGS, v=SIM_GRID["V"], t=SIM_GRID["T"])
+        #expand(FIG_DIR+"/simulation_study/mcmc_d={d}/v={v}_t={t}.csv", 
+        #       d=REG_DEGS, v=SIM_GRID["V"], t=SIM_GRID["T"])
         #expand(SCORE_DIR+"/funchisq/v={v}_r={r}_a={a}_t={t}.json",
         #        v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
         #expand(SCORE_DIR+"/hill/v={v}_r={r}_a={a}_t={t}.json",  
@@ -170,6 +170,10 @@ rule postprocess_conv_mcmc_sim:
         raw=expand(CONV_RAW_DIR+"/{{dataset}}/{{mcmc_settings}}/{chain}.json", chain=CONV_CHAINS)
     output:
         out=CONV_RES_DIR+"/{dataset}/{mcmc_settings}.json"
+    resources:
+        runtime=3600,
+        threads=1,
+        mem_mb=6000
     shell:
         "{input.pp} --chain-samples {input.raw} --output-file {output.out} --burnin {CONV_BURNIN}"
         +" --stop-points {CONV_STOPPOINTS}" 
@@ -181,6 +185,10 @@ rule run_conv_mcmc_sim:
         ref_dg=REF_DIR+"/{dataset}.csv",
     output:
         CONV_RAW_DIR+"/{dataset}/mcmc_d={d}/{chain}.json"
+    resources:
+        runtime=int(CONV_TIMEOUT)+60,
+        threads=1,
+        mem_mb=4000
     shell:
         "{input.method} {input.ts_file} {input.ref_dg} {output} {CONV_TIMEOUT}"\
         +" --store-samples --n-steps {CONV_MAX_SAMPLES} --regression-deg {wildcards.d}"
@@ -241,14 +249,22 @@ rule run_sim_funchisq:
 #####################
 # HILL JOBS
 
+def hill_mem(wildcards):
+    v = int(wildcards.replicate.split("_")[0].split("=")[1])
+    return int(8000 * v / 500)
+
 rule run_sim_hill:
     input:
         ts_file=TS_DIR+"/{replicate}.csv",
         ref_dg=REF_DIR+"/{replicate}.csv"
     output:
         PRED_DIR+"/hill/{replicate}.json"
+    resources:
+        runtime=SIM_TIMEOUT+60,
+        threads=1,
+        mem_mb=hill_mem
     shell:
-        "matlab -nodesktop -nosplash -nojvm -r \'cd(\"{HILL_DIR}\"); try, hill_dbn_wrapper(\"{input.ts_file}\", \"{input.ref_dg}\", \"{output}\", -1, \"auto\", {SIM_TIMEOUT}), catch e, quit(1), end, quit\'"
+        "matlab -nodesktop -nosplash -nojvm -singleCompThread -r \'cd(\"{HILL_DIR}\"); try, hill_dbn_wrapper(\"{input.ts_file}\", \"{input.ref_dg}\", \"{output}\", -1, \"auto\", {SIM_TIMEOUT}), catch e, quit(1), end, quit\'"
 
 
 rule run_timetest_hill:
@@ -258,7 +274,7 @@ rule run_timetest_hill:
     output:
         HILL_TIME_DIR+"/preds/hill_deg={deg}_mode={mode}/{replicate}.json"
     shell:
-        "matlab -nodesktop -nosplash -nojvm -r \'cd(\""+HILL_DIR+"\"); try, hill_dbn_wrapper(\"{input.ts}\", \"{input.ref}\", \"{output}\", {wildcards.deg}, \"{wildcards.mode}\", "+str(HILL_TIME_TIMEOUT)+"), catch e, quit(1), end, quit\'"
+        "matlab -nodesktop -nosplash -nojvm -singleCompThread -r \'cd(\""+HILL_DIR+"\"); try, hill_dbn_wrapper(\"{input.ts}\", \"{input.ref}\", \"{output}\", {wildcards.deg}, \"{wildcards.mode}\", "+str(HILL_TIME_TIMEOUT)+"), catch e, quit(1), end, quit\'"
 
 
 rule tabulate_timetest_hill:
@@ -301,6 +317,10 @@ rule run_sim_prior_baseline:
         ref=REF_DIR+"/{replicate}.csv"
     output:
         PRED_DIR+"/prior_baseline/{replicate}.json"
+    resources:
+        runtime=60,
+        threads=1,
+        mem_mb=100
     shell:
         "{input.method} {input.ref} {output}"
 
@@ -311,8 +331,8 @@ rule run_sim_prior_baseline:
 # JULIA CODE COMPILATION
 
 # Get the path of the Julia PackageCompiler
-#JULIAC_PATH = glob.glob(os.path.join(os.environ["HOME"],
-JULIAC_PATH = glob.glob(os.path.join("/mnt/ws/home/dmerrell",
+JULIAC_PATH = glob.glob(os.path.join(os.environ["HOME"],
+#JULIAC_PATH = glob.glob(os.path.join("/mnt/ws/home/dmerrell",
           ".julia/packages/PackageCompiler/*/juliac.jl")
           )[0]
 
