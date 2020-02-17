@@ -103,24 +103,30 @@ STIMULI = CONV_PARAMS["experiments"]["stimuli"]
 #############################
 rule all:
     input:
-        # convergence tests on simulated data
+        # Convergence tests on simulated data
         #expand(FIG_DIR+"/convergence/v={v}_r={r}_a={a}_t={t}_d={d}.png",
         #       v=CONV_SIM_GRID["V"], r=CONV_SIM_GRID["R"], a=CONV_SIM_GRID["A"],
         #       t=CONV_SIM_GRID["T"], d=CONV_DEGS)
-        # convergence tests on experimental data
-        expand(FIG_DIR+"/convergence/{cell_line}_{stimulus}_d={d}.png", 
-	       cell_line=EXP_CELL_LINES, stimulus=STIMULI, d=CONV_DEGS)
-        # MCMC simulation scores
+        # Convergence tests on experimental data
+        #expand(FIG_DIR+"/convergence/{cell_line}_{stimulus}_d={d}.png", 
+	#       cell_line=EXP_CELL_LINES, stimulus=STIMULI, d=CONV_DEGS)
+        # Simulation scores
 	#expand(FIG_DIR+"/simulation_study/mcmc_d={d}/v={v}_t={t}.csv", 
 	#       d=REG_DEGS, v=SIM_GRID["V"], t=SIM_GRID["T"])
         #expand(SCORE_DIR+"/funchisq/v={v}_r={r}_a={a}_t={t}.json",
         #        v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
         #expand(SCORE_DIR+"/hill/v={v}_r={r}_a={a}_t={t}.json",  
         #       v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
-        #expand("simulation-study/scores/lasso/v={v}_r={r}_a={a}_t={t}.json",
+        #expand(SCORE_DIR+"/lasso/v={v}_r={r}_a={a}_t={t}.json",
         #        v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
         #expand(SCORE_DIR+"/prior_baseline/v={v}_r={r}_a={a}_t={t}.json",  
         #       v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
+        # DREAM scores
+        #expand(SCORE_DIR+"/simulation_study/mcmc_d={d}/{cell_line}_{stimulus}.csv", 
+        #       d=REG_DEGS, cell_line=EXP_CELL_LINES, stimulus=STIMULI)
+        # DREAM raw
+        expand(EXP_RAW_DIR+"/mcmc_d={d}/{cell_line}_{stimulus}/{chain}.json",
+               d=REG_DEGS, cell_line=EXP_CELL_LINES, stimulus=STIMULI, chain=SIM_CHAINS)
         # Hill timetest results
         #FIG_DIR+"/hill_method_timetest.csv"    
 
@@ -138,7 +144,8 @@ rule simulate_data:
     shell:
         "{input.simulator} {wildcards.v} {wildcards.t} {SIM_M} {wildcards.r} {wildcards.a} {POLY_DEG} {output.ref} {output.true} {output.ts}"
 
-rule score_predictions:
+
+rule score_sim_predictions:
     input:
         scorer=BIN_DIR+"/scoring/scoring",
         tr_dg_fs=[TRU_DIR+"/{sim_gridpoint}_replicate="+str(rep)+".csv" for rep in SIM_REPLICATES],
@@ -233,7 +240,9 @@ rule run_sim_mcmc:
         mem_mb=2000
     shell:
         "{input.method} {input.ts_file} {input.ref_dg} {output} {SIM_TIMEOUT}"\
-        +" --regression-deg {wildcards.d} --n-steps {SIM_MAX_SAMPLES} --continuous-reference"
+        +" --regression-deg {wildcards.d} --n-steps {SIM_MAX_SAMPLES}"
+
+
         
 
 # END MCMC JOBS
@@ -344,7 +353,21 @@ rule run_sim_prior_baseline:
 ##############################
 # EXPERIMENTAL DATA JOBS
 
-rule run_experiment_conv:
+rule score_dream_predictions:
+    input:
+        scorer=BIN_DIR+"/scoring/scoring",
+        tr_dg_fs=[TRU_DIR+"/{sim_gridpoint}_replicate="+str(rep)+".csv" for rep in SIM_REPLICATES],
+        pp_res=[PRED_DIR+"/{method}/{sim_gridpoint}_replicate="+str(rep)+".json" for rep in SIM_REPLICATES]
+    output:
+        out=SCORE_DIR+"/{method}/{sim_gridpoint}.json" 
+    resources:
+        mem_mb=100,
+        threads=1
+    shell:
+        "{input.scorer} --truth-files {input.tr_dg_fs} --pred-files {input.pp_res} --output-file {output.out}"
+
+
+rule run_dream_conv:
     input:
         method=BIN_DIR+"/Catsupp/Catsupp",
         ts_file=EXP_TS_DIR+"/{cell_line}_{stimulus}.csv",
@@ -359,6 +382,22 @@ rule run_experiment_conv:
         "{input.method} {input.ts_file} {input.ref_dg} {output} {CONV_TIMEOUT}"\
         +" --store-samples --n-steps {CONV_MAX_SAMPLES} --regression-deg {wildcards.d}"
 	+" --continuous-reference"
+
+
+rule run_dream_mcmc:
+    input:
+        method=BIN_DIR+"/Catsupp/Catsupp",
+        ts_file=EXP_TS_DIR+"/{cell_line}_{stimulus}.csv",
+        ref_dg=EXP_REF_DIR+"/{cell_line}.csv",
+    output:
+        EXP_RAW_DIR+"/mcmc_d={d}/{cell_line}_{stimulus}/{chain}.json"
+    resources:
+        runtime=SIM_TIMEOUT,
+        threads=1,
+        mem_mb=2000
+    shell:
+        "{input.method} {input.ts_file} {input.ref_dg} {output} {SIM_TIMEOUT}"\
+        +" --regression-deg {wildcards.d} --n-steps {SIM_MAX_SAMPLES} --continuous-reference"
 
 
 rule preprocess_dream_timeseries:
