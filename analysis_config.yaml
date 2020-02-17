@@ -15,9 +15,9 @@ convergence_analysis:
         T: [8]
         M: 4     # number of time series to generate
     N: 5 # number of simulation replicates 
-    experimental_datasets:
-        - "hill-egfr"
-        - "big-egfr"
+    experiments:
+        cell_lines: ["BT20", "BT549", "MCF7", "UACC812"]
+        stimuli: ["EGF", "FGF1", "HGF", "IGF1", "Insulin", "NRG1", "PBS", "Serum"]
     max_samples: 50000
     timeout: 43200 #86400 # one day 
     burnin: 0.5
@@ -32,7 +32,7 @@ convergence_analysis:
 # Define the simulation study
 simulation_study:
     # timeout for each method 
-    timeout: 7200 # seconds
+    timeout: 60 # seconds
     # the grid of simulated datasets
     simulation_grid:
         V: [20, 100, 500]     # number of variables
@@ -62,5 +62,11 @@ hill_timetest:
                   #[4,20],
                   #[5,20]]
     timeout: 30 #3600
+
+
+
+experimental_analysis:
+    dream_ts_relpath: "dream-challenge/raw/timeseries"
+    dream_ref_relpath: "dream-challenge/raw/ref_graph"
 
 
