@@ -13,10 +13,10 @@ function ingest_timeseries!(timeseries_df)
 
     result = Vector{Matrix{Float64}}()
 
-    N = convert(Int64, maximum(timeseries_df.timeseries))
+    #N = convert(Int64, maximum(timeseries_df.timeseries))
 
-    for i=1:N
-        ts = timeseries_df[timeseries_df.timeseries .== i, :]
+    for name in unique(timeseries_df.timeseries)
+        ts = timeseries_df[timeseries_df.timeseries .== name, :]
         sort!(ts, [:timestep])
         push!(result, convert(Matrix{Float64}, ts[:,3:end]))
     end

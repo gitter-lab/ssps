@@ -101,7 +101,7 @@ def create_standard_dataframe(dream_df, ignore_stim=False,
 
     # IMPORTANT: standard order of variables = lexicographic
     var_cols = [c for c in dream_df.columns if c not in idx_cols]
-    var_cols = [c for c in var_cols if c not in EXCLUDE] 
+    var_cols = [c for c in var_cols if c.lower() not in EXCLUDE] 
 
     dream_df = dream_df[keep_cols + var_cols]
     
