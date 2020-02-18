@@ -33,6 +33,9 @@ JULIA_PROJ_DIR = os.path.join(ROOT_DIR, "julia-project")
 HILL_DIR = os.path.join(ROOT_DIR, "hill-method")
 FUNCH_DIR = os.path.join(ROOT_DIR, "funchisq")
 DREAM_DIR = os.path.join(ROOT_DIR, "dream-challenge")
+DREAM_TS_DIR = os.path.join(DREAM_DIR, "train")
+DREAM_REF_DIR = os.path.join(DREAM_DIR, "prior")
+DREAM_TRU_DIR = os.path.join(DREAM_DIR, "test")
 TEMP_DIR = config["temp_dir"]
 HILL_TIME_DIR = os.path.join(TEMP_DIR, "time_tests")
 
@@ -66,12 +69,9 @@ EXP_DIR = os.path.join(TEMP_DIR,"experimental_eval")
 EXPDAT_DIR = os.path.join(EXP_DIR, "datasets")
 EXP_TS_DIR = os.path.join(EXPDAT_DIR, "timeseries")
 EXP_REF_DIR = os.path.join(EXPDAT_DIR, "ref_graphs")
-EXP_TRU_DIR = os.path.join(EXPDAT_DIR, "true_ds")
 EXP_RAW_DIR = os.path.join(EXP_DIR, "raw")
 EXP_PRED_DIR = os.path.join(EXP_DIR, "predictions")
 EXP_SCORE_DIR = os.path.join(EXP_DIR, "scores")
-DREAM_TS_DIR = os.path.join(DREAM_DIR, "train")
-DREAM_REF_DIR = os.path.join(DREAM_DIR, "prior")
 
 # Hill hyperparameters
 HILL_TIME_PARAMS = config["hill_timetest"]
@@ -122,11 +122,11 @@ rule all:
         #expand(SCORE_DIR+"/prior_baseline/v={v}_r={r}_a={a}_t={t}.json",  
         #       v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
         # DREAM scores
-        #expand(SCORE_DIR+"/simulation_study/mcmc_d={d}/{cell_line}_{stimulus}.csv", 
-        #       d=REG_DEGS, cell_line=EXP_CELL_LINES, stimulus=STIMULI)
+        expand(EXP_SCORE_DIR+"/mcmc_d={d}/cl={cell_line}_stim={stimulus}.json", 
+               d=REG_DEGS, cell_line=EXP_CELL_LINES, stimulus=STIMULI)
         # DREAM raw
-        expand(EXP_RAW_DIR+"/mcmc_d={d}/{cell_line}_{stimulus}/{chain}.json",
-               d=REG_DEGS, cell_line=EXP_CELL_LINES, stimulus=STIMULI, chain=SIM_CHAINS)
+	#expand(EXP_RAW_DIR+"/mcmc_d={d}/{cell_line}_{stimulus}/{chain}.json",
+	#       d=REG_DEGS, cell_line=EXP_CELL_LINES, stimulus=STIMULI, chain=SIM_CHAINS)
         # Hill timetest results
         #FIG_DIR+"/hill_method_timetest.csv"    
 
@@ -355,25 +355,41 @@ rule run_sim_prior_baseline:
 
 rule score_dream_predictions:
     input:
-        scorer=BIN_DIR+"/scoring/scoring",
-        tr_dg_fs=[TRU_DIR+"/{sim_gridpoint}_replicate="+str(rep)+".csv" for rep in SIM_REPLICATES],
-        pp_res=[PRED_DIR+"/{method}/{sim_gridpoint}_replicate="+str(rep)+".json" for rep in SIM_REPLICATES]
+        scorer=SCRIPT_DIR+"/score_dream.py",
+        tr_desc=DREAM_TRU_DIR+"/TrueVec_{cell_line}_{stim}.csv", 
+        preds=EXP_PRED_DIR+"/{method}/cl={cell_line}_stim={stim}.json",
+        ab=EXP_REF_DIR+"/cl={cell_line}_antibodies.json",
     output:
-        out=SCORE_DIR+"/{method}/{sim_gridpoint}.json" 
+        out=EXP_SCORE_DIR+"/{method}/cl={cell_line}_stim={stim}.json" 
     resources:
         mem_mb=100,
         threads=1
     shell:
-        "{input.scorer} --truth-files {input.tr_dg_fs} --pred-files {input.pp_res} --output-file {output.out}"
+        "{input.scorer} {input.preds} {input.tr_desc} {input.ab} {output.out}"
+
+
+rule postprocess_dream_mcmc:
+    input:
+        pp=BIN_DIR+"/postprocess_counts/postprocess_counts",
+        raw=expand(EXP_RAW_DIR+"/mcmc_{{mcmc_settings}}/{{context}}/chain={chain}.json",
+                   chain=SIM_CHAINS)
+    output:
+        out=EXP_PRED_DIR+"/mcmc_{mcmc_settings}/{context}.json"
+    resources:
+        runtime=60,
+        threads=1,
+        mem_mb=2000
+    shell:
+        "{input.pp} {input.raw} --output-file {output.out}"
 
 
 rule run_dream_conv:
     input:
         method=BIN_DIR+"/Catsupp/Catsupp",
-        ts_file=EXP_TS_DIR+"/{cell_line}_{stimulus}.csv",
-        ref_dg=EXP_REF_DIR+"/{cell_line}.csv",
+        ts_file=EXP_TS_DIR+"/cl={cell_line}_stim={stimulus}.csv",
+        ref_dg=EXP_REF_DIR+"/cl={cell_line}.csv",
     output:
-        CONV_RAW_DIR+"/{cell_line}_{stimulus}_replicate={replicate}/mcmc_d={d}/{chain}.json"
+        CONV_RAW_DIR+"/cl={cell_line}_stim={stimulus}_replicate={replicate}/mcmc_d={d}/{chain}.json"
     resources:
         runtime=3600,
         threads=1,
@@ -387,10 +403,10 @@ rule run_dream_conv:
 rule run_dream_mcmc:
     input:
         method=BIN_DIR+"/Catsupp/Catsupp",
-        ts_file=EXP_TS_DIR+"/{cell_line}_{stimulus}.csv",
-        ref_dg=EXP_REF_DIR+"/{cell_line}.csv",
+        ts_file=EXP_TS_DIR+"/cl={cell_line}_stim={stim}.csv",
+        ref_dg=EXP_REF_DIR+"/cl={cell_line}.csv",
     output:
-        EXP_RAW_DIR+"/mcmc_d={d}/{cell_line}_{stimulus}/{chain}.json"
+        EXP_RAW_DIR+"/mcmc_d={d}/cl={cell_line}_stim={stim}/chain={chain}.json"
     resources:
         runtime=SIM_TIMEOUT,
         threads=1,
@@ -404,7 +420,7 @@ rule preprocess_dream_timeseries:
     input:
         DREAM_TS_DIR+"/{cell_line}_main.csv"
     output:
-        expand(EXP_TS_DIR+"/{{cell_line}}_{stimulus}.csv", stimulus=STIMULI)
+        expand(EXP_TS_DIR+"/cl={{cell_line}}_stim={stimulus}.csv", stimulus=STIMULI)
     shell:
         "python scripts/preprocess_dream_ts.py {input} {EXP_TS_DIR} --ignore-inhibitor"
 
@@ -413,9 +429,10 @@ rule preprocess_dream_prior:
     input:
         DREAM_REF_DIR+"/{cell_line}.eda"
     output:
-        EXP_REF_DIR+"/{cell_line}.csv"
+        edges=EXP_REF_DIR+"/cl={cell_line}.csv",
+	ab=EXP_REF_DIR+"/cl={cell_line}_antibodies.json"
     shell:
-        "python scripts/preprocess_dream_prior.py {input} {output}"
+        "python scripts/preprocess_dream_prior.py {input} {output.edges} {output.ab}"
 
 # END EXPERIMENTAL DATA JOBS
 ##############################
@@ -426,7 +443,6 @@ rule preprocess_dream_prior:
 
 # Get the path of the Julia PackageCompiler
 JULIAC_PATH = glob.glob(os.path.join(os.environ["HOME"],
-#JULIAC_PATH = glob.glob(os.path.join("/mnt/ws/home/dmerrell",
           ".julia/packages/PackageCompiler/*/juliac.jl")
           )[0]
 

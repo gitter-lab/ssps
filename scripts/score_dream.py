@@ -31,26 +31,26 @@ def load_true_desc(desc_filename):
     return descendants 
 
 
-def compute_all_scores(pred_files, true_files, antibody_files, root_antibody):
 
-    # get the "root" antibody's index for in context
-    antibody_idxs = [json.load(open(abf, "r"))[root_antibody] for abf in antibody_files]
-
-    all_scores = map(compute_score, zip(pred_files, true_files, antibody_idxs))
-
-    true_basenames = [os.path.basename(tf) for tf in true_files]
-
-    return {tb: sc for (tb, sc) in zip(true_basenames, all_scores)}
-
-
-def compute_score(pred_file, desc_file, antibody_idx):
-   
+def compute_scores(pred_file, desc_file, antibody_file, root_antibody):
+  
+    with open(antibody_file, "r") as abf: 
+        antibody_idx = json.load(abf)[root_antibody] 
+    
     # (probabilistic) parent sets 
     parent_pred = load_predictions(pred_file)
     # "ground truth" descendant set 
     true_desc = load_true_desc(desc_file) 
 
-    return descendant_set_auc(parent_pred, true_desc, antibody_idx, return_curves=True)
+    score_tuple = descendant_set_auc(parent_pred, true_desc, antibody_idx, return_curves=True)
+
+    score_dict = {"aucpr": score_tuple[0],
+                  "aucroc": score_tuple[1],
+                  "pr_curves": score_tuple[2],
+                  "roc_curves": score_tuple[3]
+                 }
+
+    return score_dict
 
 
 def scoring_dfs(vertex, edge_list, reached):
@@ -161,16 +161,16 @@ def descendant_set_auc(prob_parents, true_desc, root_idx, return_curves=True):
 if __name__=="__main__":
 
     parser = argparse.ArgumentParser(description="")
-    parser.add_argument("--pred-files", help="paths to JSON files containing edge predictions")
-    parser.add_argument("--true-desc-files", help="paths to DREAM challenge descendant-set CSV files")
-    parser.add_argument("--antibody-files", help="paths to JSON files containing the indices of antibodies")
-    parser.add_argument("--root-antibody", help="Name of the root antibody for our descendant sets")
-    parser.add_argument("--output-file", help"path to an output JSON file",
-                                         default="mTOR_ps2448")
+    parser.add_argument("pred_file", help="path to JSON file containing edge predictions")
+    parser.add_argument("true_desc_file", help="path to DREAM challenge descendant-set CSV file")
+    parser.add_argument("antibody_file", help="path to JSON file containing the indices of antibodies")
+    parser.add_argument("output_file", help="path to an output JSON file")
+    parser.add_argument("--root-antibody", help="Name of the root antibody for our descendant sets"
+                                           default="mTOR_ps2448")
     args = parser.parse_args()
 
-    score_dict = compute_all_scores(args.pred_files, args.true_desc_files, 
-                                    args.antibody_files, args.root_antibody)
+    score_dict = compute_scores(args.pred_file, args.true_desc_file, 
+                                args.antibody_file, args.root_antibody)
 
     with open(output_file, "w") as f:
         json.dump(score_dict, f)
