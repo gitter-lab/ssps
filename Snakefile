@@ -365,7 +365,7 @@ rule score_dream_predictions:
         mem_mb=100,
         threads=1
     shell:
-        "{input.scorer} {input.preds} {input.tr_desc} {input.ab} {output.out}"
+        "python {input.scorer} {input.preds} {input.tr_desc} {input.ab} {output.out}"
 
 
 rule postprocess_dream_mcmc:

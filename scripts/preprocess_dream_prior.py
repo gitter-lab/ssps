@@ -43,6 +43,6 @@ if __name__=="__main__":
     df = pd.DataFrame(adj_mat)
     df.to_csv(args.output_file, sep=",", index=False, header=False) 
 
-    json.dump(antibody_map, open(antibody_file, "w"))
+    json.dump(antibody_map, open(args.antibody_file, "w"))
 
 

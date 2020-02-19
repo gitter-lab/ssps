@@ -152,7 +152,7 @@ if __name__=="__main__":
     contexts = new_ts_df["context"].unique()
     
     for ctxt in contexts:
-        ctxt_str = "{}_{}".format(cell_line, ctxt)
+        ctxt_str = "cl={}_stim={}".format(cell_line, ctxt)
         out_df = new_ts_df[new_ts_df["context"] == ctxt]
         out_df.iloc[:,1:].to_csv(os.path.join(str(args.output_dir), ctxt_str+".csv"),
                                  sep="\t", index=False)
