@@ -13,7 +13,7 @@ def parse_path_kvs(file_path):
     Find all key-value pairs in a file path;
     the pattern is *_KEY=VALUE_*.
     """
-    parser = re.compile("(?<=[/_])[a-z0-9]+=[a-z0-9]+[.]?[0-9]*(?=[_/.])")
+    parser = re.compile("(?<=[/_])[a-z0-9]+=[a-zA-Z0-9]+[.]?[0-9]*(?=[_/.])")
 
     kvs = parser.findall(file_path)
     kvs = [kv.split("=") for kv in kvs]

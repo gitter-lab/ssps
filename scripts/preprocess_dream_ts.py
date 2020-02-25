@@ -106,6 +106,7 @@ def create_standard_dataframe(dream_df, ignore_stim=False,
     dream_df = dream_df[keep_cols + var_cols]
     
     dream_df = dream_df.astype({v:"float64" for v in var_cols})
+    dream_df[var_cols] = dream_df[var_cols].applymap(np.log)
  
     # Deduplicate by taking means... not sure if this is the right way to go
     gp = dream_df.groupby(keep_cols)

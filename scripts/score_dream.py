@@ -6,6 +6,7 @@
 # old versions of python, hampering our reproducibility efforts
 # (i.e., Snakemake)
 
+import numpy as np
 import pandas as pd
 import argparse
 import json
@@ -165,14 +166,14 @@ if __name__=="__main__":
     parser.add_argument("true_desc_file", help="path to DREAM challenge descendant-set CSV file")
     parser.add_argument("antibody_file", help="path to JSON file containing the indices of antibodies")
     parser.add_argument("output_file", help="path to an output JSON file")
-    parser.add_argument("--root-antibody", help="Name of the root antibody for our descendant sets"
-                                           default="mTOR_ps2448")
+    parser.add_argument("--root-antibody", help="Name of the root antibody for our descendant sets",
+                                           default="mTOR_pS2448")
     args = parser.parse_args()
 
     score_dict = compute_scores(args.pred_file, args.true_desc_file, 
                                 args.antibody_file, args.root_antibody)
 
-    with open(output_file, "w") as f:
+    with open(args.output_file, "w") as f:
         json.dump(score_dict, f)
 
     

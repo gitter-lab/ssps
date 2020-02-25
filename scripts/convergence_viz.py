@@ -5,6 +5,7 @@
 import json
 import sys
 import os
+import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import script_util as su
@@ -15,8 +16,10 @@ mpl.rc('font', family='serif')
 print("I'M THE INPUT: ", snakemake.input)
 print("I'M THE OUTPUT: ", snakemake.output)
 
+dataset = snakemake.input[0].split("/")[-2].split("_")[:-1]
+
 kvs = su.parse_path_kvs(snakemake.input[0])
-v = kvs["v"]
+#v = kvs["v"]
 n_replicates = len(snakemake.input)
 
 PSRF_THRESH = snakemake.config["convergence_analysis"]["psrf_ub"]
@@ -57,14 +60,14 @@ for t, sp in enumerate(stop_points):
         t_results.append(count_nonconverged(rep["conv_stats"]["parent_sets"], t))
     nonconv_counts.append(t_results)
 
-means = [sum(res)/len(res) for res in nonconv_counts]
+meds = [np.med(res) for res in nonconv_counts]
 mins = [min(res) for res in nonconv_counts]
 maxes = [max(res) for res in nonconv_counts]
 
-# Plot mean, min, max
+# Plot med, min, max
 plt.plot(stop_points, [0 for sp in stop_points], color="blue", linestyle="--")
 plt.fill_between(stop_points, mins, maxes, color="grey", label="Range ({} replicates)".format(n_replicates))
-plt.plot(stop_points, means, color="k", label="Mean ({} replicates)".format(n_replicates))
+plt.plot(stop_points, meds, color="k", label="Median ({} replicates)".format(n_replicates))
 
 plt.legend()
 
@@ -74,7 +77,8 @@ plt.xticks(stop_points, rotation=45.0)
 plt.ylabel("Non-converged edge probabilities", family="serif")
 plt.xlabel("Sampling Chain Length", family="serif")
 
-plt.title("MCMC Convergence: {} variables".format(v), family="serif")
+#plt.title("MCMC Convergence: {} variables".format(v), family="serif")
+plt.title("MCMC Convergence: {}".format(dataset), family="serif")
 plt.tight_layout()
 #savefig
 plt.savefig(snakemake.output[0], dpi=300)

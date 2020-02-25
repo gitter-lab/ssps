@@ -108,25 +108,28 @@ rule all:
         #       v=CONV_SIM_GRID["V"], r=CONV_SIM_GRID["R"], a=CONV_SIM_GRID["A"],
         #       t=CONV_SIM_GRID["T"], d=CONV_DEGS)
         # Convergence tests on experimental data
-        #expand(FIG_DIR+"/convergence/{cell_line}_{stimulus}_d={d}.png", 
-	#       cell_line=EXP_CELL_LINES, stimulus=STIMULI, d=CONV_DEGS)
+        #expand(FIG_DIR+"/convergence/cl={cell_line}_stim={stimulus}_d={d}.png", 
+    #       cell_line=EXP_CELL_LINES, stimulus=STIMULI, d=CONV_DEGS),
         # Simulation scores
-	#expand(FIG_DIR+"/simulation_study/mcmc_d={d}/v={v}_t={t}.csv", 
-	#       d=REG_DEGS, v=SIM_GRID["V"], t=SIM_GRID["T"])
-        #expand(SCORE_DIR+"/funchisq/v={v}_r={r}_a={a}_t={t}.json",
-        #        v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
-        #expand(SCORE_DIR+"/hill/v={v}_r={r}_a={a}_t={t}.json",  
-        #       v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
+        expand(FIG_DIR+"/simulation_study/mcmc_d={d}/v={v}_t={t}.csv", 
+               d=REG_DEGS, v=SIM_GRID["V"], t=SIM_GRID["T"]),
+        expand(SCORE_DIR+"/funchisq/v={v}_r={r}_a={a}_t={t}.json",
+                v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
+        expand(SCORE_DIR+"/hill/v={v}_r={r}_a={a}_t={t}.json",  
+               v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
         #expand(SCORE_DIR+"/lasso/v={v}_r={r}_a={a}_t={t}.json",
         #        v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
-        #expand(SCORE_DIR+"/prior_baseline/v={v}_r={r}_a={a}_t={t}.json",  
-        #       v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
+        expand(SCORE_DIR+"/prior_baseline/v={v}_r={r}_a={a}_t={t}.json",  
+               v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
         # DREAM scores
-        expand(EXP_SCORE_DIR+"/mcmc_d={d}/cl={cell_line}_stim={stimulus}.json", 
-               d=REG_DEGS, cell_line=EXP_CELL_LINES, stimulus=STIMULI)
-        # DREAM raw
-	#expand(EXP_RAW_DIR+"/mcmc_d={d}/{cell_line}_{stimulus}/{chain}.json",
-	#       d=REG_DEGS, cell_line=EXP_CELL_LINES, stimulus=STIMULI, chain=SIM_CHAINS)
+        #expand(EXP_SCORE_DIR+"/mcmc_d={d}/cl={cell_line}_stim={stimulus}.json", 
+        #       d=REG_DEGS, cell_line=EXP_CELL_LINES, stimulus=STIMULI),
+        #expand(EXP_SCORE_DIR+"/funchisq/cl={cell_line}_stim={stimulus}.json", 
+        #       cell_line=EXP_CELL_LINES, stimulus=STIMULI),
+        #expand(EXP_SCORE_DIR+"/hill/cl={cell_line}_stim={stimulus}.json", 
+        #       cell_line=EXP_CELL_LINES, stimulus=STIMULI)
+        #expand(EXP_SCORE_DIR+"/prior_baseline/cl={cell_line}_stim={stimulus}.json", 
+        #       cell_line=EXP_CELL_LINES, stimulus=STIMULI)
         # Hill timetest results
         #FIG_DIR+"/hill_method_timetest.csv"    
 
@@ -257,7 +260,6 @@ rule run_sim_funchisq:
         ts_file=TS_DIR+"/{replicate}.csv"
     output:
         PRED_DIR+"/funchisq/{replicate}.json"
-    group: "sim_funchisq"
     resources:
         runtime=60,
         threads=1,
@@ -396,8 +398,8 @@ rule run_dream_conv:
         mem_mb=3000
     shell:
         "{input.method} {input.ts_file} {input.ref_dg} {output} {CONV_TIMEOUT}"\
-        +" --store-samples --n-steps {CONV_MAX_SAMPLES} --regression-deg {wildcards.d}"
-	+" --continuous-reference"
+        +" --store-samples --n-steps {CONV_MAX_SAMPLES} --regression-deg {wildcards.d}"\
+        +" --continuous-reference"
 
 
 rule run_dream_mcmc:
@@ -416,6 +418,48 @@ rule run_dream_mcmc:
         +" --regression-deg {wildcards.d} --n-steps {SIM_MAX_SAMPLES} --continuous-reference"
 
 
+rule run_dream_funchisq:
+    input: 
+        method=FUNCH_DIR+"/funchisq_wrapper.R",
+        ts_file=EXP_TS_DIR+"/{replicate}.csv"
+    output:
+        EXP_PRED_DIR+"/funchisq/{replicate}.json"
+    resources:
+        runtime=60,
+        threads=1,
+        mem_mb=500
+    shell:
+        "Rscript {input.method} {input.ts_file} {output}"
+
+
+rule run_dream_hill:
+    input:
+        ts_file=EXP_TS_DIR+"/cl={cell_line}_stim={stim}.csv",
+        ref_dg=EXP_REF_DIR+"/cl={cell_line}.csv"
+    output:
+        EXP_PRED_DIR+"/hill/cl={cell_line}_stim={stim}.json"
+    resources:
+        runtime=SIM_TIMEOUT+60,
+        threads=1,
+        mem_mb=2000
+    shell:
+        "matlab -nodesktop -nosplash -nojvm -singleCompThread -r \'cd(\"{HILL_DIR}\"); try, hill_dbn_wrapper(\"{input.ts_file}\", \"{input.ref_dg}\", \"{output}\", -1, \"auto\", {SIM_TIMEOUT}), catch e, quit(1), end, quit\'"
+
+
+rule run_dream_prior_baseline:
+    input:
+        method=BIN_DIR+"/prior_baseline/prior_baseline",
+        ref=EXP_REF_DIR+"/cl={cell_line}.csv"
+    output:
+        EXP_PRED_DIR+"/prior_baseline/cl={cell_line}_stim={stim}.json"
+    resources:
+        runtime=60,
+        threads=1,
+        mem_mb=100
+    shell:
+        "{input.method} {input.ref} {output}"
+
+
 rule preprocess_dream_timeseries:
     input:
         DREAM_TS_DIR+"/{cell_line}_main.csv"
@@ -430,7 +474,7 @@ rule preprocess_dream_prior:
         DREAM_REF_DIR+"/{cell_line}.eda"
     output:
         edges=EXP_REF_DIR+"/cl={cell_line}.csv",
-	ab=EXP_REF_DIR+"/cl={cell_line}_antibodies.json"
+        ab=EXP_REF_DIR+"/cl={cell_line}_antibodies.json"
     shell:
         "python scripts/preprocess_dream_prior.py {input} {output.edges} {output.ab}"
 

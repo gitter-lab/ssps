@@ -30,8 +30,8 @@ function make_output(argd::Dict)
     outfile = argd["output_file"]
 
     ref_adj_df = CSV.read(infile, header=false)
-    ref_ps = Vector{Vector{Int64}}()
-    adj_mat = convert(Matrix{Bool}, ref_adj_df)
+    ref_ps = Vector{Vector{Float64}}()
+    adj_mat = convert(Matrix, ref_adj_df)
 
     for i=1:size(adj_mat,1)
         push!(ref_ps, adj_mat[:,i])
