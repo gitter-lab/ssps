@@ -63,6 +63,7 @@ SIM_MAX_SAMPLES = MC_PARAMS["max_samples"]
 REG_DEGS = MC_PARAMS["regression_deg"]
 BURNIN = MC_PARAMS["burnin"]
 SIM_CHAINS=list(range(MC_PARAMS["n_chains"]))
+LAMBDA_PROP_STDS = MC_PARAMS["lambda_prop_stds"]
 
 # Experimental evaluation directories
 EXP_DIR = os.path.join(TEMP_DIR,"experimental_eval")
@@ -108,19 +109,19 @@ rule all:
         #       v=CONV_SIM_GRID["V"], r=CONV_SIM_GRID["R"], a=CONV_SIM_GRID["A"],
         #       t=CONV_SIM_GRID["T"], d=CONV_DEGS)
         # Convergence tests on experimental data
-        #expand(FIG_DIR+"/convergence/cl={cell_line}_stim={stimulus}_d={d}.png", 
-    #       cell_line=EXP_CELL_LINES, stimulus=STIMULI, d=CONV_DEGS),
+        expand(FIG_DIR+"/convergence/cl={cell_line}_stim={stimulus}_d={d}_lstd={lstd}.png", 
+               cell_line=EXP_CELL_LINES, stimulus=STIMULI, d=CONV_DEGS, lstd=LAMBDA_PROP_STDS),
         # Simulation scores
-        expand(FIG_DIR+"/simulation_study/mcmc_d={d}/v={v}_t={t}.csv", 
-               d=REG_DEGS, v=SIM_GRID["V"], t=SIM_GRID["T"]),
-        expand(SCORE_DIR+"/funchisq/v={v}_r={r}_a={a}_t={t}.json",
-                v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
-        expand(SCORE_DIR+"/hill/v={v}_r={r}_a={a}_t={t}.json",  
-               v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
+        #expand(FIG_DIR+"/simulation_study/mcmc_d={d}/v={v}_t={t}.csv", 
+        #       d=REG_DEGS, v=SIM_GRID["V"], t=SIM_GRID["T"]),
+        #expand(SCORE_DIR+"/funchisq/v={v}_r={r}_a={a}_t={t}.json",
+        #        v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
+        #expand(SCORE_DIR+"/hill/v={v}_r={r}_a={a}_t={t}.json",  
+        #       v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
         #expand(SCORE_DIR+"/lasso/v={v}_r={r}_a={a}_t={t}.json",
         #        v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
-        expand(SCORE_DIR+"/prior_baseline/v={v}_r={r}_a={a}_t={t}.json",  
-               v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
+        #expand(SCORE_DIR+"/prior_baseline/v={v}_r={r}_a={a}_t={t}.json",  
+        #       v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
         # DREAM scores
         #expand(EXP_SCORE_DIR+"/mcmc_d={d}/cl={cell_line}_stim={stimulus}.json", 
         #       d=REG_DEGS, cell_line=EXP_CELL_LINES, stimulus=STIMULI),
@@ -167,10 +168,10 @@ rule score_sim_predictions:
 
 rule convergence_viz:
     input:
-        expand(CONV_RES_DIR+"/{{dataset}}_replicate={rep}/mcmc_d={{d}}.json",
+        expand(CONV_RES_DIR+"/{{dataset}}_replicate={rep}/mcmc_d={{d}}_lstd={{lstd}}.json",
                rep=CONV_REPLICATES) 
     output:
-        FIG_DIR+"/convergence/{dataset}_d={d}.png"
+        FIG_DIR+"/convergence/{dataset}_d={d}_lstd={lstd}.png"
     script:
         SCRIPT_DIR+"/convergence_viz.py"
 
@@ -214,7 +215,8 @@ rule run_conv_mcmc_sim:
         mem_mb=4000
     shell:
         "{input.method} {input.ts_file} {input.ref_dg} {output} {CONV_TIMEOUT}"\
-        +" --store-samples --n-steps {CONV_MAX_SAMPLES} --regression-deg {wildcards.d}"
+        +" --store-samples --n-steps {CONV_MAX_SAMPLES} --regression-deg {wildcards.d}"\
+        +" --lambda-prop-std 3.0"
 
 rule postprocess_sim_mcmc:
     input:
@@ -391,7 +393,7 @@ rule run_dream_conv:
         ts_file=EXP_TS_DIR+"/cl={cell_line}_stim={stimulus}.csv",
         ref_dg=EXP_REF_DIR+"/cl={cell_line}.csv",
     output:
-        CONV_RAW_DIR+"/cl={cell_line}_stim={stimulus}_replicate={replicate}/mcmc_d={d}/{chain}.json"
+        CONV_RAW_DIR+"/cl={cell_line}_stim={stimulus}_replicate={replicate}/mcmc_d={d}_lstd={lstd}/{chain}.json"
     resources:
         runtime=3600,
         threads=1,
@@ -399,7 +401,7 @@ rule run_dream_conv:
     shell:
         "{input.method} {input.ts_file} {input.ref_dg} {output} {CONV_TIMEOUT}"\
         +" --store-samples --n-steps {CONV_MAX_SAMPLES} --regression-deg {wildcards.d}"\
-        +" --continuous-reference"
+        +" --continuous-reference --lambda-prop-std {wildcards.lstd}"
 
 
 rule run_dream_mcmc:

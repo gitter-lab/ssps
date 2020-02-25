@@ -69,13 +69,14 @@ function parse_script_arguments()
     	    default = 20.0
         "--lambda-max"
             help = "hyperparameter for lambda prior"
-    	    default = 10.0
+    	    default = 15.0
         "--regression-deg"
 	    help = "regression polynomial degree in Gaussian DBN (default: full)"
 	    arg_type = Int64
     	    default = -1 
         "--lambda-prop-std"
             help = "standard deviation of lambda's proposal distribution"
+	    arg_type = Float64
     	    default = 0.25
 	"--track-acceptance"
 	    help = "flag: track proposal acceptance rates during MCMC"
@@ -180,8 +181,14 @@ function perform_inference(timeseries_filename::String,
 
 end
 
-# main function -- for purposes of static compilation
-Base.@ccallable function julia_main(args::Vector{String})::Cint
+## main function -- for purposes of static compilation
+#Base.@ccallable function julia_main(args::Vector{String})::Cint
+#    arg_vec = parse_script_arguments()
+#    perform_inference(arg_vec...)
+#    return 0
+#end
+
+function julia_main()
     arg_vec = parse_script_arguments()
     perform_inference(arg_vec...)
     return 0
@@ -189,3 +196,8 @@ end
 
 # END MODULE
 end
+
+using .Catsupp
+
+julia_main(ARGS)
+
