@@ -4,9 +4,9 @@ module Simulator
 include("data_sim.jl")
 using .DBNDataSim
 
-# Defining this function allows us to statically compile the
-# simulator via PackageCompiler.jl
-Base.@ccallable function julia_main(ARGS::Vector{String})::Cint
+export julia_main
+
+function julia_main()
 
     ref_dg = nothing
     true_dg = nothing
@@ -49,4 +49,9 @@ Base.@ccallable function julia_main(ARGS::Vector{String})::Cint
 end
 
 end
+
+using .Simulator
+
+julia_main()
+
 

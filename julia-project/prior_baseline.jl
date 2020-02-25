@@ -6,6 +6,8 @@ using DataFrames
 using CSV
 using ArgParse 
 
+export julia_main
+
 function load_args(args::Vector{String})
     
     s = ArgParseSettings()
@@ -49,10 +51,14 @@ function make_output(argd::Dict)
 end
 
 
-Base.@ccallable function julia_main(args::Vector{String})::Cint
-    argd = load_args(args)
+function julia_main()
+    argd = load_args(ARGS)
     make_output(argd)
     return 0
 end
 
 end
+
+using .PriorPredictor
+
+julia_main()

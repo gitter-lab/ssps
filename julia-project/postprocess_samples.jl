@@ -13,7 +13,7 @@ using ArgParse
 using DataStructures
 
 #export ChangepointVec, count_nonzero, sum, mean, seq_var, seq_variogram, postprocess_sample_files
-export postprocess_sample_files
+export postprocess_sample_files, julia_main
 
 """
 Read an MCMC samples output file
@@ -477,13 +477,15 @@ end
 
 
 # main function -- for purposes of static compilation
-Base.@ccallable function julia_main(args::Vector{String})::Cint
+function julia_main()
     arg_vec = get_args(ARGS)
     postprocess_sample_files(arg_vec...)
     return 0
 end
 
-
 end
 
+using .SamplePostprocess
+
+julia_main()
 

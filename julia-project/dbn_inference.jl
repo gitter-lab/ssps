@@ -88,12 +88,12 @@ function dbn_mcmc_inference(reference_parents::Vector,
     burnin_count = 0
     t_burn = burnin*timeout
     n_burn = burnin*n_steps
-    println("Burning in for ", round(t_burn - t_elapsed), " seconds. (or ", n_burn, " steps).")
+    println("Burning in for ", round(t_burn - t_elapsed), " seconds. (Or ", n_burn, " steps).")
     t_print = 0.0
     while t_elapsed < t_burn && burnin_count < n_burn
 
         if (burnin_count > 0) && (t_elapsed - t_print >= t_burn/10.0)
-            println("\t", burnin_count, " updates in ", round(t_elapsed), " seconds." )
+            println("\t", burnin_count, " steps in ", round(t_elapsed), " seconds." )
             t_print = t_elapsed 
         end 
 
@@ -102,10 +102,11 @@ function dbn_mcmc_inference(reference_parents::Vector,
         burnin_count += 1
     end
     t_end_burn = time()
+    t_burn = t_end_burn - t_start
 
     # Sampling loop
     prop_count = 0
-    println("Sampling for ", round(timeout - t_end_burn), " seconds.")
+    println("Sampling for ", round(timeout - t_burn), " seconds. (Or ", n_steps - n_burn," steps).")
     t_print = 0.0
     while t_elapsed < timeout && prop_count <= n_steps
         
@@ -114,7 +115,7 @@ function dbn_mcmc_inference(reference_parents::Vector,
             
             # Print progress
             if (prop_count > 0) && (t_elapsed - t_print >= 20.0)
-                println("\t", prop_count," updates in ", round(t_elapsed - t_end_burn), " seconds.")
+                println("\t", prop_count," steps in ", round(t_elapsed - t_burn), " seconds.")
                 t_print = t_elapsed 
             end
 
@@ -126,9 +127,6 @@ function dbn_mcmc_inference(reference_parents::Vector,
             prop_count += 1
             
             t_elapsed = time() - t_start
-            if t_elapsed >= timeout
-                break
-            end
         end
 
         # update the results

@@ -9,7 +9,7 @@ module Scoring
 
 using JSON, CSV, ArgParse 
 
-export auroc, auprc
+export auroc, auprc, julia_main
 
 """
 Compute AUROC from the given predictions,
@@ -244,9 +244,9 @@ end
 
 
 # Main function -- for purposes of static compilation
-Base.@ccallable function julia_main(args::Vector{String})::Cint
+function julia_main()
 
-    args = get_args(args)
+    args = get_args(ARGS)
 
     pred_fnames = args["pred-files"]
     truth_fnames = args["truth-files"]
@@ -282,5 +282,8 @@ end
 # END MODULE
 end
 
+using .Scoring
+
+julia_main()
 
 

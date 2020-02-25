@@ -63,6 +63,7 @@ SIM_MAX_SAMPLES = MC_PARAMS["max_samples"]
 REG_DEGS = MC_PARAMS["regression_deg"]
 BURNIN = MC_PARAMS["burnin"]
 SIM_CHAINS=list(range(MC_PARAMS["n_chains"]))
+LAMBDA_PROP_STD = MC_PARAMS["lambda_prop_std"]
 
 # Experimental evaluation directories
 EXP_DIR = os.path.join(TEMP_DIR,"experimental_eval")
@@ -86,6 +87,7 @@ CONV_RAW_DIR = os.path.join(CONV_DIR, "raw")
 CONV_PARAMS = config["convergence_analysis"]
 CONV_SIM_GRID = CONV_PARAMS["simulation_grid"]
 CONV_DEGS = CONV_PARAMS["mcmc_hyperparams"]["regression_deg"]
+CONV_LAMBDA_STDS = CONV_PARAMS["mcmc_hyperparams"]["lambda_prop_stds"]
 CONV_REPLICATES = list(range(CONV_PARAMS["N"]))
 CONV_CHAINS = list(range(CONV_PARAMS["n_chains"]))
 CONV_MAX_SAMPLES = CONV_PARAMS["max_samples"]
@@ -108,19 +110,19 @@ rule all:
         #       v=CONV_SIM_GRID["V"], r=CONV_SIM_GRID["R"], a=CONV_SIM_GRID["A"],
         #       t=CONV_SIM_GRID["T"], d=CONV_DEGS)
         # Convergence tests on experimental data
-        #expand(FIG_DIR+"/convergence/cl={cell_line}_stim={stimulus}_d={d}.png", 
-    #       cell_line=EXP_CELL_LINES, stimulus=STIMULI, d=CONV_DEGS),
+        expand(FIG_DIR+"/convergence/cl={cell_line}_stim={stimulus}_d={d}_lstd={lstd}.png", 
+               cell_line=EXP_CELL_LINES, stimulus=STIMULI, d=CONV_DEGS, lstd=CONV_LAMBDA_STDS),
         # Simulation scores
-        expand(FIG_DIR+"/simulation_study/mcmc_d={d}/v={v}_t={t}.csv", 
-               d=REG_DEGS, v=SIM_GRID["V"], t=SIM_GRID["T"]),
-        expand(SCORE_DIR+"/funchisq/v={v}_r={r}_a={a}_t={t}.json",
-                v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
-        expand(SCORE_DIR+"/hill/v={v}_r={r}_a={a}_t={t}.json",  
-               v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
+        #expand(FIG_DIR+"/simulation_study/mcmc_d={d}/v={v}_t={t}.csv", 
+        #       d=REG_DEGS, v=SIM_GRID["V"], t=SIM_GRID["T"]),
+        #expand(SCORE_DIR+"/funchisq/v={v}_r={r}_a={a}_t={t}.json",
+        #        v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
+        #expand(SCORE_DIR+"/hill/v={v}_r={r}_a={a}_t={t}.json",  
+        #       v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
         #expand(SCORE_DIR+"/lasso/v={v}_r={r}_a={a}_t={t}.json",
         #        v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
-        expand(SCORE_DIR+"/prior_baseline/v={v}_r={r}_a={a}_t={t}.json",  
-               v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
+        #expand(SCORE_DIR+"/prior_baseline/v={v}_r={r}_a={a}_t={t}.json",  
+        #       v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
         # DREAM scores
         #expand(EXP_SCORE_DIR+"/mcmc_d={d}/cl={cell_line}_stim={stimulus}.json", 
         #       d=REG_DEGS, cell_line=EXP_CELL_LINES, stimulus=STIMULI),
@@ -136,7 +138,7 @@ rule all:
 
 rule simulate_data:
     input:
-        simulator=BIN_DIR+"/simulate_data/simulate_data"
+        simulator=JULIA_PROJ_DIR+"/simulate_data.jl"
     output:
         ts=TS_DIR+"/v={v}_r={r}_a={a}_t={t}_replicate={rep}.csv",
         ref=REF_DIR+"/v={v}_r={r}_a={a}_t={t}_replicate={rep}.csv",
@@ -145,12 +147,12 @@ rule simulate_data:
         mem_mb=10,
         threads=1
     shell:
-        "{input.simulator} {wildcards.v} {wildcards.t} {SIM_M} {wildcards.r} {wildcards.a} {POLY_DEG} {output.ref} {output.true} {output.ts}"
+        "julia --project={JULIA_PROJ_DIR} {input.simulator} {wildcards.v} {wildcards.t} {SIM_M} {wildcards.r} {wildcards.a} {POLY_DEG} {output.ref} {output.true} {output.ts}"
 
 
 rule score_sim_predictions:
     input:
-        scorer=BIN_DIR+"/scoring/scoring",
+        scorer=JULIA_PROJ_DIR+"/scoring.jl",
         tr_dg_fs=[TRU_DIR+"/{sim_gridpoint}_replicate="+str(rep)+".csv" for rep in SIM_REPLICATES],
         pp_res=[PRED_DIR+"/{method}/{sim_gridpoint}_replicate="+str(rep)+".json" for rep in SIM_REPLICATES]
     output:
@@ -159,7 +161,7 @@ rule score_sim_predictions:
         mem_mb=100,
         threads=1
     shell:
-        "{input.scorer} --truth-files {input.tr_dg_fs} --pred-files {input.pp_res} --output-file {output.out}"
+        "julia --project={JULIA_PROJ_DIR} {input.scorer} --truth-files {input.tr_dg_fs} --pred-files {input.pp_res} --output-file {output.out}"
 
 
 ##########################
@@ -167,10 +169,10 @@ rule score_sim_predictions:
 
 rule convergence_viz:
     input:
-        expand(CONV_RES_DIR+"/{{dataset}}_replicate={rep}/mcmc_d={{d}}.json",
+        expand(CONV_RES_DIR+"/{{dataset}}_replicate={rep}/mcmc_d={{d}}_lstd={{lstd}}.json",
                rep=CONV_REPLICATES) 
     output:
-        FIG_DIR+"/convergence/{dataset}_d={d}.png"
+        FIG_DIR+"/convergence/{dataset}_d={d}_lstd={lstd}.png"
     script:
         SCRIPT_DIR+"/convergence_viz.py"
 
@@ -189,7 +191,7 @@ rule sim_study_score_viz:
 
 rule postprocess_conv_mcmc_sim:
     input:
-        pp=BIN_DIR+"/postprocess_samples/postprocess_samples",
+        pp=JULIA_PROJ_DIR+"/postprocess_samples.jl",
         raw=expand(CONV_RAW_DIR+"/{{dataset}}/{{mcmc_settings}}/{chain}.json", chain=CONV_CHAINS)
     output:
         out=CONV_RES_DIR+"/{dataset}/{mcmc_settings}.json"
@@ -198,12 +200,12 @@ rule postprocess_conv_mcmc_sim:
         threads=1,
         mem_mb=6000
     shell:
-        "{input.pp} --chain-samples {input.raw} --output-file {output.out} --burnin {CONV_BURNIN}"
+        "julia --project={JULIA_PROJ_DIR} {input.pp} --chain-samples {input.raw} --output-file {output.out} --burnin {CONV_BURNIN}"
         +" --stop-points {CONV_STOPPOINTS}" 
 
 rule run_conv_mcmc_sim:
     input:
-        method=BIN_DIR+"/Catsupp/Catsupp",
+        method=JULIA_PROJ_DIR+"/Catsupp.jl",
         ts_file=TS_DIR+"/{dataset}.csv",
         ref_dg=REF_DIR+"/{dataset}.csv",
     output:
@@ -213,12 +215,13 @@ rule run_conv_mcmc_sim:
         threads=1,
         mem_mb=4000
     shell:
-        "{input.method} {input.ts_file} {input.ref_dg} {output} {CONV_TIMEOUT}"\
-        +" --store-samples --n-steps {CONV_MAX_SAMPLES} --regression-deg {wildcards.d}"
+        "julia --project={JULIA_PROJ_DIR} {input.method} {input.ts_file} {input.ref_dg} {output} {CONV_TIMEOUT}"\
+        +" --store-samples --n-steps {CONV_MAX_SAMPLES} --regression-deg {wildcards.d}"\
+        +" --lambda-prop-std 3.0"
 
 rule postprocess_sim_mcmc:
     input:
-        pp=BIN_DIR+"/postprocess_counts/postprocess_counts",
+        pp=JULIA_PROJ_DIR+"/postprocess_counts.jl",
         raw=expand(RAW_DIR+"/mcmc_{{mcmc_settings}}/{{replicate}}/{chain}.json",
                    chain=SIM_CHAINS)
     output:
@@ -228,11 +231,11 @@ rule postprocess_sim_mcmc:
         threads=1,
         mem_mb=2000
     shell:
-        "{input.pp} {input.raw} --output-file {output.out}"
+        "julia --project={JULIA_PROJ_DIR} {input.pp} {input.raw} --output-file {output.out}"
 
 rule run_sim_mcmc:
     input:
-        method=BIN_DIR+"/Catsupp/Catsupp",
+        method=JULIA_PROJ_DIR+"/Catsupp.jl",
         ts_file=TS_DIR+"/{replicate}.csv",
         ref_dg=REF_DIR+"/{replicate}.csv",
     output:
@@ -242,7 +245,7 @@ rule run_sim_mcmc:
         threads=1,
         mem_mb=2000
     shell:
-        "{input.method} {input.ts_file} {input.ref_dg} {output} {SIM_TIMEOUT}"\
+        "julia --project={JULIA_PROJ_DIR} {input.method} {input.ts_file} {input.ref_dg} {output} {SIM_TIMEOUT}"\
         +" --regression-deg {wildcards.d} --n-steps {SIM_MAX_SAMPLES}"
 
 
@@ -337,7 +340,7 @@ rule run_sim_lasso:
 # BASELINE JOBS 
 rule run_sim_prior_baseline:
     input:
-        method=BIN_DIR+"/prior_baseline/prior_baseline",
+        method=JULIA_PROJ_DIR+"/prior_baseline.jl",
         ref=REF_DIR+"/{replicate}.csv"
     output:
         PRED_DIR+"/prior_baseline/{replicate}.json"
@@ -346,7 +349,7 @@ rule run_sim_prior_baseline:
         threads=1,
         mem_mb=100
     shell:
-        "{input.method} {input.ref} {output}"
+        "julia --project={JULIA_PROJ_DIR} {input.method} {input.ref} {output}"
 
 # END BASELINE JOBS
 #######################
@@ -372,7 +375,7 @@ rule score_dream_predictions:
 
 rule postprocess_dream_mcmc:
     input:
-        pp=BIN_DIR+"/postprocess_counts/postprocess_counts",
+        pp=JULIA_PROJ_DIR+"/postprocess_counts.jl",
         raw=expand(EXP_RAW_DIR+"/mcmc_{{mcmc_settings}}/{{context}}/chain={chain}.json",
                    chain=SIM_CHAINS)
     output:
@@ -382,29 +385,29 @@ rule postprocess_dream_mcmc:
         threads=1,
         mem_mb=2000
     shell:
-        "{input.pp} {input.raw} --output-file {output.out}"
+        "julia --project={JULIA_PROJ_DIR} {input.pp} {input.raw} --output-file {output.out}"
 
 
 rule run_dream_conv:
     input:
-        method=BIN_DIR+"/Catsupp/Catsupp",
+        method=JULIA_PROJ_DIR+"/Catsupp.jl",
         ts_file=EXP_TS_DIR+"/cl={cell_line}_stim={stimulus}.csv",
         ref_dg=EXP_REF_DIR+"/cl={cell_line}.csv",
     output:
-        CONV_RAW_DIR+"/cl={cell_line}_stim={stimulus}_replicate={replicate}/mcmc_d={d}/{chain}.json"
+        CONV_RAW_DIR+"/cl={cell_line}_stim={stimulus}_replicate={replicate}/mcmc_d={d}_lstd={lstd}/{chain}.json"
     resources:
         runtime=3600,
         threads=1,
         mem_mb=3000
     shell:
-        "{input.method} {input.ts_file} {input.ref_dg} {output} {CONV_TIMEOUT}"\
+        "julia --project={JULIA_PROJ_DIR} {input.method} {input.ts_file} {input.ref_dg} {output} {CONV_TIMEOUT}"\
         +" --store-samples --n-steps {CONV_MAX_SAMPLES} --regression-deg {wildcards.d}"\
-        +" --continuous-reference"
+        +" --continuous-reference --lambda-prop-std {wildcards.lstd}"
 
 
 rule run_dream_mcmc:
     input:
-        method=BIN_DIR+"/Catsupp/Catsupp",
+        method=JULIA_PROJ_DIR+"/Catsupp.jl",
         ts_file=EXP_TS_DIR+"/cl={cell_line}_stim={stim}.csv",
         ref_dg=EXP_REF_DIR+"/cl={cell_line}.csv",
     output:
@@ -414,7 +417,7 @@ rule run_dream_mcmc:
         threads=1,
         mem_mb=2000
     shell:
-        "{input.method} {input.ts_file} {input.ref_dg} {output} {SIM_TIMEOUT}"\
+        "julia --project={JULIA_PROJ_DIR} {input.method} {input.ts_file} {input.ref_dg} {output} {SIM_TIMEOUT}"\
         +" --regression-deg {wildcards.d} --n-steps {SIM_MAX_SAMPLES} --continuous-reference"
 
 
@@ -448,7 +451,7 @@ rule run_dream_hill:
 
 rule run_dream_prior_baseline:
     input:
-        method=BIN_DIR+"/prior_baseline/prior_baseline",
+        method=JULIA_PROJ_DIR+"/prior_baseline.jl",
         ref=EXP_REF_DIR+"/cl={cell_line}.csv"
     output:
         EXP_PRED_DIR+"/prior_baseline/cl={cell_line}_stim={stim}.json"
@@ -457,7 +460,7 @@ rule run_dream_prior_baseline:
         threads=1,
         mem_mb=100
     shell:
-        "{input.method} {input.ref} {output}"
+        "julia --project={JULIA_PROJ_DIR} {input.method} {input.ref} {output}"
 
 
 rule preprocess_dream_timeseries:
@@ -486,22 +489,22 @@ rule preprocess_dream_prior:
 # JULIA CODE COMPILATION
 
 # Get the path of the Julia PackageCompiler
-JULIAC_PATH = glob.glob(os.path.join(os.environ["HOME"],
-          ".julia/packages/PackageCompiler/*/juliac.jl")
-          )[0]
-
-rule compile_julia:
-    input:
-        src=JULIA_PROJ_DIR+"/{source_name}.jl"
-    output:
-        exe=BIN_DIR+"/{source_name}/{source_name}"
-    params:
-        outdir=BIN_DIR+"/{source_name}",
-    resources:
-        threads=1,
-        mem_mb=2000
-    shell:
-        "julia --project={JULIA_PROJ_DIR} {JULIAC_PATH} -d {params.outdir} -vaet {input.src}"
+#JULIAC_PATH = glob.glob(os.path.join(os.environ["HOME"],
+#          ".julia/packages/PackageCompiler/*/juliac.jl")
+#          )[0]
+#
+#rule compile_julia:
+#    input:
+#        src=JULIA_PROJ_DIR+"/{source_name}.jl"
+#    output:
+#        exe=BIN_DIR+"/{source_name}/{source_name}"
+#    params:
+#        outdir=BIN_DIR+"/{source_name}",
+#    resources:
+#        threads=1,
+#        mem_mb=2000
+#    shell:
+#        "julia --project={JULIA_PROJ_DIR} {JULIAC_PATH} -d {params.outdir} -vaet {input.src}"
 
 
 # END JULIA CODE COMPILATION

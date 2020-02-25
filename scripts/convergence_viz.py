@@ -60,7 +60,7 @@ for t, sp in enumerate(stop_points):
         t_results.append(count_nonconverged(rep["conv_stats"]["parent_sets"], t))
     nonconv_counts.append(t_results)
 
-meds = [np.med(res) for res in nonconv_counts]
+meds = [np.median(res) for res in nonconv_counts]
 mins = [min(res) for res in nonconv_counts]
 maxes = [max(res) for res in nonconv_counts]
 

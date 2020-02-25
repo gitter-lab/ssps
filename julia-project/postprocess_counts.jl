@@ -12,6 +12,8 @@ using JSON
 using ArgParse
 using DataStructures
 
+export julia_main
+
 """
 Get the summary statistics from a MCMC run.
 """
@@ -101,11 +103,15 @@ end
 
 
 # The main function, called from the command line.
-Base.@ccallable function julia_main(args::Vector{String})::Cint
-    postprocessor(args)
+function julia_main()
+    postprocessor(ARGS)
     return 0
 end
 
-
 end
+
+using .PostprocessCounts
+
+julia_main()
+
 
