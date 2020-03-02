@@ -36,7 +36,11 @@ DREAM_DIR = os.path.join(ROOT_DIR, "dream-challenge")
 DREAM_TS_DIR = os.path.join(DREAM_DIR, "train")
 DREAM_REF_DIR = os.path.join(DREAM_DIR, "prior")
 DREAM_TRU_DIR = os.path.join(DREAM_DIR, "test")
+
 TEMP_DIR = config["temp_dir"]
+if TEMP_DIR == "": # Default location of temp directory
+    TEMP_DIR = os.path.join(ROOT_DIR, "temp")
+
 HILL_TIME_DIR = os.path.join(TEMP_DIR, "time_tests")
 
 # simulation study directories
@@ -88,6 +92,7 @@ CONV_PARAMS = config["convergence_analysis"]
 CONV_SIM_GRID = CONV_PARAMS["simulation_grid"]
 CONV_DEGS = CONV_PARAMS["mcmc_hyperparams"]["regression_deg"]
 CONV_LAMBDA_STDS = CONV_PARAMS["mcmc_hyperparams"]["lambda_prop_stds"]
+MCMC_INDEG = CONV_PARAMS["mcmc_hyperparams"]["large_indeg"]
 CONV_REPLICATES = list(range(CONV_PARAMS["N"]))
 CONV_CHAINS = list(range(CONV_PARAMS["n_chains"]))
 CONV_MAX_SAMPLES = CONV_PARAMS["max_samples"]
@@ -396,13 +401,13 @@ rule run_dream_conv:
     output:
         CONV_RAW_DIR+"/cl={cell_line}_stim={stimulus}_replicate={replicate}/mcmc_d={d}_lstd={lstd}/{chain}.json"
     resources:
-        runtime=3600,
+        runtime=7200,
         threads=1,
         mem_mb=3000
     shell:
         "julia --project={JULIA_PROJ_DIR} {input.method} {input.ts_file} {input.ref_dg} {output} {CONV_TIMEOUT}"\
         +" --store-samples --n-steps {CONV_MAX_SAMPLES} --regression-deg {wildcards.d}"\
-        +" --continuous-reference --lambda-prop-std {wildcards.lstd}"
+        +" --continuous-reference --lambda-prop-std {wildcards.lstd} --large-indeg {MCMC_INDEG} --vertex-lambda"
 
 
 rule run_dream_mcmc:
@@ -418,7 +423,7 @@ rule run_dream_mcmc:
         mem_mb=2000
     shell:
         "julia --project={JULIA_PROJ_DIR} {input.method} {input.ts_file} {input.ref_dg} {output} {SIM_TIMEOUT}"\
-        +" --regression-deg {wildcards.d} --n-steps {SIM_MAX_SAMPLES} --continuous-reference"
+        +" --regression-deg {wildcards.d} --n-steps {SIM_MAX_SAMPLES} --continuous-reference --large-indeg {MCMC_INDEG}"
 
 
 rule run_dream_funchisq:

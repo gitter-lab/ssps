@@ -12,6 +12,7 @@ include("dbn_preprocess.jl")
 include("dbn_models.jl")
 include("dbn_proposals.jl")
 include("dbn_inference.jl")
+include("state_updates.jl")
 
 Gen.load_generated_functions()
 
@@ -90,6 +91,9 @@ function parse_script_arguments()
         "--continuous-reference"
             help = "Allow continuous-valued weights in [0,1] in the reference graph."
             action = :store_true
+        "--vertex-lambda"
+            help = "Model an inverse temperature variable *for each vertex*, rather than having one for the entire prior graph."
+            action = :store_true
     end
 
     args = parse_args(s)
@@ -116,6 +120,7 @@ function transform_arguments(parsed_arg_dict)
     push!(arg_vec, parsed_arg_dict["track-acceptance"])
     push!(arg_vec, parsed_arg_dict["store-samples"])
     push!(arg_vec, parsed_arg_dict["continuous-reference"])
+    push!(arg_vec, parsed_arg_dict["vertex-lambda"])
 
     return arg_vec
 end
@@ -134,13 +139,21 @@ function perform_inference(timeseries_filename::String,
 			   lambda_prop_std::Float64,
                            track_acceptance::Bool,
                            store_samples::Bool,
-                           continuous_reference::Bool)
+                           continuous_reference::Bool,
+                           vertex_lambda::Bool)
 
     clear_caches()
 
+    bool_prior = !continuous_reference
+
     ts_vec, ref_ps = load_formatted_data(timeseries_filename, 
 					 ref_graph_filename;
-                                         boolean_adj= !continuous_reference) 
+                                         boolean_adj=bool_prior) 
+    
+    # Some data preprocessing
+    Xminus, Xplus  = combine_X(ts_vec)
+    Xminus, Xplus = vectorize_X(Xminus, Xplus)
+    V = length(Xplus)
   
     println("Invoking Catsupp on input files:\n\t", 
 	    timeseries_filename, "\n\t", ref_graph_filename)
@@ -152,24 +165,71 @@ function perform_inference(timeseries_filename::String,
     else
         update_results_fn = update_results_summary
     end
+    update_results_args = [V, vertex_lambda]
     
-    results, acc = dbn_mcmc_inference(ref_ps, ts_vec; 
-				      regression_deg=regression_deg,
+    # prepare parameters for proposal distributions
+    if bool_prior
+        ref_parent_counts = [max(length(ps),1) for ps in ref_ps]
+    else
+        ref_parent_counts = [max(sum(values(ps)), 2.0) for ps in ref_ps]
+    end
+    update_loop_args = 1.0 ./ log2.(V ./ ref_parent_counts)
+    push!(update_loop_args, lambda_prop_std)
+
+    lambda_min = log(max(V/large_indeg - 1.0, exp(0.5)))
+
+    # Choose the right generative model, and prepare its arguments
+    update_loop_fn = smart_update_loop
+    update_acc_fn = update_acc
+    update_acc_args = [V] 
+    if bool_prior 
+        gen_model = dbn_model
+    elseif !vertex_lambda
+        gen_model = conf_dbn_model
+    else
+        gen_model = vertex_lambda_dbn_model
+        update_loop_fn = vertex_lambda_update_loop 
+    end
+    model_args = (ref_ps,
+                  Xminus, 
+                  Xplus,
+                  lambda_min, 
+                  lambda_max,
+                  regression_deg)
+
+    
+    # Check for some default arguments 
+    if regression_deg == -1
+        regression_deg = V
+    end
+    if n_steps == -1
+        n_steps = Inf
+    end
+    if store_samples 
+        track_acceptance = false
+        burnin = 0.0
+    end 
+
+    # Load observations into a choice map
+    observations = Gen.choicemap()
+    for (i, Xp) in enumerate(Xplus)
+        observations[:Xplus => i => :Xp] = Xp
+    end
+
+    results, acc = dbn_mcmc_inference(gen_model, model_args, observations,
+                                      update_loop_fn,
+                                      update_loop_args,
+                                      update_results_fn,
+                                      update_results_args,
+                                      update_acc_fn,
+                                      update_acc_args;
                                       timeout=timeout,
                                       n_steps=n_steps,
                                       store_samples=store_samples, 
                                       burnin=burnin, 
                                       thinning=thinning,
-			              update_loop_fn=smart_update_loop,
-			              update_results_fn=update_results_fn,
-                                      large_indeg=large_indeg,
-                                      lambda_max=lambda_max,
-				      lambda_prop_std=lambda_prop_std,
-			              track_acceptance=track_acceptance,
-			              update_acc_fn=update_acc,
-                                      bool_prior= !continuous_reference)
+			              track_acceptance=track_acceptance)
 
- 
     println("Saving results to JSON file:")
     out_dict = make_output_dict(results, acc)
 

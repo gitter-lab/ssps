@@ -12,7 +12,6 @@ using JSON
 using ArgParse
 using DataStructures
 
-#export ChangepointVec, count_nonzero, sum, mean, seq_var, seq_variogram, postprocess_sample_files
 export postprocess_sample_files, julia_main
 
 """
@@ -367,56 +366,76 @@ function evaluate_convergence_at(dict_vec::Vector, key_vec::Vector,
     return diag_vec
 end
 
+function is_seq(node)
+    if !(typeof(node) <: AbstractVector)
+        return false
+    end
+    for (i, item) in enumerate(node)
+        if !(length(item) == 2) || !(typeof(item[1]) <: Number)
+            return false
+        end
+    end
+    return true
+end
+
+# Some machinery for easily finding/iterating through the
+# paths of sequence data in the results.
+import Base: iterate
+mutable struct LeafPathIterator
+    data::Union{AbstractVector,AbstractDict}
+    leaf_test::Function
+end
+
+function get_successors(path, data)
+    if typeof(data) <: AbstractVector
+        return [[path; [newk]] for newk in 1:length(data)]
+    elseif typeof(data) <: AbstractDict
+        return [[path; [newk]] for newk in keys(data)]
+    else
+        return []
+    end
+end
+
+function iterate(lpi::LeafPathIterator, stack)
+    while length(stack) > 0
+        node_pth = pop!(stack)
+        node = lpi.data
+        for k in node_pth
+            node = node[k]
+        end
+        if lpi.leaf_test(node)
+            return node_pth, stack
+        end
+        succ = get_successors(node_pth, node)
+        for s in succ
+            push!(stack, s)
+        end
+    end
+end
+
+iterate(lpi::LeafPathIterator) = iterate(lpi, [[]])
+
 
 function collect_conv_stats(dict_vec, stop_points; burnin::Float64=0.5)
 
     V = length(dict_vec[1]["parent_sets"])
     
-    conv_stats = Dict("lambda"=> [],
-                      "parent_sets" => [[] for i=1:V] )
+    conv_stats = Dict()
 
-    conv_stats["lambda"] = evaluate_convergence_at(dict_vec, ["lambda"], 
-                                                   stop_points, burnin;
-                                                   is_binary=false)
-    
-    for i=1:V
-        for j=1:V
-            push!(conv_stats["parent_sets"][i],
-                  evaluate_convergence_at(dict_vec, 
-                                          ["parent_sets", i, string(j)],
-                                          stop_points, burnin; is_binary=true)
-                 )
-        end
+    for pth in LeafPathIterator(dict_vec[1], is_seq)
+        pth_str = join(pth, "_")
+        isbin = occursin("parent", pth_str)
+        conv_stats[pth_str] = evaluate_convergence_at(dict_vec, pth,
+                                                      stop_points, burnin;
+                                                      is_binary=isbin)
     end
+
     results = Dict()
     results["stop_points"] = stop_points
     results["conv_stats"] = conv_stats
     
     return results
 end
-#function collect_dbn_nonconverged(chain_results::Vector, stop_idxs; 
-#                                  burnin::Float64=0.5,
-#                                  psrf_ub::Float64=1.1,
-#                                  n_eff_lb::Float64=10.0)
-#    
-#    nonconverged = [Vector() for l=1:length(stop_idxs)]
-# 
-#    # convergence for lambda?
-#    push_nonconverged!(nonconverged, chain_results, ["lambda"],
-#                       stop_idxs, burnin, psrf_ub, n_eff_lb, false)
-#    
-#    # convergence for edges?
-#    V = length(chain_results[1]["parent_sets"])
-#    for i=1:V
-#        for j=1:V
-#            push_nonconverged!(nonconverged, chain_results, ["parent_sets", i, string(j)],
-#                               stop_idxs, burnin, psrf_ub, n_eff_lb, true)
-#        end
-#    end
-#    
-#    return nonconverged
-#end
-
 
 function get_max_n(dict_vec)
     n_vec = [d["n"] for d in dict_vec]

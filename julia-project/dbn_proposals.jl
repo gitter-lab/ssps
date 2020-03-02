@@ -134,3 +134,10 @@ end
 end
 
 
+@gen function lambda_vec_proposal(tr, i::Int64, std::Int64)
+
+    @trace(Gen.normal(tr[:lambda_vec => i => :lambda], std), :lambda_vec => i => :lambda)
+
+end
+
+

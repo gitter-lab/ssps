@@ -108,3 +108,43 @@ which are incompatible with Gen's `static` modeling language.
 
 end
 
+
+@gen (static) function generate_lambda(l_min, l_max)
+    return @trace(Gen.uniform(l_min, l_max), :lambda)
+end
+generate_lambda_vec = Gen.Map(generate_lambda)
+
+
+"""
+A variant of `conf_dbn_model` which has one lambda variable *per vertex*
+(rather than a single lambda variable for the whole graph). 
+
+We've made an entirely new function in order to avoid `if` statements,
+which are incompatible with Gen's `static` modeling language.
+"""
+@gen (static) function vertex_lambda_dbn_model(parent_confs::Vector{Dict}, 
+				               Xminus::Array{Float64,2}, 
+				               Xplus::Vector{Vector{Float64}},
+                                               lambda_min::Float64,
+				               lambda_max::Float64,
+				               regression_deg::Int64)
+
+    V = length(Xplus)
+    Vvec = SingletonVec(V, V)
+    
+    min_vec = SingletonVec(lambda_min, V)
+    max_vec = SingletonVec(lambda_max, V)
+    
+    lambda_vec = @trace(generate_lambda_vec(min_vec, max_vec), :lambda_vec)
+
+    parent_sets = @trace(conf_graph_prior(Vvec, parent_confs, lambda_vec), :parent_sets)
+
+    Xminus_vec = SingletonVec(Xminus, V)
+
+    regdeg_vec = SingletonVec(regression_deg, V)
+
+    Xpl = @trace(generate_Xplus(1:V, Xminus_vec, parent_sets, regdeg_vec), :Xplus)
+    return Xpl
+
+end
+
