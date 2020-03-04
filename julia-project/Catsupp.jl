@@ -17,26 +17,6 @@ include("state_updates.jl")
 Gen.load_generated_functions()
 
 """
-make a json string containing all of the relevant
-outputs of MCMC, structured in a sensible way.
-"""
-function make_output_dict(results, acc)
-
-    if acc == nothing
-        acc = Dict("lambdas" => nothing,
-		   "n_proposals" => nothing,
-		   "parent_sets" => nothing
-		   )
-    end
-
-    results["parent_sets_acc"] = acc["parent_sets"]
-    results["lambdas_acc"] = acc["lambdas"]
-
-    return results
-end
-
-
-"""
 parse the script's arguments using ArgParse.
 """
 function parse_script_arguments()
@@ -78,9 +58,6 @@ function parse_script_arguments()
             help = "standard deviation of lambda's proposal distribution"
 	    arg_type = Float64
     	    default = 0.25
-	"--track-acceptance"
-	    help = "flag: track proposal acceptance rates during MCMC"
-	    action = :store_true
         "--store-samples"
             help = "Store and return the entire sequence without burnin. Used in convergence analyses."
 	    action = :store_true
@@ -117,7 +94,6 @@ function transform_arguments(parsed_arg_dict)
     push!(arg_vec, parsed_arg_dict["lambda-max"])
     push!(arg_vec, parsed_arg_dict["regression-deg"])
     push!(arg_vec, parsed_arg_dict["lambda-prop-std"])
-    push!(arg_vec, parsed_arg_dict["track-acceptance"])
     push!(arg_vec, parsed_arg_dict["store-samples"])
     push!(arg_vec, parsed_arg_dict["continuous-reference"])
     push!(arg_vec, parsed_arg_dict["vertex-lambda"])
@@ -137,7 +113,6 @@ function perform_inference(timeseries_filename::String,
 			   lambda_max::Float64,
 			   regression_deg::Int64,
 			   lambda_prop_std::Float64,
-                           track_acceptance::Bool,
                            store_samples::Bool,
                            continuous_reference::Bool,
                            vertex_lambda::Bool)
@@ -180,8 +155,6 @@ function perform_inference(timeseries_filename::String,
 
     # Choose the right generative model, and prepare its arguments
     update_loop_fn = smart_update_loop
-    update_acc_fn = update_acc
-    update_acc_args = [V] 
     if bool_prior 
         gen_model = dbn_model
     elseif !vertex_lambda
@@ -206,7 +179,6 @@ function perform_inference(timeseries_filename::String,
         n_steps = Inf
     end
     if store_samples 
-        track_acceptance = false
         burnin = 0.0
     end 
 
@@ -216,25 +188,21 @@ function perform_inference(timeseries_filename::String,
         observations[:Xplus => i => :Xp] = Xp
     end
 
-    results, acc = dbn_mcmc_inference(gen_model, model_args, observations,
+    results = dbn_mcmc_inference(gen_model, model_args, observations,
                                       update_loop_fn,
                                       update_loop_args,
                                       update_results_fn,
-                                      update_results_args,
-                                      update_acc_fn,
-                                      update_acc_args;
+                                      update_results_args;
                                       timeout=timeout,
                                       n_steps=n_steps,
                                       store_samples=store_samples, 
                                       burnin=burnin, 
-                                      thinning=thinning,
-			              track_acceptance=track_acceptance)
+                                      thinning=thinning)
 
     println("Saving results to JSON file:")
-    out_dict = make_output_dict(results, acc)
 
     f = open(output_path, "w")
-    JSON.print(f, out_dict)
+    JSON.print(f, results)
     close(f)
     println("\t", output_path) 
 

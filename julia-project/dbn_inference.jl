@@ -16,16 +16,13 @@ function dbn_mcmc_inference(gen_model,
                             update_loop_fn::Function,
                             update_loop_args::Vector,
                             update_results_fn::Function,
-                            update_results_args::Vector,
-                            update_acc_fn::Function,
-                            update_acc_args::Vector;
+                            update_results_args::Vector;
                             regression_deg::Int64=3,
                             timeout::Float64=3600.0,
                             n_steps::Int64=-1,
                             store_samples::Bool=false,
                             burnin::Float64=0.5, 
-                            thinning::Int64=1,
-			    track_acceptance::Bool=false)
+                            thinning::Int64=1)
 
     
     # start the timer
@@ -38,7 +35,6 @@ function dbn_mcmc_inference(gen_model,
    
     # The results we care about
     results = nothing
-    acceptances = nothing
 
     # Burn-in loop:
     burnin_count = 0
@@ -77,9 +73,6 @@ function dbn_mcmc_inference(gen_model,
 
             # update the variables    
             tr, acc = update_loop_fn(tr, update_loop_args)
-            if track_acceptance
-                acceptances = update_acc_fn(acceptances, acc, update_acc_args)
-            end
             prop_count += 1
             
             t_elapsed = time() - t_start
@@ -96,6 +89,6 @@ function dbn_mcmc_inference(gen_model,
         delete!(results, "prev_parents") 
     end
 
-    return results, acceptances 
+    return results
 end
 
