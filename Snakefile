@@ -55,8 +55,8 @@ SCORE_DIR = os.path.join(SIM_DIR, "scores")
 
 # Simulation study parameters
 SIM_PARAMS = config["simulation_study"]
-SIM_TIMEOUT = SIM_PARAMS["timeout"]
-SIM_REPLICATES = list(range(SIM_PARAMS["N"]))
+SIM_TIMEOUT = SIM_PARAMS["prediction"]["timeout"]
+SIM_REPLICATES = list(range(SIM_PARAMS["prediction"]["N"]))
 SIM_GRID = SIM_PARAMS["simulation_grid"]
 SIM_M = SIM_GRID["M"]
 POLY_DEG = SIM_PARAMS["polynomial_degree"]
@@ -66,17 +66,8 @@ MC_PARAMS = SIM_PARAMS["mcmc_hyperparams"]
 SIM_MAX_SAMPLES = MC_PARAMS["max_samples"]
 REG_DEGS = MC_PARAMS["regression_deg"]
 BURNIN = MC_PARAMS["burnin"]
-SIM_CHAINS=list(range(MC_PARAMS["n_chains"]))
+SIM_CHAINS=list(range(MC_PARAMS["prediction"]["n_chains"]))
 LAMBDA_PROP_STD = MC_PARAMS["lambda_prop_std"]
-
-# Experimental evaluation directories
-EXP_DIR = os.path.join(TEMP_DIR,"experimental_eval")
-EXPDAT_DIR = os.path.join(EXP_DIR, "datasets")
-EXP_TS_DIR = os.path.join(EXPDAT_DIR, "timeseries")
-EXP_REF_DIR = os.path.join(EXPDAT_DIR, "ref_graphs")
-EXP_RAW_DIR = os.path.join(EXP_DIR, "raw")
-EXP_PRED_DIR = os.path.join(EXP_DIR, "predictions")
-EXP_SCORE_DIR = os.path.join(EXP_DIR, "scores")
 
 # Hill hyperparameters
 HILL_TIME_PARAMS = config["hill_timetest"]
@@ -88,8 +79,7 @@ HILL_TIME_TIMEOUT = HILL_TIME_PARAMS["timeout"]
 CONV_DIR = os.path.join(TEMP_DIR, "convergence")
 CONV_RES_DIR = os.path.join(CONV_DIR, "results")
 CONV_RAW_DIR = os.path.join(CONV_DIR, "raw")
-CONV_PARAMS = config["convergence_analysis"]
-CONV_SIM_GRID = CONV_PARAMS["simulation_grid"]
+CONV_PARAMS = config["simulation_study"]["convergence"]
 CONV_DEGS = CONV_PARAMS["mcmc_hyperparams"]["regression_deg"]
 CONV_LAMBDA_STDS = CONV_PARAMS["mcmc_hyperparams"]["lambda_prop_stds"]
 MCMC_INDEG = CONV_PARAMS["mcmc_hyperparams"]["large_indeg"]
@@ -101,9 +91,32 @@ CONV_BURNIN = CONV_PARAMS["burnin"]
 CONV_STOPPOINTS = CONV_PARAMS["stop_points"]
 CONV_NEFF = CONV_PARAMS["neff_per_chain"] * len(CONV_CHAINS)
 CONV_PSRF = CONV_PARAMS["psrf_ub"]
-EXP_CELL_LINES = CONV_PARAMS["experiments"]["cell_lines"]
-STIMULI = CONV_PARAMS["experiments"]["stimuli"]
 
+# Experimental evaluation directories
+DREAM_DIR = os.path.join(TEMP_DIR,"experimental_eval")
+DREAM_DAT_DIR = os.path.join(DREAM_DIR, "datasets")
+DREAM_TS_DIR = os.path.join(DREAM_DAT_DIR, "timeseries")
+DREAM_REF_DIR = os.path.join(DREAM_DAT_DIR, "ref_graphs")
+DREAM_RAW_DIR = os.path.join(DREAM_DIR, "raw")
+DREAM_PRED_DIR = os.path.join(DREAM_DIR, "predictions")
+DREAM_SCORE_DIR = os.path.join(DREAM_DIR, "scores")
+
+# Experimental evaluation parameters
+DREAM_PARAMS = config["dream_challenge"]
+CELL_LINES = DREAM_PARAMS["cell_lines"]
+STIMULI = DREAM_PARAMS["stimuli"]
+DREAM_REPLICATES = list(range(DREAM_PARAMS["N"]))
+DREAM_CONV_PARAMS = DREAM_PARAMS["convergence"]
+DREAM_STOPPOINTS = DREAM_CONV_PARAMS["stop_points"]
+DREAM_NEFF = DREAM_CONV_PARAMS["neff_per_chain"]
+DREAM_PSRF = DREAM_CONV_PARAMS["psrf_ub"]
+DREAM_MC_PARAMS = DREAM_PARAMS["mcmc_hyperparams"]
+DREAM_TIMEOUT = DREAM_MC_PARAMS["timeout"]
+DREAM_MAX_SAMPLES = DREAM_MC_PARAMS["max_samples"]
+DREAM_LSTD = DREAM_MC_PARAMS["lambda_prop_std"]
+DREAM_CHAINS = list(range(DREAM_MC_PARAMS["n_chains"]))
+DREAM_REGDEGS = list(range(DREAM_MC_PARAMS["regression_deg"]))
+DREAM_LARGE_INDEG = DREAM_MC_PARAMS["large_indeg"]
 
 #############################
 # RULES
@@ -112,11 +125,11 @@ rule all:
     input:
         # Convergence tests on simulated data
         #expand(FIG_DIR+"/convergence/v={v}_r={r}_a={a}_t={t}_d={d}.png",
-        #       v=CONV_SIM_GRID["V"], r=CONV_SIM_GRID["R"], a=CONV_SIM_GRID["A"],
-        #       t=CONV_SIM_GRID["T"], d=CONV_DEGS)
+        #       v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"],
+        #       t=SIM_GRID["T"], d=CONV_DEGS)
         # Convergence tests on experimental data
         expand(FIG_DIR+"/convergence/cl={cell_line}_stim={stimulus}_d={d}_lstd={lstd}.png", 
-               cell_line=EXP_CELL_LINES, stimulus=STIMULI, d=CONV_DEGS, lstd=CONV_LAMBDA_STDS),
+               cell_line=CELL_LINES, stimulus=STIMULI, d=CONV_DEGS, lstd=CONV_LAMBDA_STDS),
         # Simulation scores
         #expand(FIG_DIR+"/simulation_study/mcmc_d={d}/v={v}_t={t}.csv", 
         #       d=REG_DEGS, v=SIM_GRID["V"], t=SIM_GRID["T"]),
@@ -129,14 +142,14 @@ rule all:
         #expand(SCORE_DIR+"/prior_baseline/v={v}_r={r}_a={a}_t={t}.json",  
         #       v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
         # DREAM scores
-        #expand(EXP_SCORE_DIR+"/mcmc_d={d}/cl={cell_line}_stim={stimulus}.json", 
-        #       d=REG_DEGS, cell_line=EXP_CELL_LINES, stimulus=STIMULI),
-        #expand(EXP_SCORE_DIR+"/funchisq/cl={cell_line}_stim={stimulus}.json", 
-        #       cell_line=EXP_CELL_LINES, stimulus=STIMULI),
-        #expand(EXP_SCORE_DIR+"/hill/cl={cell_line}_stim={stimulus}.json", 
-        #       cell_line=EXP_CELL_LINES, stimulus=STIMULI)
-        #expand(EXP_SCORE_DIR+"/prior_baseline/cl={cell_line}_stim={stimulus}.json", 
-        #       cell_line=EXP_CELL_LINES, stimulus=STIMULI)
+        #expand(DREAM_SCORE_DIR+"/mcmc_d={d}/cl={cell_line}_stim={stimulus}.json", 
+        #       d=REG_DEGS, cell_line=CELL_LINES, stimulus=STIMULI),
+        #expand(DREAM_SCORE_DIR+"/funchisq/cl={cell_line}_stim={stimulus}.json", 
+        #       cell_line=CELL_LINES, stimulus=STIMULI),
+        #expand(DREAM_SCORE_DIR+"/hill/cl={cell_line}_stim={stimulus}.json", 
+        #       cell_line=CELL_LINES, stimulus=STIMULI)
+        #expand(DREAM_SCORE_DIR+"/prior_baseline/cl={cell_line}_stim={stimulus}.json", 
+        #       cell_line=CELL_LINES, stimulus=STIMULI)
         # Hill timetest results
         #FIG_DIR+"/hill_method_timetest.csv"    
 
@@ -221,22 +234,22 @@ rule run_conv_mcmc_sim:
         mem_mb=4000
     shell:
         "julia --project={JULIA_PROJ_DIR} {input.method} {input.ts_file} {input.ref_dg} {output} {CONV_TIMEOUT}"\
-        +" --store-samples --n-steps {CONV_MAX_SAMPLES} --regression-deg {wildcards.d}"\
+        +" --n-steps {CONV_MAX_SAMPLES} --regression-deg {wildcards.d}"\
         +" --lambda-prop-std 3.0"
 
 rule postprocess_sim_mcmc:
     input:
-        pp=JULIA_PROJ_DIR+"/postprocess_counts.jl",
+        pp=JULIA_PROJ_DIR+"/postprocess_samples.jl",
         raw=expand(RAW_DIR+"/mcmc_{{mcmc_settings}}/{{replicate}}/{chain}.json",
                    chain=SIM_CHAINS)
     output:
         out=PRED_DIR+"/mcmc_{mcmc_settings}/{replicate}.json"
     resources:
-        runtime=60,
+        runtime=3600,
         threads=1,
-        mem_mb=2000
+        mem_mb=6000
     shell:
-        "julia --project={JULIA_PROJ_DIR} {input.pp} {input.raw} --output-file {output.out}"
+        "julia --project={JULIA_PROJ_DIR} {input.pp} --chain-samples {input.raw}  --output-file {output.out}"
 
 rule run_sim_mcmc:
     input:
@@ -367,10 +380,10 @@ rule score_dream_predictions:
     input:
         scorer=SCRIPT_DIR+"/score_dream.py",
         tr_desc=DREAM_TRU_DIR+"/TrueVec_{cell_line}_{stim}.csv", 
-        preds=EXP_PRED_DIR+"/{method}/cl={cell_line}_stim={stim}.json",
-        ab=EXP_REF_DIR+"/cl={cell_line}_antibodies.json",
+        preds=DREAM_PRED_DIR+"/{method}/cl={cell_line}_stim={stim}.json",
+        ab=DREAM_REF_DIR+"/cl={cell_line}_antibodies.json",
     output:
-        out=EXP_SCORE_DIR+"/{method}/cl={cell_line}_stim={stim}.json" 
+        out=DREAM_SCORE_DIR+"/{method}/cl={cell_line}_stim={stim}.json" 
     resources:
         mem_mb=100,
         threads=1
@@ -380,58 +393,42 @@ rule score_dream_predictions:
 
 rule postprocess_dream_mcmc:
     input:
-        pp=JULIA_PROJ_DIR+"/postprocess_counts.jl",
-        raw=expand(EXP_RAW_DIR+"/mcmc_{{mcmc_settings}}/{{context}}/chain={chain}.json",
+        pp=JULIA_PROJ_DIR+"/postprocess_samples.jl",
+        raw=expand(DREAM_RAW_DIR+"/mcmc_{{mcmc_settings}}/{{context}}/chain={chain}.json",
                    chain=SIM_CHAINS)
     output:
-        out=EXP_PRED_DIR+"/mcmc_{mcmc_settings}/{context}.json"
+        out=DREAM_PRED_DIR+"/mcmc_{mcmc_settings}/{context}.json"
     resources:
-        runtime=60,
+        runtime=3600,
         threads=1,
-        mem_mb=2000
+        mem_mb=6000
     shell:
-        "julia --project={JULIA_PROJ_DIR} {input.pp} {input.raw} --output-file {output.out}"
+        "julia --project={JULIA_PROJ_DIR} {input.pp} --chain-samples {input.raw} --output-file {output.out}"
 
 
 rule run_dream_conv:
     input:
         method=JULIA_PROJ_DIR+"/Catsupp.jl",
-        ts_file=EXP_TS_DIR+"/cl={cell_line}_stim={stimulus}.csv",
-        ref_dg=EXP_REF_DIR+"/cl={cell_line}.csv",
+        ts_file=DREAM_TS_DIR+"/cl={cell_line}_stim={stimulus}.csv",
+        ref_dg=DREAM_REF_DIR+"/cl={cell_line}.csv",
     output:
-        CONV_RAW_DIR+"/cl={cell_line}_stim={stimulus}_replicate={replicate}/mcmc_d={d}_lstd={lstd}/{chain}.json"
+        DREAM_RAW_DIR+"/mcmc_d={d}_lstd={lstd}/cl={cell_line}_stim={stimulus}_replicate={replicate}/{chain}.json"
     resources:
         runtime=7200,
         threads=1,
         mem_mb=3000
     shell:
-        "julia --project={JULIA_PROJ_DIR} {input.method} {input.ts_file} {input.ref_dg} {output} {CONV_TIMEOUT}"\
-        +" --store-samples --n-steps {CONV_MAX_SAMPLES} --regression-deg {wildcards.d}"\
+        "julia --project={JULIA_PROJ_DIR} {input.method} {input.ts_file} {input.ref_dg} {output} {DREAM_TIMEOUT}"\
+        +" --n-steps {CONV_MAX_SAMPLES} --regression-deg {wildcards.d}"\
         +" --continuous-reference --lambda-prop-std {wildcards.lstd} --large-indeg {MCMC_INDEG} --vertex-lambda"
-
-
-rule run_dream_mcmc:
-    input:
-        method=JULIA_PROJ_DIR+"/Catsupp.jl",
-        ts_file=EXP_TS_DIR+"/cl={cell_line}_stim={stim}.csv",
-        ref_dg=EXP_REF_DIR+"/cl={cell_line}.csv",
-    output:
-        EXP_RAW_DIR+"/mcmc_d={d}/cl={cell_line}_stim={stim}/chain={chain}.json"
-    resources:
-        runtime=SIM_TIMEOUT,
-        threads=1,
-        mem_mb=2000
-    shell:
-        "julia --project={JULIA_PROJ_DIR} {input.method} {input.ts_file} {input.ref_dg} {output} {SIM_TIMEOUT}"\
-        +" --regression-deg {wildcards.d} --n-steps {SIM_MAX_SAMPLES} --continuous-reference --large-indeg {MCMC_INDEG}"
 
 
 rule run_dream_funchisq:
     input: 
         method=FUNCH_DIR+"/funchisq_wrapper.R",
-        ts_file=EXP_TS_DIR+"/{replicate}.csv"
+        ts_file=DREAM_TS_DIR+"/{replicate}.csv"
     output:
-        EXP_PRED_DIR+"/funchisq/{replicate}.json"
+        DREAM_PRED_DIR+"/funchisq/{replicate}.json"
     resources:
         runtime=60,
         threads=1,
@@ -442,10 +439,10 @@ rule run_dream_funchisq:
 
 rule run_dream_hill:
     input:
-        ts_file=EXP_TS_DIR+"/cl={cell_line}_stim={stim}.csv",
-        ref_dg=EXP_REF_DIR+"/cl={cell_line}.csv"
+        ts_file=DREAM_TS_DIR+"/cl={cell_line}_stim={stim}.csv",
+        ref_dg=DREAM_REF_DIR+"/cl={cell_line}.csv"
     output:
-        EXP_PRED_DIR+"/hill/cl={cell_line}_stim={stim}.json"
+        DREAM_PRED_DIR+"/hill/cl={cell_line}_stim={stim}.json"
     resources:
         runtime=SIM_TIMEOUT+60,
         threads=1,
@@ -457,9 +454,9 @@ rule run_dream_hill:
 rule run_dream_prior_baseline:
     input:
         method=JULIA_PROJ_DIR+"/prior_baseline.jl",
-        ref=EXP_REF_DIR+"/cl={cell_line}.csv"
+        ref=DREAM_REF_DIR+"/cl={cell_line}.csv"
     output:
-        EXP_PRED_DIR+"/prior_baseline/cl={cell_line}_stim={stim}.json"
+        DREAM_PRED_DIR+"/prior_baseline/cl={cell_line}_stim={stim}.json"
     resources:
         runtime=60,
         threads=1,
@@ -472,17 +469,17 @@ rule preprocess_dream_timeseries:
     input:
         DREAM_TS_DIR+"/{cell_line}_main.csv"
     output:
-        expand(EXP_TS_DIR+"/cl={{cell_line}}_stim={stimulus}.csv", stimulus=STIMULI)
+        expand(DREAM_TS_DIR+"/cl={{cell_line}}_stim={stimulus}.csv", stimulus=STIMULI)
     shell:
-        "python scripts/preprocess_dream_ts.py {input} {EXP_TS_DIR} --ignore-inhibitor"
+        "python scripts/preprocess_dream_ts.py {input} {DREAM_TS_DIR} --ignore-inhibitor"
 
 
 rule preprocess_dream_prior:
     input:
         DREAM_REF_DIR+"/{cell_line}.eda"
     output:
-        edges=EXP_REF_DIR+"/cl={cell_line}.csv",
-        ab=EXP_REF_DIR+"/cl={cell_line}_antibodies.json"
+        edges=DREAM_REF_DIR+"/cl={cell_line}.csv",
+        ab=DREAM_REF_DIR+"/cl={cell_line}_antibodies.json"
     shell:
         "python scripts/preprocess_dream_prior.py {input} {output.edges} {output.ab}"
 

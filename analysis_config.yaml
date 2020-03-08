@@ -41,23 +41,19 @@ simulation_study:
 dream_challenge: 
     cell_lines: ["BT20", "BT549", "MCF7", "UACC812"]
     stimuli: ["EGF", "FGF1", "HGF", "IGF1", "Insulin", "NRG1", "PBS", "Serum"]
+    N: 5
     convergence:
-        timeout: 43200
         stop_points: [5000, 10000, 20000, 50000, 100000]
         psrf_ub: 1.01
         neff_per_chain: 10.0 
-        n_chains: 4
-        N: 5
-    prediction:
-        timeout: 10800
-        n_chains: 4
-        N: 5
     mcmc_hyperparams:
+        timeout: 43200
         burnin: 0.5 
         regression_deg: [1]  
         max_samples: 100000
-        lambda_prop_std: [3.0] # [0.25]
+        lambda_prop_std: [3.0] 
         large_indeg: 15
+        n_chains: 4
 
 
 hill_timetest:

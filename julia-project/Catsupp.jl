@@ -35,10 +35,6 @@ function parse_script_arguments()
         "timeout"
             help = "execution timeout (in seconds). When reached, terminate and output results as they are."
             arg_type = Float64
-        "--burnin"
-            help = "fraction of runtime to spend warming up the markov chain"
-    	    arg_type = Float64
-            default=0.5
         "--thinning"
             help = "number of proposals to make for each sample taken"
     	    arg_type = Int64
@@ -58,9 +54,6 @@ function parse_script_arguments()
             help = "standard deviation of lambda's proposal distribution"
 	    arg_type = Float64
     	    default = 0.25
-        "--store-samples"
-            help = "Store and return the entire sequence without burnin. Used in convergence analyses."
-	    action = :store_true
         "--n-steps"
             help = "Terminate the markov chain after it runs this many steps."
             arg_type = Int64
@@ -88,13 +81,11 @@ function transform_arguments(parsed_arg_dict)
     push!(arg_vec, parsed_arg_dict["output_path"])
     push!(arg_vec, parsed_arg_dict["timeout"])
     push!(arg_vec, parsed_arg_dict["n-steps"])
-    push!(arg_vec, parsed_arg_dict["burnin"])
     push!(arg_vec, parsed_arg_dict["thinning"])
     push!(arg_vec, parsed_arg_dict["large-indeg"])
     push!(arg_vec, parsed_arg_dict["lambda-max"])
     push!(arg_vec, parsed_arg_dict["regression-deg"])
     push!(arg_vec, parsed_arg_dict["lambda-prop-std"])
-    push!(arg_vec, parsed_arg_dict["store-samples"])
     push!(arg_vec, parsed_arg_dict["continuous-reference"])
     push!(arg_vec, parsed_arg_dict["vertex-lambda"])
 
@@ -107,13 +98,11 @@ function perform_inference(timeseries_filename::String,
                            output_path::String,
                            timeout::Float64,
                            n_steps::Int64,
-			   burnin::Float64, 
                            thinning::Int64,
 			   large_indeg::Float64,
 			   lambda_max::Float64,
 			   regression_deg::Int64,
 			   lambda_prop_std::Float64,
-                           store_samples::Bool,
                            continuous_reference::Bool,
                            vertex_lambda::Bool)
 
@@ -135,11 +124,7 @@ function perform_inference(timeseries_filename::String,
 
     # Decide the kind of results to store:
     # summary statistics -- or -- a record of all samples
-    if store_samples
-        update_results_fn = update_results_storediff
-    else
-        update_results_fn = update_results_summary
-    end
+    update_results_fn = update_results_storediff
     update_results_args = [V, vertex_lambda]
     
     # prepare parameters for proposal distributions
@@ -172,15 +157,9 @@ function perform_inference(timeseries_filename::String,
 
     
     # Check for some default arguments 
-    if regression_deg == -1
-        regression_deg = V
-    end
     if n_steps == -1
         n_steps = Inf
     end
-    if store_samples 
-        burnin = 0.0
-    end 
 
     # Load observations into a choice map
     observations = Gen.choicemap()
@@ -188,16 +167,19 @@ function perform_inference(timeseries_filename::String,
         observations[:Xplus => i => :Xp] = Xp
     end
 
-    results = dbn_mcmc_inference(gen_model, model_args, observations,
-                                      update_loop_fn,
-                                      update_loop_args,
-                                      update_results_fn,
-                                      update_results_args;
-                                      timeout=timeout,
-                                      n_steps=n_steps,
-                                      store_samples=store_samples, 
-                                      burnin=burnin, 
-                                      thinning=thinning)
+    t_start = time()
+    results = mcmc_inference(gen_model, model_args, observations,
+                             update_loop_fn,
+                             update_loop_args,
+                             update_results_fn,
+                             update_results_args;
+                             timeout=timeout,
+                             n_steps=n_steps,
+                             thinning=thinning)
+    
+    # Some last updates to the `results` object
+    results["t_elapsed"] = time() - t_start   
+    delete!(results, "prev_parents") 
 
     println("Saving results to JSON file:")
 
@@ -208,11 +190,13 @@ function perform_inference(timeseries_filename::String,
 
 end
 
+
 function julia_main()
     arg_vec = parse_script_arguments()
     perform_inference(arg_vec...)
     return 0
 end
+
 
 # END MODULE
 end
