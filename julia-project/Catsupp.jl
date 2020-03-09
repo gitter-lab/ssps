@@ -116,6 +116,7 @@ function perform_inference(timeseries_filename::String,
     
     # Some data preprocessing
     Xminus, Xplus  = combine_X(ts_vec)
+    Xplus = standardize_X(Xplus)[1]
     Xminus, Xplus = vectorize_X(Xminus, Xplus)
     V = length(Xplus)
   

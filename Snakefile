@@ -128,39 +128,42 @@ rule all:
         #       v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"],
         #       t=SIM_GRID["T"], d=CONV_DEGS)
         # Convergence tests on experimental data
-        expand(FIG_DIR+"/convergence/dream/mcmc_d={d}_lstd={lstd}/cl={cell_line}_stim={stimulus}.png", 
-               cell_line=CELL_LINES, stimulus=STIMULI, d=DREAM_REGDEGS, lstd=DREAM_LSTD),
+        #expand(FIG_DIR+"/convergence/dream/mcmc_d={d}_lstd={lstd}/cl={cell_line}_stim={stimulus}.png", 
+        #       cell_line=CELL_LINES, stimulus=STIMULI, d=DREAM_REGDEGS, lstd=DREAM_LSTD),
         # Simulation scores
         #expand(FIG_DIR+"/simulation_study/mcmc_d={d}/v={v}_t={t}.csv", 
         #       d=REG_DEGS, v=SIM_GRID["V"], t=SIM_GRID["T"]),
         #expand(SCORE_DIR+"/funchisq/v={v}_r={r}_a={a}_t={t}.json",
         #        v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
-        #expand(SCORE_DIR+"/hill/v={v}_r={r}_a={a}_t={t}.json",  
-        #       v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
+        expand(SCORE_DIR+"/hill/v={v}_r={r}_a={a}_t={t}.json",  
+               v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
         #expand(SCORE_DIR+"/lasso/v={v}_r={r}_a={a}_t={t}.json",
         #        v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
         #expand(SCORE_DIR+"/prior_baseline/v={v}_r={r}_a={a}_t={t}.json",  
         #       v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
         # DREAM scores
-        DREAM_DIR+"/dream_scores.tsv"
+	#DREAM_DIR+"/dream_scores.tsv"
         # Hill timetest results
         #FIG_DIR+"/hill_method_timetest.csv"
 
 rule dream_scores:
     input:
-        mcmc=expand(DREAM_SCORE_DIR+"/mcmc_d={d}_lstd={lstd}/cl={cell_line}_stim={stimulus}_replicate={rep}.json", 
-              d=REG_DEGS, cell_line=CELL_LINES, stimulus=STIMULI, lstd=DREAM_LSTD, rep=DREAM_REPLICATES),
-        func=expand(DREAM_SCORE_DIR+"/funchisq/cl={cell_line}_stim={stimulus}.json", 
-               cell_line=CELL_LINES, stimulus=STIMULI),
-        #hill=expand(DREAM_SCORE_DIR+"/hill/cl={cell_line}_stim={stimulus}.json", 
+        #mcmc=expand(DREAM_SCORE_DIR+"/mcmc_d={d}_lstd={lstd}/cl={cell_line}_stim={stimulus}_replicate={rep}.json", 
+        #            d=REG_DEGS, cell_line=CELL_LINES, stimulus=STIMULI, lstd=DREAM_LSTD, rep=DREAM_REPLICATES),
+        #func=expand(DREAM_SCORE_DIR+"/funchisq/cl={cell_line}_stim={stimulus}.json", 
         #       cell_line=CELL_LINES, stimulus=STIMULI),
-        prior=expand(DREAM_SCORE_DIR+"/prior_baseline/cl={cell_line}_stim={stimulus}.json", 
-               cell_line=CELL_LINES, stimulus=STIMULI)
+        hill=expand(DREAM_SCORE_DIR+"/hill/cl={cell_line}_stim={stimulus}.json", 
+               cell_line=CELL_LINES, stimulus=STIMULI),
+        #prior=expand(DREAM_SCORE_DIR+"/prior_baseline/cl={cell_line}_stim={stimulus}.json", 
+        #       cell_line=CELL_LINES, stimulus=STIMULI)
+	lass=expand(DREAM_SCORE_DIR+"/lasso/cl={cell_line}_stim={stimulus}.json",
+	            cell_line=CELL_LINES, stimulus=STIMULI)
     output:
         DREAM_DIR+"/dream_scores.tsv"
     shell:
+        "python scripts/make_table.py {input.hill}"
         #"python scripts/make_table.py {input.mcmc} {input.func} {input.hill} {input.prior} {output}"
-        "python scripts/make_table.py {input.mcmc} {input.func} {input.prior} {output}"
+	#"python scripts/make_table.py {input.mcmc} {input.func} {input.prior} {output}"
 
 rule simulate_data:
     input:
@@ -343,21 +346,20 @@ rule tabulate_timetest_hill:
 
 ########################
 # LASSO JOBS
-rule score_sim_lasso:
-    input:
-        ""
-    output:
-        ""
-    shell:
-        ""
 
 rule run_sim_lasso:
     input:
-        ""
+        method=JULIA_PROJ_DIR+"/lasso.jl",
+	ts=TS_DIR+"/{replicate}.csv"
+        ref=REF_DIR+"/{replicate}.csv"
     output:
-        ""
+        PRED_DIR+"/lasso/{replicate}.json"
+    resources:
+        runtime=60,
+        threads=1,
+        mem_mb=100
     shell:
-        ""
+        "julia --project={JULIA_PROJ_DIR} {input.method} {input.ts} {input.ref} {output}"
 
 # END LASSO JOBS
 ########################
@@ -482,6 +484,21 @@ rule run_dream_hill:
         mem_mb=2000
     shell:
         "matlab -nodesktop -nosplash -nojvm -singleCompThread -r \'cd(\"{HILL_DIR}\"); try, hill_dbn_wrapper(\"{input.ts_file}\", \"{input.ref_dg}\", \"{output}\", -1, \"auto\", {SIM_TIMEOUT}), catch e, quit(1), end, quit\'"
+
+
+rule run_dream_lasso:
+    input:
+        method=JULIA_PROJ_DIR+"/lasso.jl",
+        ref=DREAM_REF_DIR+"/cl={cell_line}.csv",
+	ts=DREAM_PREP_TS_DIR+"/cl={cell_line}_stim={stim}.csv"
+    output:
+        DREAM_PRED_DIR+"/lasso/cl={cell_line}_stim={stim}.json"
+    resources:
+        runtime=60,
+        threads=1,
+        mem_mb=100
+    shell:
+        "julia --project={JULIA_PROJ_DIR} {input.method} {input.ts} {input.ref} {output}"
 
 
 rule run_dream_prior_baseline:

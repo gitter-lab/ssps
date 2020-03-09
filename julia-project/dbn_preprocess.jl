@@ -114,7 +114,7 @@ function combine_X(X::Vector{Array{Float64,2}})
         l_ind = r_ind + 1
     end
 
-    return Xminus, standardize_X(Xplus)[1]
+    return Xminus, Xplus
 end
 
 

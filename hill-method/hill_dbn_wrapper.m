@@ -24,11 +24,11 @@ function hill_dbn_wrapper(timeseries_filename, ref_graph_filename, output_filena
 
     if reg_mode == "auto"
         if V >= 1000
-            reg_mode = "linear"
+            reg_mode = "linear";
         elseif V >= 100
-            reg_mode = "quadratic"
+            reg_mode = "quadratic";
         else
-            reg_mode = "full"
+            reg_mode = "full";
         end
     end
 
@@ -47,6 +47,7 @@ end
 function ts_data = read_timeseries_file(timeseries_filename)
 
     ts_table = readtable(timeseries_filename);
+    ts_table.timeseries = categorical(ts_table.timeseries);
     p = length(ts_table.Properties.VariableNames)-2;
     t = length(unique(ts_table.timestep));
     u_ts = unique(ts_table.timeseries);
@@ -67,6 +68,7 @@ function ref_adj = read_graph_file(graph_filename)
 
     ref_adj_table = readtable(graph_filename);
     ref_adj = table2array(ref_adj_table);
+    %ref_adj = (ref_adj > 0.25);
 
 end
 
