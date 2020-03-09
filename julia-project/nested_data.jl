@@ -24,7 +24,7 @@ function get_all_at(dict_vec::Vector, key_vec::Vector)
 end
 
 
-function set_at!(data, item, key_vec)
+function set_at!(data_structure, item, key_vec)
     if length(key_vec) == 1
         setindex!(data_structure, item, key_vec[1])
     else

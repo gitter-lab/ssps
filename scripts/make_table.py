@@ -3,7 +3,8 @@ import pandas as pd
 import sys
 import numpy as np
 
-input_files = sys.argv[1:]
+input_files = sys.argv[1:-1]
+output_file = sys.argv[-1]
 
 AUCPR_STR = "aucpr"
 AUCROC_STR = "aucroc"
@@ -28,4 +29,4 @@ keys.append("method")
 table = table[keys+[AUCPR_STR+"_mean", AUCPR_STR+"_std", AUCROC_STR+"_mean", AUCROC_STR+"_std"]]
 table.sort_values(keys, inplace=True)
 
-table.to_csv("scores.tsv", index=False, sep="\t")
+table.to_csv(output_file, index=False, sep="\t")

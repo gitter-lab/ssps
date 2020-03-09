@@ -197,12 +197,12 @@ is_cpv = x -> (typeof(x) <: ChangepointVec)
 # CORE FUNCTIONS
 function collect_stats(dict_vec, stop_points; burnin::Float64=0.5)
 
+    results = Dict()
     results["stop_points"] = stop_points
 
     # Convert all of the sequences to ChangepointVecs
-    for d in dict_vec
-        leaf_map!(x -> ChangepointVec(x, d["n"]), d, is_seq)
-    end
+    dict_vec = [leaf_map(x -> ChangepointVec(x, d["n"]), d, is_seq) for d in dict_vec]
+    
     results["summary"] = aggregate_trees(x -> evaluate_summary(x, stop_points; burnin=burnin),
                                          dict_vec, is_cpv)
     results["conv_stats"] = aggregate_trees(x -> evaluate_convergence(x, stop_points; burnin=burnin),

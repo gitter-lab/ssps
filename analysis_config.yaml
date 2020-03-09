@@ -5,6 +5,7 @@
 # e.g., "/scratch" or wherever you have plenty of disk available.
 temp_dir: "" 
 
+methods: []
 
 # Define the simulation study
 simulation_study:
@@ -39,15 +40,15 @@ simulation_study:
 
 
 dream_challenge: 
-    cell_lines: ["BT20", "BT549", "MCF7", "UACC812"]
-    stimuli: ["EGF", "FGF1", "HGF", "IGF1", "Insulin", "NRG1", "PBS", "Serum"]
+    cell_lines: ["MCF7"] #["BT20", "BT549", "MCF7", "UACC812"]
+    stimuli: ["NRG1"] #["EGF", "FGF1", "HGF", "IGF1", "Insulin", "NRG1", "PBS", "Serum"]
     N: 5
     convergence:
-        stop_points: [5000, 10000, 20000, 50000, 100000]
+        stop_points: [100, 1000, 5000, 10000, 20000, 50000, 100000]
         psrf_ub: 1.01
         neff_per_chain: 10.0 
     mcmc_hyperparams:
-        timeout: 43200
+        timeout: 300 #43200
         burnin: 0.5 
         regression_deg: [1]  
         max_samples: 100000

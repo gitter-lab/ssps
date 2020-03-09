@@ -13,17 +13,14 @@ import script_util as su
 import matplotlib as mpl
 mpl.rc('font', family='serif')
 
-print("I'M THE INPUT: ", snakemake.input)
-print("I'M THE OUTPUT: ", snakemake.output)
-
 dataset = snakemake.input[0].split("/")[-2].split("_")[:-1]
 
 kvs = su.parse_path_kvs(snakemake.input[0])
 #v = kvs["v"]
 n_replicates = len(snakemake.input)
 
-PSRF_THRESH = snakemake.config["convergence_analysis"]["psrf_ub"]
-N_EFF_THRESH = snakemake.config["convergence_analysis"]["neff_per_chain"]*4
+PSRF_THRESH = snakemake.config["dream_challenge"]["convergence"]["psrf_ub"]
+N_EFF_THRESH = snakemake.config["dream_challenge"]["convergence"]["neff_per_chain"]*4
 
 def is_converged(pair):
     if None in pair:
@@ -32,6 +29,7 @@ def is_converged(pair):
         return False
     else:
         return True
+
 
 def count_nonconverged(all_diagnostics, t):
     n_nc = 0
@@ -42,7 +40,7 @@ def count_nonconverged(all_diagnostics, t):
 
 
 
-def plot_nonconverged(replicates, stop_points, out_file, flag="parent", ylabel="Non-converged quantities"):
+def plot_nonconverged(replicates, stop_points, out_file, ylabel="Non-converged quantities"):
 
     plt.figure()
     # build vectors of:
@@ -51,7 +49,7 @@ def plot_nonconverged(replicates, stop_points, out_file, flag="parent", ylabel="
         t_results = []
         for rep in replicates:
             # store number of non-converged edge indicators
-            t_results.append(count_nonconverged([cst for (k, cst) in rep["conv_stats"].items() if flag in k], t))
+            t_results.append(count_nonconverged(rep, t))
         nonconv_counts.append(t_results)
     
     meds = [np.median(res) for res in nonconv_counts]
@@ -81,17 +79,21 @@ def plot_nonconverged(replicates, stop_points, out_file, flag="parent", ylabel="
 # Get the replicates' convergence statistics 
 replicates = [su.extract_from_file(f) for f in snakemake.input]
 
+lambda_replicates = [[diag_vec for diag_vec in rep["conv_stats"]["lambda"]] for rep in replicates]
+parent_replicates = [[diag_vec for ps in rep["conv_stats"]["parent_sets"] for diag_vec in ps] for rep in replicates] 
+
 stop_points = replicates[0]["stop_points"]
 for rep in replicates:
     if len(rep["stop_points"]) < len(stop_points):
         stop_points = rep["stop_points"]
 
-parent_fname = snakemake.output[0]
-lambda_fname = parent_fname.split(".")[0] + "_lambda.png"
 
-plot_nonconverged(replicates, stop_points, parent_fname, 
-                  flag="parent", ylabel="Non-converged edge probabilities")
-plot_nonconverged(replicates, stop_points, lambda_fname,
-                  flag="lambda", ylabel="Non-converged lambda variables")
+parent_fname = snakemake.output[0]
+lambda_fname = ".".join(parent_fname.split("."))[:-1] + "_lambda.png"
+
+plot_nonconverged(parent_replicates, stop_points, parent_fname, 
+                  ylabel="Non-converged edge probabilities")
+plot_nonconverged(lambda_replicates, stop_points, lambda_fname,
+                  ylabel="Non-converged lambda variables")
 
 
