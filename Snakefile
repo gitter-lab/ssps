@@ -135,35 +135,35 @@ rule all:
         #       d=REG_DEGS, v=SIM_GRID["V"], t=SIM_GRID["T"]),
         #expand(SCORE_DIR+"/funchisq/v={v}_r={r}_a={a}_t={t}.json",
         #        v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
-        expand(SCORE_DIR+"/hill/v={v}_r={r}_a={a}_t={t}.json",  
-               v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
+        #expand(SCORE_DIR+"/hill/v={v}_r={r}_a={a}_t={t}.json",  
+        #       v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
         #expand(SCORE_DIR+"/lasso/v={v}_r={r}_a={a}_t={t}.json",
         #        v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
         #expand(SCORE_DIR+"/prior_baseline/v={v}_r={r}_a={a}_t={t}.json",  
         #       v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
         # DREAM scores
-	#DREAM_DIR+"/dream_scores.tsv"
+        DREAM_DIR+"/dream_scores.tsv"
         # Hill timetest results
         #FIG_DIR+"/hill_method_timetest.csv"
 
 rule dream_scores:
     input:
-        #mcmc=expand(DREAM_SCORE_DIR+"/mcmc_d={d}_lstd={lstd}/cl={cell_line}_stim={stimulus}_replicate={rep}.json", 
-        #            d=REG_DEGS, cell_line=CELL_LINES, stimulus=STIMULI, lstd=DREAM_LSTD, rep=DREAM_REPLICATES),
-        #func=expand(DREAM_SCORE_DIR+"/funchisq/cl={cell_line}_stim={stimulus}.json", 
-        #       cell_line=CELL_LINES, stimulus=STIMULI),
+        mcmc=expand(DREAM_SCORE_DIR+"/mcmc_d={d}_lstd={lstd}/cl={cell_line}_stim={stimulus}_replicate={rep}.json", 
+                    d=REG_DEGS, cell_line=CELL_LINES, stimulus=STIMULI, lstd=DREAM_LSTD, rep=DREAM_REPLICATES),
+        func=expand(DREAM_SCORE_DIR+"/funchisq/cl={cell_line}_stim={stimulus}.json", 
+               cell_line=CELL_LINES, stimulus=STIMULI),
         hill=expand(DREAM_SCORE_DIR+"/hill/cl={cell_line}_stim={stimulus}.json", 
                cell_line=CELL_LINES, stimulus=STIMULI),
-        #prior=expand(DREAM_SCORE_DIR+"/prior_baseline/cl={cell_line}_stim={stimulus}.json", 
-        #       cell_line=CELL_LINES, stimulus=STIMULI)
-	lass=expand(DREAM_SCORE_DIR+"/lasso/cl={cell_line}_stim={stimulus}.json",
-	            cell_line=CELL_LINES, stimulus=STIMULI)
+        prior=expand(DREAM_SCORE_DIR+"/prior_baseline/cl={cell_line}_stim={stimulus}.json", 
+               cell_line=CELL_LINES, stimulus=STIMULI),
+        lass=expand(DREAM_SCORE_DIR+"/lasso/cl={cell_line}_stim={stimulus}.json",
+                    cell_line=CELL_LINES, stimulus=STIMULI)
     output:
         DREAM_DIR+"/dream_scores.tsv"
     shell:
-        "python scripts/make_table.py {input.hill}"
+        #"python scripts/make_table.py {input.hill}"
         #"python scripts/make_table.py {input.mcmc} {input.func} {input.hill} {input.prior} {output}"
-	#"python scripts/make_table.py {input.mcmc} {input.func} {input.prior} {output}"
+        "python scripts/make_table.py {input.func} {input.prior} {input.lass} {output}"
 
 rule simulate_data:
     input:
@@ -350,7 +350,7 @@ rule tabulate_timetest_hill:
 rule run_sim_lasso:
     input:
         method=JULIA_PROJ_DIR+"/lasso.jl",
-	ts=TS_DIR+"/{replicate}.csv"
+	ts=TS_DIR+"/{replicate}.csv",
         ref=REF_DIR+"/{replicate}.csv"
     output:
         PRED_DIR+"/lasso/{replicate}.json"
@@ -432,7 +432,7 @@ rule run_dream_mcmc:
         ts_file=DREAM_PREP_TS_DIR+"/cl={cell_line}_stim={stimulus}.csv",
         ref_dg=DREAM_REF_DIR+"/cl={cell_line}.csv",
     output:
-        DREAM_OUT_DIR+"/mcmc_d={d}_lstd={lstd}/cl={cell_line}_stim={stimulus}_replicate={replicate}/{chain}.json"
+        DREAM_OUT_DIR+"/mcmc_d={d}_lstd={lstd}/cl={cell_line}_stim={stimulus}_replicate={replicate}/chain={chain}.json"
     resources:
         runtime=7200,
         threads=1,
