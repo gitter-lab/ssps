@@ -45,13 +45,28 @@ function seq_variogram(seq::ChangepointVec, t::Int64; is_binary::Bool=false)
 end
 
 
-function correlation_sum(seqs::Vector{ChangepointVec}, varplus::Float64; is_binary::Bool=false)
+function seq_variogram(seq::Vector, t::Int64; is_binary::Bool=false)
+    n = length(seq)
+    if is_binary
+        return sum(seq[1:n-t] .!= seq[1+t:n])/length(seq)
+    else
+        return sum(abs2.(seq[1:n-t] .- seq[1+t:n]))/length(seq)
+    end
+end
+
+
+function correlation_sum(seqs::Vector{ChangepointVec}, varplus::Float64; 
+                         is_binary::Bool=false, density_threshold::Float64=0.001)
     
     s = 0.0
     m = length(seqs)
     prev2_corr = 0.0
     prev1_corr = 0.0
-    
+  
+    # Determine whether the sequences need to be converted to dense vectors. 
+    seq_densities = [length(seq.changepoints)/length(seq) for seq in seqs]
+    seqs = [(seq_densities[i] < density_threshold ? seq : to_vec(seq) ) for (i, seq) in enumerate(seqs)]
+
     for t=1:length(seqs[1])-2
 
         variograms = [seq_variogram(seq, t; is_binary=is_binary) for seq in seqs]
@@ -110,6 +125,7 @@ We assume the seqs all have equal length.
 function compute_psrf_neff(seqs::Vector{ChangepointVec}; is_binary::Bool=false)
     seq_means = [mean(seq; is_binary=is_binary) for seq in seqs]
     seq_variances = [seq_var(seq, seq_means[i]; is_binary=is_binary) for (i, seq) in enumerate(seqs)]
+    #println("\tDENSITIES: ", seq_densities)
     m = length(seqs)
     n = length(seqs[1])
     B = b_stat(seq_means, n)
@@ -143,6 +159,7 @@ function evaluate_convergence(whole_seqs::Vector{ChangepointVec}, stop_idxs;
     
     # Determine whether the data is binary
     isbin = is_binary(whole_seqs[1])
+    #println("IS BINARY?: ", isbin)
 
     # We'll collect a list of (psrf, n_eff values) 
     diagnostics = []
@@ -283,7 +300,7 @@ end
 
 end
 
-using .SamplePostprocess
+#using .SamplePostprocess
 
-julia_main()
+#julia_main()
 

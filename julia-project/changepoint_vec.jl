@@ -166,7 +166,10 @@ function binop(f::Function, cpva::ChangepointVec, cpvb::ChangepointVec)
     while cur_t < new_len
 
         if cur_cp_a < ncp_a
-            next_t_a, next_v_a = cpva.changepoints[cur_cp_a+1]
+            #next_t_a, next_v_a = cpva.changepoints[cur_cp_a+1]
+            next_cpa = cpva.changepoints[cur_cp_a+1]
+            next_t_a = next_cpa[1]
+            next_v_a = next_cpa[2]
         else
             next_t_a = new_len
             next_v_a = cur_v_a
@@ -195,4 +198,13 @@ function binop(f::Function, cpva::ChangepointVec, cpvb::ChangepointVec)
     return ChangepointVec(new_changepoints, new_len, new_default)
 end
 
-
+function to_vec(cpv::ChangepointVec)
+    vec = Vector{Float64}(undef, cpv.len)
+    vec[1:cpv.changepoints[1][1]] .= cpv.default_v 
+    for (i, cp) in enumerate(cpv.changepoints[1:end-1])
+        vec[cp[1]:cpv.changepoints[i+1][1]] .= cpv[2]
+    end
+    last = cpv.changepoints[end]
+    vec[last[1]:end] .= last[2]
+    return vec
+end
