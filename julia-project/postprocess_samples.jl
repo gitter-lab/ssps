@@ -300,7 +300,7 @@ end
 
 end
 
-#using .SamplePostprocess
+using .SamplePostprocess
 
-#julia_main()
+julia_main()
 

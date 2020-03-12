@@ -6,8 +6,9 @@ function [edge_prob_matrix interaction_sign_matrix chosen_lambda timed_out] = dy
 %       by empirical Bayes as described in Hill et al. (2012), to appear in Bioinformatics.
 %
 % Inputs:
-% D: p x T x C data matrix or cell array of p x T x C data matrices. p = # variables (e.g. proteins), T = # time points, C = # time courses.
-%    If cell array, network inference is performed on each data matrix separately with empirical Bayes performed on all data jointly.
+% !!! MODIFIED !!!
+% D: cell array of p x T matrices. p = # variables, T = # time points. I.e., a cell array of p-variable time courses.
+% !!! /MODIFIED !!!
 % max_in_degree: Integer. Maximum in-degree (i.e. maximum number of parents a variable can have)
 % prior_graph: binary p x p matrix. Adjacency matrix for network prior.
 %              If empty ([]) or not input, a flat prior is used.
@@ -38,6 +39,7 @@ function [edge_prob_matrix interaction_sign_matrix chosen_lambda timed_out] = dy
 % � Steven Hill and Sach Mukherjee, 2012
 
 % Minor modifications made by David Merrell: 11/2019-01/2020
+% NOTE: 
 
 % set some default return values (in case of timeout)
 n_datasets = length(D);
@@ -102,9 +104,10 @@ else
     error('Regression mode should be ''linear'',''quadratic'' or ''full''.')
 end
 
-if ~iscell(D)
-    D = {D};
-end
+%if ~iscell(D)
+%    D = {D};
+%end
+D = {D};
 n_datasets = length(D);
 
 if use_prior
@@ -113,21 +116,34 @@ if use_prior
             error('All datasets should consist of the same variables.')
         end
     end
-    if size(D{1},1)~=size(prior_graph,1)
+    if size(D{1}{1},1)~=size(prior_graph,1)
         error('Prior graph does not have correct number of variables.')
     end
 end
 
 % arrange data into correct form
 for i=1:length(D)
-    p = size(D{i},1);
-    T = size(D{i},2);
-    C = size(D{i},3);
-    tmpD = zeros(2*p,(T-1)*C);
+
+    C = length(D{i});
+    p = size(D{i}{1},1); % ought to be consistent across time courses
+    T_vec = zeros(C,1);
     for c=1:C
-        tmpD(1:p,(c-1)*(T-1)+1:c*(T-1)) = D{i}(:,1:T-1,c);
-        tmpD(p+1:2*p,(c-1)*(T-1)+1:c*(T-1)) = D{i}(:,2:T,c);
+        T_vec(c) = size(D{i}{c},2);
     end
+
+    tmpD = zeros(2*p,sum(T_vec) - C);    
+    l_ind = 1;
+    u_ind = T_vec(1);
+    for c=1:C
+        tmpD(1:p, l_ind:u_ind-1) = D{i}{c}(:,1:T_vec(c)-1);
+        tmpD(p+1:2*p, l_ind:u_ind-1) = D{i}{c}(:,2:T_vec(c));
+
+        if c < C
+            l_ind = u_ind + 1;
+            u_ind = u_ind + T_vec(c+1);
+        end 
+    end
+
     D{i} = tmpD;
 end
 

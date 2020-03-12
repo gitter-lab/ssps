@@ -15,8 +15,10 @@ function hill_dbn_wrapper(timeseries_filename, ref_graph_filename, output_filena
             max_indegree = 1;
         elseif V > 100
             max_indegree = 2;
-        elseif V > 40
+        elseif V > 50
             max_indegree = 3;
+        elseif V > 40
+            max_indegree = 4;
         else
             max_indegree = 5;
         end
@@ -49,18 +51,18 @@ function ts_data = read_timeseries_file(timeseries_filename)
     ts_table = readtable(timeseries_filename);
     ts_table.timeseries = categorical(ts_table.timeseries);
     p = length(ts_table.Properties.VariableNames)-2;
-    t = length(unique(ts_table.timestep));
     u_ts = unique(ts_table.timeseries);
-    C = length(u_ts);
-    ts_data = zeros(p,t,C);
-    
+    ts_data = {};
+
     for i=1:length(u_ts)
         rows = ts_table(ts_table.timeseries == u_ts(i),:);
         rows = sortrows(rows, 'timestep');
         rows = rows(:,3:end);
-        ts_data(:,:,i) = transpose(table2array(rows));
+        t = height(rows);
+        new_data = zeros(p,t);
+        new_data(:,:) = transpose(table2array(rows));
+        ts_data{i} = new_data;
     end
-
 end
 
 
