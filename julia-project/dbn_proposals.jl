@@ -126,16 +126,17 @@ function smart_involution(cur_tr, fwd_choices, fwd_ret, prop_args)
     return new_tr, bwd_choices, weight
 end
 
-@gen function uniform_proposal(tr, v_idx, V)
-
-    u_idx = @trace(Gen.uniform_discrete(1, V), :u_idx)
-    
-    if u_idx in tr[:parent_sets => v_idx => :parents]
-
-    elif
-
-    end
-end
+#@gen function uniform_proposal(tr, V)
+#
+#    u_idx = @trace(Gen.uniform_discrete(1, V), :u_idx)
+#    v_idx = @trace(Gen.uniform_discrete(1,V), :v_idx)
+#
+#    if u_idx in tr[:parent_sets => v_idx => :parents]
+#
+#    elif
+#
+#    end
+#end
 
 
 @gen function lambda_proposal(tr, std::Int64)

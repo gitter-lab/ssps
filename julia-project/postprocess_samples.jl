@@ -48,9 +48,9 @@ end
 function seq_variogram(seq::Vector, t::Int64; is_binary::Bool=false)
     n = length(seq)
     if is_binary
-        return sum(seq[1:n-t] .!= seq[1+t:n])/length(seq)
+        return sum(seq[1:n-t] .!= seq[1+t:n]) / (n - t)
     else
-        return sum(abs2.(seq[1:n-t] .- seq[1+t:n]))/length(seq)
+        return sum(abs2.(seq[1:n-t] .- seq[1+t:n])) / (n - t)
     end
 end
 
@@ -73,7 +73,6 @@ function correlation_sum(seqs::Vector{ChangepointVec}, varplus::Float64;
         comb_variogram = sum(variograms) / m
 
         corr = 1.0 - (comb_variogram / (2.0*varplus))
-
         if t > 2 
             if corr + prev1_corr >= 0.0
                 s += prev2_corr
@@ -85,7 +84,7 @@ function correlation_sum(seqs::Vector{ChangepointVec}, varplus::Float64;
         prev1_corr = corr
 
     end
-    
+
     return s
 end
 
@@ -125,7 +124,6 @@ We assume the seqs all have equal length.
 function compute_psrf_neff(seqs::Vector{ChangepointVec}; is_binary::Bool=false)
     seq_means = [mean(seq; is_binary=is_binary) for seq in seqs]
     seq_variances = [seq_var(seq, seq_means[i]; is_binary=is_binary) for (i, seq) in enumerate(seqs)]
-    #println("\tDENSITIES: ", seq_densities)
     m = length(seqs)
     n = length(seqs[1])
     B = b_stat(seq_means, n)
@@ -159,7 +157,6 @@ function evaluate_convergence(whole_seqs::Vector{ChangepointVec}, stop_idxs;
     
     # Determine whether the data is binary
     isbin = is_binary(whole_seqs[1])
-    #println("IS BINARY?: ", isbin)
 
     # We'll collect a list of (psrf, n_eff values) 
     diagnostics = []

@@ -54,15 +54,14 @@ Model the data-generating process:
 P(X,G,lambda | G') = P(X|G) * P(G|lambda, G') * P(lambda)
 """
 @gen (static) function dbn_model(reference_parents::Vector{Vector{Int64}}, 
-				 Xminus::Array{Float64,2}, 
-				 Xplus::Vector{Vector{Float64}},
+                                 Xminus::Array{Float64,2}, 
                                  lambda_min::Float64,
-				 lambda_max::Float64,
-				 regression_deg::Int64)
+                                 lambda_max::Float64,
+                                 regression_deg::Int64)
 
     lambda = @trace(Gen.uniform(lambda_min, lambda_max), :lambda)
 
-    V = length(Xplus)
+    V = shape(Xminus, 2)
     Vvec = SingletonVec(V, V)
     lambda_vec = SingletonVec(lambda, V)
 
@@ -85,15 +84,14 @@ We've made an entirely new function in order to avoid `if` statements,
 which are incompatible with Gen's `static` modeling language.
 """
 @gen (static) function conf_dbn_model(parent_confs::Vector{Dict}, 
-				      Xminus::Array{Float64,2}, 
-				      Xplus::Vector{Vector{Float64}},
+                                      Xminus::Array{Float64,2}, 
                                       lambda_min::Float64,
-				      lambda_max::Float64,
-				      regression_deg::Int64)
+                                      lambda_max::Float64,
+                                      regression_deg::Int64)
 
     lambda = @trace(Gen.uniform(lambda_min, lambda_max), :lambda)
 
-    V = length(Xplus)
+    V = size(Xplus,2)
     Vvec = SingletonVec(V, V)
     lambda_vec = SingletonVec(lambda, V)
 
@@ -123,28 +121,23 @@ We've made an entirely new function in order to avoid `if` statements,
 which are incompatible with Gen's `static` modeling language.
 """
 @gen (static) function vertex_lambda_dbn_model(parent_confs::Vector{Dict}, 
-				               Xminus::Array{Float64,2}, 
-				               Xplus::Vector{Vector{Float64}},
+                                               Xminus::Array{Float64,2}, 
                                                lambda_min::Float64,
-				               lambda_max::Float64,
-				               regression_deg::Int64)
+                                               lambda_max::Float64,
+                                               regression_deg::Int64)
 
-    V = length(Xplus)
+    V = shape(Xminus, 2)
+
     Vvec = SingletonVec(V, V)
-    
     min_vec = SingletonVec(lambda_min, V)
     max_vec = SingletonVec(lambda_max, V)
+    Xminus_vec = SingletonVec(Xminus, V)
+    regdeg_vec = SingletonVec(regression_deg, V)
     
     lambda_vec = @trace(generate_lambda_vec(min_vec, max_vec), :lambda_vec)
-
     parent_sets = @trace(conf_graph_prior(Vvec, parent_confs, lambda_vec), :parent_sets)
-
-    Xminus_vec = SingletonVec(Xminus, V)
-
-    regdeg_vec = SingletonVec(regression_deg, V)
-
-    Xpl = @trace(generate_Xplus(1:V, Xminus_vec, parent_sets, regdeg_vec), :Xplus)
-    return Xpl
+    Xplus = @trace(generate_Xplus(1:V, Xminus_vec, parent_sets, regdeg_vec), :Xplus)
+    return Xplus
 
 end
 

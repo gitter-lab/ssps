@@ -200,9 +200,11 @@ end
 
 function to_vec(cpv::ChangepointVec)
     vec = Vector{Float64}(undef, cpv.len)
-    vec[1:cpv.changepoints[1][1]] .= cpv.default_v 
+    if cpv.changepoints[1][1] > 1
+        vec[1:cpv.changepoints[1][1]] .= cpv.default_v 
+    end
     for (i, cp) in enumerate(cpv.changepoints[1:end-1])
-        vec[cp[1]:cpv.changepoints[i+1][1]] .= cpv[2]
+        vec[cp[1]:cpv.changepoints[i+1][1]] .= cp[2]
     end
     last = cpv.changepoints[end]
     vec[last[1]:end] .= last[2]
