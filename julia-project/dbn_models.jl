@@ -61,7 +61,7 @@ P(X,G,lambda | G') = P(X|G) * P(G|lambda, G') * P(lambda)
 
     lambda = @trace(Gen.uniform(lambda_min, lambda_max), :lambda)
 
-    V = shape(Xminus, 2)
+    V = size(Xminus, 2)
     Vvec = SingletonVec(V, V)
     lambda_vec = SingletonVec(lambda, V)
 
@@ -126,7 +126,7 @@ which are incompatible with Gen's `static` modeling language.
                                                lambda_max::Float64,
                                                regression_deg::Int64)
 
-    V = shape(Xminus, 2)
+    V = size(Xminus, 2)
 
     Vvec = SingletonVec(V, V)
     min_vec = SingletonVec(lambda_min, V)

@@ -131,16 +131,16 @@ rule all:
         #expand(FIG_DIR+"/convergence/dream/mcmc_d={d}_lstd={lstd}/cl={cell_line}_stim={stimulus}.png", 
         #       cell_line=CELL_LINES, stimulus=STIMULI, d=DREAM_REGDEGS, lstd=DREAM_LSTD),
         # Simulation scores
-        #expand(FIG_DIR+"/simulation_study/mcmc_d={d}/v={v}_t={t}.csv", 
-        #       d=REG_DEGS, v=SIM_GRID["V"], t=SIM_GRID["T"]),
-        #expand(SCORE_DIR+"/funchisq/v={v}_r={r}_a={a}_t={t}.json",
-        #        v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
-        #expand(SCORE_DIR+"/hill/v={v}_r={r}_a={a}_t={t}.json",  
-        #       v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
-        #expand(SCORE_DIR+"/lasso/v={v}_r={r}_a={a}_t={t}.json",
-        #        v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
-        #expand(SCORE_DIR+"/prior_baseline/v={v}_r={r}_a={a}_t={t}.json",  
-        #       v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
+        expand(FIG_DIR+"/simulation_study/mcmc_d={d}/v={v}_t={t}.csv", 
+               d=REG_DEGS, v=SIM_GRID["V"], t=SIM_GRID["T"]),
+        expand(SCORE_DIR+"/funchisq/v={v}_r={r}_a={a}_t={t}.json",
+                v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
+        expand(SCORE_DIR+"/hill/v={v}_r={r}_a={a}_t={t}.json",  
+               v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
+        expand(SCORE_DIR+"/lasso/v={v}_r={r}_a={a}_t={t}.json",
+                v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
+        expand(SCORE_DIR+"/prior_baseline/v={v}_r={r}_a={a}_t={t}.json",  
+               v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
         # DREAM scores
         DREAM_DIR+"/dream_scores.tsv"
         # Hill timetest results
@@ -151,19 +151,17 @@ rule dream_scores:
         mcmc=expand(DREAM_SCORE_DIR+"/mcmc_d={d}_lstd={lstd}/cl={cell_line}_stim={stimulus}_replicate={rep}.json", 
                     d=REG_DEGS, cell_line=CELL_LINES, stimulus=STIMULI, lstd=DREAM_LSTD, rep=DREAM_REPLICATES),
         func=expand(DREAM_SCORE_DIR+"/funchisq/cl={cell_line}_stim={stimulus}.json", 
-               cell_line=CELL_LINES, stimulus=STIMULI),
+                    cell_line=CELL_LINES, stimulus=STIMULI),
         hill=expand(DREAM_SCORE_DIR+"/hill/cl={cell_line}_stim={stimulus}.json", 
-               cell_line=CELL_LINES, stimulus=STIMULI),
+                    cell_line=CELL_LINES, stimulus=STIMULI),
         prior=expand(DREAM_SCORE_DIR+"/prior_baseline/cl={cell_line}_stim={stimulus}.json", 
-               cell_line=CELL_LINES, stimulus=STIMULI),
+                     cell_line=CELL_LINES, stimulus=STIMULI),
         lass=expand(DREAM_SCORE_DIR+"/lasso/cl={cell_line}_stim={stimulus}.json",
                     cell_line=CELL_LINES, stimulus=STIMULI)
     output:
         DREAM_DIR+"/dream_scores.tsv"
     shell:
-        #"python scripts/make_table.py {input.hill}"
-        #"python scripts/make_table.py {input.mcmc} {input.func} {input.hill} {input.prior} {output}"
-        "python scripts/make_table.py {input.func} {input.prior} {input.lass} {output}"
+        "python scripts/make_table.py {input.mcmc} {input.func} {input.prior} {input.hill} {input.lass} {output}"
 
 rule simulate_data:
     input:
@@ -275,10 +273,12 @@ rule run_sim_mcmc:
         mem_mb=2000
     shell:
         "julia --project={JULIA_PROJ_DIR} {input.method} {input.ts_file} {input.ref_dg} {output} {SIM_TIMEOUT}"\
-        +" --regression-deg {wildcards.d} --n-steps {SIM_MAX_SAMPLES}"
+        +" --regression-deg {wildcards.d} --n-steps {SIM_MAX_SAMPLES} --vertex-lambda"\
+        +" --lambda-prop-std 3.0 --large-indeg 15.0 --continuous-reference"
+        #"julia --project={JULIA_PROJ_DIR} {input.method} {input.ts_file} {input.ref_dg} {output} {DREAM_TIMEOUT}"\
+        #+" --n-steps {CONV_MAX_SAMPLES} --regression-deg {wildcards.d}"\
+        #+" --continuous-reference --lambda-prop-std {wildcards.lstd} --large-indeg {MCMC_INDEG} --vertex-lambda"
 
-
-        
 
 # END MCMC JOBS
 #####################

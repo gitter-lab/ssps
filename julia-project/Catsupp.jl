@@ -150,8 +150,7 @@ function perform_inference(timeseries_filename::String,
         update_loop_fn = vertex_lambda_update_loop 
     end
     model_args = (ref_ps,
-                  Xminus, 
-                  Xplus,
+                  Xminus,
                   lambda_min, 
                   lambda_max,
                   regression_deg)

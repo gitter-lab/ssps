@@ -70,7 +70,7 @@ function ref_adj = read_graph_file(graph_filename)
 
     ref_adj_table = readtable(graph_filename);
     ref_adj = table2array(ref_adj_table);
-    %ref_adj = (ref_adj > 0.25);
+    ref_adj = (ref_adj > 0.25);
 
 end
 
