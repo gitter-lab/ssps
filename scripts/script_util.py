@@ -1,4 +1,4 @@
-# script_utils.py
+# script_util.py
 # 
 # Useful functions for scripting within Snakemake
 
@@ -7,6 +7,23 @@ import sys
 import os
 import re
 import pandas as pd
+
+
+NICE_NAMES = {"mcmc_d=1": "MCMC",
+              "hill": "Hill's Exact",
+              "lasso": "LASSO",
+              "funchisq": "FunChisq",
+              "prior_baseline": "Prior knowledge (baseline)"
+              "v": "$V$",
+              "r": "$r$",
+              "a": "$a$",
+              "t": "$t$",
+              "aucroc_mean": "Mean AUCROC",
+              "aucpr_mean": "Mean AUCPR"
+              "psrf": "PSRF",
+              "neff": "$N_{\text{eff}}$"
+              }
+
 
 def parse_path_kvs(file_path):
     """
@@ -82,4 +99,3 @@ def extract_from_file(filename, key_list=[]):
     return file_data
 
 
- 

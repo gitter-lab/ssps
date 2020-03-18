@@ -35,9 +35,9 @@ simulation_study:
         burnin: 0.5 
         regression_deg: [1]  
         max_samples: 100000
-        lambda_prop_std: [3.0] # [0.25]
+        lambda_prop_std: [3.0] 
         large_indeg: 15
-
+    baseline_methods: ["hill", "funchisq", "lasso", "prior_baseline"]
 
 dream_challenge: 
     cell_lines: ["BT20", "BT549", "MCF7", "UACC812"]
@@ -55,6 +55,7 @@ dream_challenge:
         lambda_prop_std: [3.0] 
         large_indeg: 15
         n_chains: 4
+    baseline_methods: ["hill", "funchisq", "lasso", "prior_baseline"]
 
 
 hill_timetest:

@@ -192,25 +192,14 @@ Given
 * a scoring function;
 return a vector of the scores 
 """
-function edge_scores(pred_fnames::Vector{String}, 
-                     truth_fnames::Vector{String}, 
-                     score_fn::Function)
+function edge_score(pred_fname::Vector{String}, 
+                    truth_fname::Vector{String}, 
+                    score_fn::Function)
 
-    N = length(pred_fnames)
-    scores = []
-    
-    for i=1:N
-        # get predicted parents
-        preds = load_ps_predictions(pred_fnames[i])
+    preds = load_ps_predictions(pred_fnames[i])
+    truths = load_ps_truths(truth_fnames[i])
+    return score_fn(preds, truths))
 
-        # get true parents
-        truths = load_ps_truths(truth_fnames[i])
-
-        # score the predictions
-        push!(scores, score_fn(preds, truths))
-    end
-
-    return scores
 end
 
 
@@ -218,13 +207,13 @@ function get_args(args::Vector{String})
 
     s = ArgParseSettings()
     @add_arg_table s begin
-        "--pred-files"
-            help="The path(s) of one or more JSON files containing edge predictions"
+        "--pred-file"
+            help="The path to a JSON file containing edge predictions"
             required=true
             arg_type=String
             nargs='+'
         "--truth-files"
-            help="The path(s) of one or more CSV files containing true adjacency matrice(s)."
+            help="The path to a CSV file containing true adjacency matrice(s)."
             required=true
             arg_type=String
             nargs='+'
@@ -248,30 +237,28 @@ function julia_main()
 
     args = get_args(ARGS)
 
-    pred_fnames = args["pred-files"]
-    truth_fnames = args["truth-files"]
+    pred_fname = args["pred-file"]
+    truth_fname = args["truth-file"]
     output_fname = args["output-file"]
     skip_roc = args["skip-roc"]
 
     result = Dict{String,Any}()
     
-    # Compute AUPRC and PR curve for each set of predictions
+    # Compute AUCPR and PR curve 
     pr_score_fn = (pred, truth) -> auprc(pred, truth; return_curve=true)
-    pr_stuff = edge_scores(pred_fnames, truth_fnames, pr_score_fn) 
-    result["auprc"] = [stuff[1] for stuff in pr_stuff]
-    result["pr_curves"] = [stuff[2] for stuff in pr_stuff]
+    pr_stuff = edge_score(pred_fname, truth_fname, pr_score_fn) 
+    result["aucpr"] = pr_stuff[1]
+    result["pr_curve"] = pr_stuff[2] 
 
     if !skip_roc
-        # Compute AUROC and ROC curve for each set of predictions
+        # Compute AUCROC and ROC curve for each set of predictions
         roc_score_fn = (pred, truth) -> auroc(pred, truth; return_curve=true)
-        roc_stuff = edge_scores(pred_fnames, truth_fnames, roc_score_fn) 
-        result["auroc"] = [stuff[1] for stuff in roc_stuff]
-        result["roc_curves"] = [stuff[2] for stuff in roc_stuff]
+        roc_stuff = edge_score(pred_fname, truth_fname, roc_score_fn) 
+        result["aucroc"] = roc_stuff[1] 
+        result["roc_curve"] = roc_stuff[2] 
     end
 
     f = open(output_fname, "w")
-    #js_str = JSON.json(result)
-    #write(f, js_str)
     JSON.print(f, result)
     close(f)
 

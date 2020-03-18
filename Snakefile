@@ -60,6 +60,7 @@ SIM_REPLICATES = list(range(SIM_PARAMS["prediction"]["N"]))
 SIM_GRID = SIM_PARAMS["simulation_grid"]
 SIM_M = SIM_GRID["M"]
 POLY_DEG = SIM_PARAMS["polynomial_degree"]
+SIM_BASELINES = SIM_PARAMS["baseline_methods"]
 
 # MCMC hyperparameters (for simulation study)
 MC_PARAMS = SIM_PARAMS["mcmc_hyperparams"]
@@ -68,6 +69,9 @@ REG_DEGS = MC_PARAMS["regression_deg"]
 BURNIN = MC_PARAMS["burnin"]
 SIM_CHAINS=list(range(SIM_PARAMS["prediction"]["n_chains"]))
 LAMBDA_PROP_STD = MC_PARAMS["lambda_prop_std"]
+
+# Produce a list of all methods used in the simulation study
+SIM_METHODS = SIM_BASELINES + ["mcmc_d={}".format(deg) for deg in REG_DEGS]
 
 # Hill hyperparameters
 HILL_TIME_PARAMS = config["hill_timetest"]
@@ -117,6 +121,10 @@ DREAM_LSTD = DREAM_MC_PARAMS["lambda_prop_std"]
 DREAM_CHAINS = list(range(DREAM_MC_PARAMS["n_chains"]))
 DREAM_REGDEGS = DREAM_MC_PARAMS["regression_deg"]
 DREAM_LARGE_INDEG = DREAM_MC_PARAMS["large_indeg"]
+DREAM_BASELINES = DREAM_PARAMS["baseline_methods"] 
+
+DREAM_METHODS = DREAM_BASELINES[:]
+DREAM_METHODS += ["mcmc_d={}_lstd={}".format(deg, lstd) for deg in DREAM_REGDEGS for lstd in DREAM_LSTD]
 
 #############################
 # RULES
@@ -130,40 +138,35 @@ rule all:
         # Convergence tests on experimental data
         #expand(FIG_DIR+"/convergence/dream/mcmc_d={d}_lstd={lstd}/cl={cell_line}_stim={stimulus}.png", 
         #       cell_line=CELL_LINES, stimulus=STIMULI, d=DREAM_REGDEGS, lstd=DREAM_LSTD),
-        # Simulation scores
-        #expand(FIG_DIR+"/simulation_study/mcmc_d={d}/v={v}_t={t}.csv", 
-        #       d=REG_DEGS, v=SIM_GRID["V"], t=SIM_GRID["T"]),
-        #expand(SCORE_DIR+"/funchisq/v={v}_r={r}_a={a}_t={t}.json",
-        #        v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
-        #expand(SCORE_DIR+"/hill/v={v}_r={r}_a={a}_t={t}.json",  
-        #       v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
-        #expand(SCORE_DIR+"/lasso/v={v}_r={r}_a={a}_t={t}.json",
-        #        v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
-        #expand(SCORE_DIR+"/prior_baseline/v={v}_r={r}_a={a}_t={t}.json",  
-        #       v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"]),
+        SIM_DIR+"/sim_scores.tsv",
         # DREAM scores
         DREAM_DIR+"/dream_scores.tsv"
         # Hill timetest results
         #FIG_DIR+"/hill_method_timetest.csv"
 
-rule dream_scores:
+
+rule tabulate_sim_scores:
+    input:
+        scores=expand(SCORE_DIR+"/{method}/v={v}_r={r}_a={a}_t={t}_replicate={rep}.json",
+                      method=SIM_METHODS, v=SIM_GRID["V"], r=SIM_GRID["R"], 
+                      a=SIM_GRID["A"], t=SIM_GRID["T"], rep=SIM_REPLICATES),
+    output:
+        SIM_DIR+"/sim_scores.tsv"
+    shell:
+        "python scripts/tabulate_scores.py {input.scores} {output}"
+
+
+rule tabulate_dream_scores:
     input:
         mcmc=expand(DREAM_SCORE_DIR+"/mcmc_d={d}_lstd={lstd}/cl={cell_line}_stim={stimulus}_replicate={rep}.json", 
                     d=REG_DEGS, cell_line=CELL_LINES, stimulus=STIMULI, lstd=DREAM_LSTD, rep=DREAM_REPLICATES),
-        func=expand(DREAM_SCORE_DIR+"/funchisq/cl={cell_line}_stim={stimulus}.json", 
-               cell_line=CELL_LINES, stimulus=STIMULI),
-        hill=expand(DREAM_SCORE_DIR+"/hill/cl={cell_line}_stim={stimulus}.json", 
-               cell_line=CELL_LINES, stimulus=STIMULI),
-        prior=expand(DREAM_SCORE_DIR+"/prior_baseline/cl={cell_line}_stim={stimulus}.json", 
-               cell_line=CELL_LINES, stimulus=STIMULI),
-        lass=expand(DREAM_SCORE_DIR+"/lasso/cl={cell_line}_stim={stimulus}.json",
-                    cell_line=CELL_LINES, stimulus=STIMULI)
+        baselines=expand(DREAM_SCORE_DIR+"/{method}/cl={cell_line}_stim={stimulus}.json",
+                         method=DREAM_BASELINES, cell_line=CELL_LINES, stimulus=STIMULI)
     output:
         DREAM_DIR+"/dream_scores.tsv"
     shell:
-        #"python scripts/make_table.py {input.hill}"
-        #"python scripts/make_table.py {input.mcmc} {input.func} {input.hill} {input.prior} {output}"
-        "python scripts/make_table.py {input.func} {input.prior} {input.lass} {output}"
+        "python scripts/tabulate_scores.py {input.mcmc} {input.baselines}"
+
 
 rule simulate_data:
     input:
@@ -182,15 +185,15 @@ rule simulate_data:
 rule score_sim_predictions:
     input:
         scorer=JULIA_PROJ_DIR+"/scoring.jl",
-        tr_dg_fs=[TRU_DIR+"/{sim_gridpoint}_replicate="+str(rep)+".csv" for rep in SIM_REPLICATES],
-        pp_res=[PRED_DIR+"/{method}/{sim_gridpoint}_replicate="+str(rep)+".json" for rep in SIM_REPLICATES]
+        tr_dg=TRU_DIR+"/{replicate}.csv",
+        pp_res=PRED_DIR+"/{method}/{replicate}.json"
     output:
-        out=SCORE_DIR+"/{method}/{sim_gridpoint}.json" 
+        out=SCORE_DIR+"/{method}/{replicate}.json" 
     resources:
         mem_mb=100,
         threads=1
     shell:
-        "julia --project={JULIA_PROJ_DIR} {input.scorer} --truth-files {input.tr_dg_fs} --pred-files {input.pp_res} --output-file {output.out}"
+        "julia --project={JULIA_PROJ_DIR} {input.scorer} --truth-file {input.tr_dg} --pred-file {input.pp_res} --output-file {output.out}"
 
 
 ##########################
@@ -205,14 +208,6 @@ rule convergence_viz:
     script:
         SCRIPT_DIR+"/convergence_viz.py"
 
-rule sim_study_score_viz:
-    input:
-        expand(SCORE_DIR+"/{{method}}/v={{v}}_r={r}_a={a}_t={{t}}.json", 
-               r=SIM_GRID["R"], a=SIM_GRID["A"]), 
-    output:
-        FIG_DIR+"/simulation_study/{method}/v={v}_t={t}.csv"
-    script:
-        SCRIPT_DIR+"/sim_study_score_viz.py"
 
 
 ######################
@@ -275,7 +270,7 @@ rule run_sim_mcmc:
         mem_mb=2000
     shell:
         "julia --project={JULIA_PROJ_DIR} {input.method} {input.ts_file} {input.ref_dg} {output} {SIM_TIMEOUT}"\
-        +" --regression-deg {wildcards.d} --n-steps {SIM_MAX_SAMPLES}"
+        +" --regression-deg {wildcards.d} --n-steps {SIM_MAX_SAMPLES} --lambda-prop-std {LAMBDA_PROP_STD}"
 
 
         
