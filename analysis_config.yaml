@@ -5,8 +5,6 @@
 # e.g., "/scratch" or wherever you have plenty of disk available.
 temp_dir: "" 
 
-methods: []
-
 # Define the simulation study
 simulation_study:
     # the grid of simulated datasets
@@ -22,12 +20,12 @@ simulation_study:
     convergence:
         timeout: 43200
         stop_points: [100, 1000, 5000, 10000, 20000, 50000, 100000]
-        psrf_ub: 1.01
+        psrf_ub: 1.1
         neff_per_chain: 10.0 
         n_chains: 4
         N: 5
     prediction:
-        timeout: 10800
+        timeout: 43200 
         n_chains: 4
         N: 5
     # the grid of MCMC hyperparameters
@@ -35,9 +33,9 @@ simulation_study:
         burnin: 0.5 
         regression_deg: [1]  
         max_samples: 100000
-        lambda_prop_std: [3.0] # [0.25]
+        lambda_prop_std: [3.0] 
         large_indeg: 15
-
+    baseline_methods: ["hill", "funchisq", "lasso", "prior_baseline"]
 
 dream_challenge: 
     cell_lines: ["BT20", "BT549", "MCF7", "UACC812"]
@@ -45,7 +43,7 @@ dream_challenge:
     N: 5
     convergence:
         stop_points: [100, 1000, 5000, 10000, 20000, 50000, 100000]
-        psrf_ub: 1.01
+        psrf_ub: 1.1
         neff_per_chain: 10.0 
     mcmc_hyperparams:
         timeout: 43200
@@ -55,6 +53,7 @@ dream_challenge:
         lambda_prop_std: [3.0] 
         large_indeg: 15
         n_chains: 4
+    baseline_methods: ["hill", "funchisq", "lasso", "prior_baseline"]
 
 
 hill_timetest:

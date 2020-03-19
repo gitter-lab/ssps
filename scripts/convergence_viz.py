@@ -89,7 +89,8 @@ for rep in replicates:
 
 
 parent_fname = snakemake.output[0]
-lambda_fname = ".".join(parent_fname.split("."))[:-1] + "_lambda.png"
+#lambda_fname = ".".join(parent_fname.split("."))[:-1] + "_lambda.png"
+lambda_fname = parent_fname[:-4] + "_lambda.png"
 
 plot_nonconverged(parent_replicates, stop_points, parent_fname, 
                   ylabel="Non-converged edge probabilities")
