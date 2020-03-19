@@ -90,9 +90,11 @@ def fpr_tpr_prec_rec(pred_desc, true_desc, nneg, npos):
     return fpr, tpr, prec, rec
 
 
-def increment_auc(auc, x, y, old_x, old_y):
+def increment_trap(auc, x, y, old_x, old_y):
     return auc + 0.5*(y + old_y)*(x - old_x)
 
+def increment_rect(auc, x, y, old_x, old_y):
+    return auc + y*(x - old_x)
 
 def descendant_set_auc(prob_parents, true_desc, root_idx, return_curves=True):
     
@@ -135,8 +137,8 @@ def descendant_set_auc(prob_parents, true_desc, root_idx, return_curves=True):
             
             fpr, tpr, prec, rec = fpr_tpr_prec_rec(descendants, true_desc, nneg, npos)
                 
-            auc_roc = increment_auc(auc_roc, fpr, tpr, old_fpr, old_tpr)
-            auc_pr = increment_auc(auc_pr, rec, prec, old_rec, old_prec)
+            auc_roc = increment_trap(auc_roc, fpr, tpr, old_fpr, old_tpr)
+            auc_pr = increment_rect(auc_pr, rec, prec, old_rec, old_prec)
             old_fpr, old_tpr, old_prec, old_rec = fpr, tpr, prec, rec
             roc_curve[0].append(fpr)
             roc_curve[1].append(tpr)
@@ -148,8 +150,8 @@ def descendant_set_auc(prob_parents, true_desc, root_idx, return_curves=True):
     
     # UPDATES!
     fpr, tpr, prec, rec = fpr_tpr_prec_rec(descendants, true_desc, nneg, npos)
-    auc_roc = increment_auc(auc_roc, fpr, tpr, old_fpr, old_tpr)
-    auc_pr = increment_auc(auc_pr, rec, prec, old_rec, old_prec)
+    auc_roc = increment_trap(auc_roc, fpr, tpr, old_fpr, old_tpr)
+    auc_pr = increment_rect(auc_pr, rec, prec, old_rec, old_prec)
     roc_curve[0].append(fpr)
     roc_curve[1].append(tpr)
     pr_curve[0].append(rec)

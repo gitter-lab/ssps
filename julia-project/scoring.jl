@@ -9,18 +9,18 @@ module Scoring
 
 using JSON, CSV, ArgParse 
 
-export auroc, auprc, julia_main
+export aucroc, aucpr, average_precision, julia_main
 
 """
-Compute AUROC from the given predictions,
+Compute AUCROC from the given predictions,
 with respect to the given ground-truth.
 Integral is computed via trapezoidal rule.
 
 Has n*log(n) complexity 
 (superlinear expense incurred by sorting; 
- the AUROC loop has linear expense).
+ the AUCROC loop has linear expense).
 """
-function auroc(preds::Vector, truths::Vector{Bool}; return_curve::Bool=false)
+function aucroc(preds::Vector, truths::Vector{Bool}; return_curve::Bool=false)
 
     if return_curve
         curve = Vector{Vector{Float64}}()
@@ -74,15 +74,15 @@ end
 
 
 """
-Compute AUPRC from the given predictions,
+Compute AUCPR from the given predictions,
 with respect to the given ground-truth.
 Integral is computed via trapezoidal rule.
 
 Has n*log(n) complexity 
 (superlinear expense incurred by sorting; 
- the AUPRC loop has linear expense).
+ the AUCPR loop has linear expense).
 """
-function auprc(preds::Vector, truths::Vector{Bool}; return_curve::Bool=false)
+function aucpr(preds::Vector, truths::Vector{Bool}; return_curve::Bool=false)
 
     if return_curve
         curve = Vector{Vector{Float64}}()
@@ -137,6 +137,68 @@ function auprc(preds::Vector, truths::Vector{Bool}; return_curve::Bool=false)
     return area
 end
 
+"""
+Compute average precision from the given predictions,
+with respect to the given ground-truth.
+
+Has n*log(n) complexity 
+(superlinear expense incurred by sorting)
+
+return_curve: return the PR curve for these predictions
+"""
+function average_precision(preds::Vector, truths::Vector{Bool}; return_curve::Bool=false)
+
+    if return_curve
+        curve = Vector{Vector{Float64}}()
+        push!(curve, [0.0;1.0])
+    end
+    
+    # Sort the predictions (and corresponding ground truth)
+    # by confidence level
+    srt_inds = sortperm(preds, order=Base.Order.Reverse)
+    srt_preds = preds[srt_inds]
+    srt_truths = truths[srt_inds]
+
+    s = 0.0
+    tp = 0
+    fp = 0
+    prev_r = 0.0
+    N = length(srt_truths)
+    npos = sum(srt_truths)
+    nneg = N - npos
+    
+    for i=1:N
+        if (i>1) && (srt_preds[i] < srt_preds[i-1])
+            
+            recall = tp / npos
+            precision = tp / (tp + fp)
+            if return_curve
+                push!(curve, [recall; precision])
+            end
+            s += precision*(recall - prev_r)
+
+            prev_r = recall
+        end
+
+        if srt_truths[i]
+            tp += 1
+        else
+            fp += 1
+        end
+    end
+
+    recall = tp / npos
+    precision = tp / (tp + fp)
+    s += precision*(recall - prev_r)
+
+    if return_curve
+        push!(curve, [recall; precision])
+        return s, transpose(hcat(curve...))
+    end
+
+    return s
+end
+
 
 """
 Take a "vector of vectors" representation of the
@@ -185,6 +247,7 @@ function load_ps_truths(truths_fname)
     return ps_to_vec(parent_sets)
 end
 
+
 """
 Given 
 * a vector of edge prediction filenames
@@ -220,7 +283,7 @@ function get_args(args::Vector{String})
             required=true
             arg_type=String
         "--skip-roc"
-            help="Do NOT compute ROC or AUROC for the predictions."
+            help="Do NOT compute ROC or AUCROC for the predictions."
             action=:store_true
     end
 
@@ -241,15 +304,15 @@ function julia_main()
 
     result = Dict{String,Any}()
     
-    # Compute AUCPR and PR curve 
-    pr_score_fn = (pred, truth) -> auprc(pred, truth; return_curve=true)
+    # Compute mean precision and PR curve 
+    pr_score_fn = (pred, truth) -> average_precision(pred, truth; return_curve=true)
     pr_stuff = edge_score(pred_fname, truth_fname, pr_score_fn) 
     result["aucpr"] = pr_stuff[1]
     result["pr_curve"] = pr_stuff[2] 
 
     if !skip_roc
         # Compute AUCROC and ROC curve for each set of predictions
-        roc_score_fn = (pred, truth) -> auroc(pred, truth; return_curve=true)
+        roc_score_fn = (pred, truth) -> aucroc(pred, truth; return_curve=true)
         roc_stuff = edge_score(pred_fname, truth_fname, roc_score_fn) 
         result["aucroc"] = roc_stuff[1] 
         result["roc_curve"] = roc_stuff[2] 
@@ -266,8 +329,8 @@ end
 # END MODULE
 end
 
-using .Scoring
+#using .Scoring
 
-julia_main()
+#julia_main()
 
 
