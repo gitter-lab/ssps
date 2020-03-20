@@ -30,6 +30,49 @@ def make_heatmap(ax, relevant):
     return ax
 
 
+def compute_t_statistics(df, test_key_cols, sample_col, qty_cols,
+                             method_col, baseline_name):
+
+    # test_key_cols = ["v","r","a"]
+    # sample_col = "replicate"
+    # qty_cols = ["aucroc", "aucpr"]
+    # method_col = "method"
+    # baseline_name = "prior_baseline"
+
+    methods = df[method_col].unique().tolist()
+    baseline = df[df[method_col] == baseline_name]
+    
+    df.set_index(test_key_cols + [sample_col], inplace=True)
+    baseline.set_index(test_key_cols + [sample_col], inplace=True)
+    
+    diff_cols = ["{}_diff".format(c) for c in qty_cols]
+    
+    result_df = pd.DataFrame()
+    
+    for method in methods:
+    
+        temp = pd.DataFrame()
+        temp[diff_cols] = df.loc[df[method_col] == method, qty_cols] - baseline[qty_cols]
+        temp.reset_index(inplace=True)
+                        
+        gp = temp.groupby(by=test_key_cols)
+        means = gp[diff_cols].mean()
+        result_df[["{}_{}_mean".format(method, qty) for qty in qty_cols]] = means
+        stds = gp[diff_cols].std()
+                    
+        result_df[["{}_{}_std".format(method, qty) for qty in qty_cols]] = stds
+        ns = gp[sample_col].count()
+        result_df["{}_n".format(method)] = ns
+               
+        f = lambda x: x / ns.map(np.sqrt)
+        ses = stds.apply(f)
+        result_df[["{}_{}_se".format(method, qty) for qty in qty_cols]] = ses
+        ts = means / ses
+        result_df[["{}_{}_t".format(method, qty) for qty in qty_cols]] = ts
+                  
+    return result_df
+
+
 def subplot_heatmaps(score_df, method_keys, baseline_key,
                      output_filename="simulation_scores.png"):
 
