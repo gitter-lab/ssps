@@ -138,7 +138,8 @@ rule all:
         # Convergence tests on experimental data
         expand(FIG_DIR+"/dream/convergence/mcmc_d={d}_lstd={lstd}/cl={cell_line}_stim={stimulus}.png", 
                cell_line=CELL_LINES, stimulus=STIMULI, d=DREAM_REGDEGS, lstd=DREAM_LSTD),
-        FIG_DIR+"/simulation_study/heatmaps/hill-mcmc_d=1-aucroc.png",
+        expand(FIG_DIR+"/simulation_study/heatmaps/{method}-mcmc_d=1-{score}-{style}.png",
+                method=SIM_BASELINES, score=["aucroc","aucpr"], style=["mean","t"])
         # Simulation scores
         #SIM_DIR+"/sim_scores.tsv",
         # DREAM scores
@@ -209,6 +210,16 @@ rule score_sim_predictions:
 
 ##########################
 # SIM VISUALIZATION RULES
+
+
+rule sim_heatmaps:
+    input:
+        SIM_DIR+"/sim_scores.tsv"
+    output:
+        mean=FIG_DIR+"/simulation_study/heatmaps/{method}-{mcmc_method}-{score}-mean.png"
+        t=FIG_DIR+"/simulation_study/heatmaps/{method}-{mcmc_method}-{score}-t.png"
+    shell:
+        "python scripts/sim_heatmap.py {input} {output.mean} {output.t} {wildcards.score} prior_baseline {wildcards.method} {wildcards.mcmc_method}" 
 
 rule convergence_viz:
     input:
