@@ -10,6 +10,7 @@ import pandas as pd
 
 
 NICE_NAMES = {"mcmc_d=1": "MCMC",
+              "mcmc_d=1_lstd=3.0": "MCMC",
               "hill": "Hill's Exact",
               "lasso": "LASSO",
               "funchisq": "FunChisq",
@@ -18,11 +19,16 @@ NICE_NAMES = {"mcmc_d=1": "MCMC",
               "r": "$r$",
               "a": "$a$",
               "t": "$t$",
-              "aucroc_mean": "Mean AUCROC",
-              "aucpr_mean": "Mean AUCPR",
+              "aucroc": "AUCROC",
+              "aucpr": "AUCPR",
               "psrf": "PSRF",
-              "neff": "$N_{\text{eff}}$"
+              "neff": "$N_{\text{eff}}$",
+              "t_stat_aucpr": "AUCPR $t$-Statistic"
               }
+
+SHORT_NAMES = NICE_NAMES.copy()
+SHORT_NAMES["prior_baseline"] = "Prior"
+SHORT_NAMES["hill"] = "Hill"
 
 
 def parse_path_kvs(file_path):

@@ -5,14 +5,17 @@
 
 import pandas as pd
 import numpy as np
-from matplotlib import pyplot as plt
 import matplotlib as mpl
+
+mpl.use('Agg')
+mpl.rcParams['text.usetex'] = True
+
+from matplotlib import pyplot as plt
 import sys
 import os
 import argparse
 import script_util as su
 
-mpl.rcParams['text.usetex'] = True
 
 
 def compute_t_statistics(df, test_key_cols, sample_col, qty_cols,
@@ -69,7 +72,11 @@ def make_heatmap(ax, relevant, x_col, y_col, qty_col, **kwargs):
         for j, y in enumerate(y_vals):
             grid[j,i] = relevant.loc[(relevant[x_col] == x) & (relevant[y_col] == y), qty_col]
 
-    img = ax.imshow(grid, cmap="Greys", **kwargs)
+    img = ax.imshow(grid, origin="lower", **kwargs)
+    ax.set_xticks(list(range(len(x_vals))))
+    ax.set_xticklabels(x_vals)
+    ax.set_yticks(list(range(len(y_vals))))
+    ax.set_yticklabels(y_vals)
     #ax.set_xlim([-0.5, len(x_vals)-0.5])
     #ax.set_ylim([-0.5, len(y_vals)-0.5])
 
@@ -78,9 +85,10 @@ def make_heatmap(ax, relevant, x_col, y_col, qty_col, **kwargs):
 
 
 def subplot_heatmaps(qty_df, macro_x_col, macro_y_col, 
-                     micro_x_col, micro_y_col, qty_col,
+                     micro_x_col, micro_y_col, qty_col, score_str,
                      output_filename="simulation_scores.png",
-                     macro_x_vals=None, macro_y_vals=None):
+                     macro_x_vals=None, macro_y_vals=None,
+                     cmap="Greys", vmin=None, vmax=None):
 
     if macro_x_vals is None:
         macro_x_vals = qty_df[macro_x_col].unique().tolist()
@@ -93,42 +101,45 @@ def subplot_heatmaps(qty_df, macro_x_col, macro_y_col,
 
     fig, axarr = plt.subplots(n_rows, n_cols, 
                               sharey=True, sharex=True, 
-                              figsize=(n_cols*2.54,n_rows*2.54),
-                              dpi=300)
+                              figsize=(2.0*n_cols,2.0*n_rows))
   
 
-    nrm = mpl.colors.Normalize(vmin=-1.0,vmax=1.0)#vmin=qty_df[qty_col].min(), vmax=qty_df[qty_col].max())
-    mappable = mpl.cm.ScalarMappable(norm=nrm, cmap="Greys")
+    in_macro_y_vals = lambda x: x in macro_y_vals
+    relevant_scores = qty_df.loc[qty_df[macro_y_col].map(in_macro_y_vals) , qty_col]
+    
+    if vmin is None:
+        vmin = relevant_scores.quantile(0.05)
+    if vmax is None:
+        vmax = relevant_scores.quantile(0.95)
+
+    nrm = mpl.colors.Normalize(vmin=vmin,vmax=vmax)
+    mappable = mpl.cm.ScalarMappable(norm=nrm, cmap=cmap)
 
     imgs = []
 
     # Iterate through the different subplots
-    for i, method in enumerate(macro_y_vals):
+    for i, myv in enumerate(macro_y_vals):
         for j, psize in enumerate(macro_x_vals):
             
             ax = axarr[i][j]
-            relevant = qty_df.loc[(qty_df[macro_y_col] == method) & (qty_df[macro_x_col] == psize),:]
-            #relevant = relevant.groupby("replicate").mean().reset_index(inplace=True)
+            relevant = qty_df.loc[(qty_df[macro_y_col] == myv) & (qty_df[macro_x_col] == psize),:]
 
-            img = make_heatmap(ax, relevant, micro_x_col, micro_y_col, qty_col, norm=nrm)
+            img = make_heatmap(ax, relevant, micro_x_col, micro_y_col, qty_col, norm=nrm, cmap=cmap)
             imgs.append(img)
            
             #ax.set_xlim([0,3])
             #ax.set_ylim([0,3])
-            ax.set_xticks([])
-            ax.set_yticks([])
-            if i == len(methods)-1:
+            if i == len(macro_y_vals)-1:
                 ax.set_xlabel("${}$\n$V$ = {}".format(micro_x_col, psize),family='serif')
             if j == 0:
-                ax.set_ylabel("{}\n${}$".format(su.NICE_NAMES[method], micro_y_col),family='serif')
+                ax.set_ylabel("{}\n${}$".format(su.NICE_NAMES[myv], micro_y_col),family='serif')
     
-    fig.text(0.02,0.5, "Method",ha='center',family='serif',rotation="vertical",fontsize=14) 
-    fig.text(0.5,0.02, "Problem size",ha='center',family='serif',fontsize=14) 
-    plt.tight_layout(rect=[0.03,0.03,1,0.95])
-    fig.suptitle("Simulation Study Performance",family='serif',fontsize=16)
-    fig.colorbar(imgs[0], ax=axarr[0][0]) 
+    
+    fig.suptitle("Simulation Study: {}".format(su.NICE_NAMES[score_str]),family='serif',fontsize=16)
+    plt.tight_layout(rect=[0.0,0.0,1,0.95])
+    fig.colorbar(imgs[-1], ax=axarr, location="top", shrink=0.8, pad=0.05, fraction=0.05, use_gridspec=True)
 
-    plt.savefig(output_filename)
+    plt.savefig(output_filename, dpi=300)#, bbox_inches="tight")
 
 
 if __name__=="__main__":
@@ -155,10 +166,14 @@ if __name__=="__main__":
                                         method_col, baseline_name)
     #t_stat_table.to_csv("t_statistics.tsv", sep="\t")
 
-    subplot_heatmaps(aggregate_table, "v", "method", "r", "a", score_str,
-                     output_filename=mean_outfile, macro_y_vals=methods)
+    print(mean_outfile)
+    subplot_heatmaps(aggregate_table, "v", "method", "r", "a", score_str, score_str,
+                     output_filename=mean_outfile, macro_y_vals=methods+[baseline_name],
+                     cmap="Greys")
 
-    subplot_heatmaps(t_stat_table, "v", "method", "r", "a", score_str, 
-                     output_filename=t_outfile, macro_y_vals=methods) 
+    print(t_outfile)
+    subplot_heatmaps(t_stat_table, "v", "method", "r", "a", score_str, "t_stat_{}".format(score_str), 
+                     output_filename=t_outfile, macro_y_vals=methods,
+                     cmap="RdBu", vmin=-5.0, vmax=5.0) 
 
 
