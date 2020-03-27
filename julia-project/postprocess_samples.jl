@@ -225,6 +225,9 @@ function collect_stats(dict_vec, stop_points; burnin::Float64=0.5)
     results["parent_sets"] = results["summary"]["parent_sets"]
     results["edge_conf_key"] = "parent_sets"
 
+    results["t_elapsed"] = [d["t_elapsed"] for d in dict_vec]
+    results["n"] = [d["n"] for d in dict_vec]
+
     delete!(results["summary"], "parent_sets") 
     return results
 end

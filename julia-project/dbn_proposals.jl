@@ -126,16 +126,71 @@ function smart_involution(cur_tr, fwd_choices, fwd_ret, prop_args)
     return new_tr, bwd_choices, weight
 end
 
-#@gen function uniform_proposal(tr, V)
+
+function unpaired_edges(tr, V)
+    result = Set()
+    for child = 1:V
+        for p in tr[:parent_sets => child => :parents]
+            if (child, p) in result
+                delete!(result, (child,p))
+            elseif p != child
+                push!(result, (p,child))
+            end
+        end
+    end
+    return collect(result)
+end
+
+
+@gen function uniform_proposal(tr, V)
+
+    ue = unpaired_edges(tr,V)
+    bound = V^2 + length(ue)
+    idx = @trace(Gen.uniform_discrete(1, bound), :idx)
+
+    if idx <= V^2
+        u_idx = div(idx, V) + 1
+        v_idx = (idx % V) + 1
+
+        if u_idx in tr[:parent_sets => v_idx => :parents]
+            return (u_idx, v_idx), bound, ue, "remove"
+        else
+            return (u_idx, v_idx), bound, ue, "add"
+        end
+    else
+        return (ue[idx - V^2]), bound, ue, "swap"
+    end
+end
+
+
+#function uniform_involution(cur_tr, fwd_choices, fwd_ret, prop_args)
+#    
+#    idx = fwd_ret[1]
+#    u_idx = idx[1]
+#    v_idx = idx[2]
+#    bound = fwd_ret[2]
+#    ue = fwd_ret[3]
+#    action = fwd_ret[4]
+#    V = prop_args[2]
 #
-#    u_idx = @trace(Gen.uniform_discrete(1, V), :u_idx)
-#    v_idx = @trace(Gen.uniform_discrete(1,V), :v_idx)
+#    update_choices = Gen.choicemap()
+#    bwd_choices = Gen.choicemap()
 #
-#    if u_idx in tr[:parent_sets => v_idx => :parents]
+#    if action == "add"
+#        bwd_choices[:idx] = (v_idx-1)*V + u_idx
+#        update_choices
+#    elseif action == "remove"
+#        bwd_choices[:idx] = (v_idx-1)*V + u_idx
+#        update_choices
+#    elseif action == "swap"
+#        bwd_choices[:idx] = 
+#        update_choices
+#    end 
 #
-#    elif
-#
-#    end
+#    new_tr, weight, _, _ = Gen.update(cur_tr, Gen.get_args(cur_tr),
+#                                      (), update_choices)
+#    
+#    return new_tr, bwd_choices, weight
 #end
 
 
