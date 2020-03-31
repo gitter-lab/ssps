@@ -329,8 +329,8 @@ end
 # END MODULE
 end
 
-#using .Scoring
+using .Scoring
 
-#julia_main()
+julia_main()
 
 

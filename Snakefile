@@ -136,11 +136,11 @@ rule all:
         #       v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"],
         #       t=SIM_GRID["T"], d=CONV_DEGS)
         # Convergence tests on experimental data
-        expand(FIG_DIR+"/dream/convergence/mcmc_d={d}_lstd={lstd}/cl={cell_line}_stim={stimulus}.png", 
-               cell_line=CELL_LINES, stimulus=STIMULI, d=DREAM_REGDEGS, lstd=DREAM_LSTD),
+        #expand(FIG_DIR+"/dream/convergence/mcmc_d={d}_lstd={lstd}/cl={cell_line}_stim={stimulus}.png", 
+        #       cell_line=CELL_LINES, stimulus=STIMULI, d=DREAM_REGDEGS, lstd=DREAM_LSTD),
         FIG_DIR+"/simulation_study/heatmaps/hill-mcmc_d=1-aucroc.png",
         # Simulation scores
-        #SIM_DIR+"/sim_scores.tsv",
+        SIM_DIR+"/sim_scores.tsv",
         # DREAM scores
         DREAM_DIR+"/dream_scores.tsv"
         # Hill timetest results
@@ -176,7 +176,7 @@ rule tabulate_dream_scores:
     output:
         DREAM_DIR+"/dream_scores.tsv"
     shell:
-        "python scripts/tabulate_scores.py {input.mcmc} {input.baselines}"
+        "python scripts/tabulate_scores.py {input.mcmc} {input.baselines} {output}"
 
 
 rule simulate_data:
