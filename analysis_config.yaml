@@ -10,8 +10,8 @@ simulation_study:
     # the grid of simulated datasets
     simulation_grid:
         V: [40, 100, 200]           # number of variables
-        R: [0.1, 0.5, 0.75, 1.0]    # fraction of edges to remove
-        A: [0.1, 0.5, 0.75, 1.0]    # fraction of new edges to add
+        R: [0.1] #, 0.5, 0.75, 1.0]    # fraction of edges to remove
+        A: [0.1] #, 0.5, 0.75, 1.0]    # fraction of new edges to add
         T: [8]                      # length of each time series 
         M: 4                        # number of time series
     # polynomial degree used by autoregression *data generator*
@@ -26,8 +26,8 @@ simulation_study:
         N: 5
     prediction:
         timeout: 43200 
-        n_chains: 4
-        N: 5
+        n_chains: 1 #4
+        N: 6 #5
     # the grid of MCMC hyperparameters
     mcmc_hyperparams:
         burnin: 0.5 
@@ -35,7 +35,7 @@ simulation_study:
         max_samples: 100000
         lambda_prop_std: [3.0] 
         large_indeg: 15
-    baseline_methods: ["hill", "funchisq", "lasso", "prior_baseline"]
+    baseline_methods: [] #["hill", "funchisq", "lasso", "prior_baseline"]
 
 dream_challenge: 
     cell_lines: ["BT20", "BT549", "MCF7", "UACC812"]
@@ -57,13 +57,16 @@ dream_challenge:
 
 
 hill_timetest:
-    modes: ["linear", "quadratic", "full"]
-    deg_v_combs: [[1,40], [1,100], [1,1000], 
-                  [2,40], [2,100], [2,1000]] #, 
-                  #[3,20],[3,100],
-                  #[4,20],
-                  #[5,20]]
-    timeout: 3600
+    modes: ["full"] # ["linear", "quadratic", "full"]
+    deg_v_combs: [[1,40], [1,100], [1,200], 
+                  [2,40], [2,100], [2,200], 
+                  [3,40], [3,100], [3,200],
+                  [4,40], #[4,100], [4,200],
+                  [5,40], #[5,100], [5,200],
+                  [6,40]] #,
+                  #[7,40]]
+    timeout: 43200
+    mem_mb: 32000
 
 
 
