@@ -23,8 +23,7 @@ function julia_main()
     true_dg_filename = ARGS[8]
     timeseries_filename = ARGS[9]
     coeff_std = 1.0/sqrt(V)
-    regression_std = 1.0/sqrt(T)/1000.0 # TODO: THIS NEEDS TO BE SMALLER.
-                                 #       (more signal, less noise)
+    regression_std = 1.0/sqrt(T)/1000.0 
 
     while true
         

@@ -9,9 +9,12 @@ temp_dir: ""
 simulation_study:
     # the grid of simulated datasets
     simulation_grid:
-        V: [40, 100, 200]           # number of variables
-        R: [0.1, 0.5, 0.75, 1.0]    # fraction of edges to remove
-        A: [0.1, 0.5, 0.75, 1.0]    # fraction of new edges to add
+        #V: [40, 100, 200]           # number of variables
+        V: [10]           # number of variables
+        #R: [0.1, 0.5, 0.75, 1.0]    # fraction of edges to remove
+        #A: [0.1, 0.5, 0.75, 1.0]    # fraction of new edges to add
+        R: [0.1]    # fraction of edges to remove
+        A: [0.1]    # fraction of new edges to add
         T: [8]                      # length of each time series 
         M: 4                        # number of time series
     # polynomial degree used by autoregression *data generator*
@@ -32,10 +35,13 @@ simulation_study:
     mcmc_hyperparams:
         burnin: 0.5 
         regression_deg: [1]  
-        max_samples: 100000
+        #max_samples: 100000
+        max_samples: 2000
         lambda_prop_std: [3.0] 
         large_indeg: 15
-    baseline_methods: ["hill", "funchisq", "lasso", "prior_baseline"]
+    #baseline_methods: ["hill", "funchisq", "lasso", "prior_baseline", "uniform"]
+    #baseline_methods: ["prior_baseline"]
+    baseline_methods: ["uniform"]
 
 dream_challenge: 
     cell_lines: ["BT20", "BT549", "MCF7", "UACC812"]

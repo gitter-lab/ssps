@@ -44,6 +44,22 @@ function vertex_lambda_update_loop(tr, proposal_param_vec::Vector{Float64})
 end
 
 
+function uniform_update_loop(tr, proposal_param_vec::Vector{Float64})
+    
+    lambda_prop_std = proposal_param_vec[end]
+    
+    V = length(proposal_param_vec) - 1
+
+    acc_vec = zeros(V)
+    lambda_acc = false
+    for i=1:V
+        tr, lambda_acc = Gen.mh(tr, lambda_vec_proposal, (i, lambda_prop_std))
+        tr, acc_vec[i] = Gen.mh(tr, uniform_proposal, (V,), uniform_involution)
+    end
+
+    return tr, (lambda_acc, acc_vec)
+end
+
 
 import DataStructures: DefaultDict
 

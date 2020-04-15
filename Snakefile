@@ -136,14 +136,14 @@ rule all:
         #       v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"],
         #       t=SIM_GRID["T"], d=CONV_DEGS)
         # Convergence tests on experimental data
-        expand(FIG_DIR+"/dream/convergence/mcmc_d={d}_lstd={lstd}/cl={cell_line}_stim={stimulus}.png", 
-               cell_line=CELL_LINES, stimulus=STIMULI, d=DREAM_REGDEGS, lstd=DREAM_LSTD),
-        expand(FIG_DIR+"/simulation_study/heatmaps/{method}-mcmc_d=1-{score}-{style}.png",
-                method=SIM_BASELINES, score=["aucroc","aucpr"], style=["mean","t"])
+        #expand(FIG_DIR+"/dream/convergence/mcmc_d={d}_lstd={lstd}/cl={cell_line}_stim={stimulus}.png", 
+        #       cell_line=CELL_LINES, stimulus=STIMULI, d=DREAM_REGDEGS, lstd=DREAM_LSTD),
+        #expand(FIG_DIR+"/simulation_study/heatmaps/{method}-mcmc_d=1-{score}-{style}.png",
+        #        method=SIM_BASELINES, score=["aucroc","aucpr"], style=["mean","t"])
         # Simulation scores
-        #SIM_DIR+"/sim_scores.tsv",
+        SIM_DIR+"/sim_scores.tsv",
         # DREAM scores
-        DREAM_DIR+"/dream_scores.tsv"
+        #DREAM_DIR+"/dream_scores.tsv"
         # Hill timetest results
         #FIG_DIR+"/hill_method_timetest.csv"
 
@@ -212,14 +212,14 @@ rule score_sim_predictions:
 # SIM VISUALIZATION RULES
 
 
-rule sim_heatmaps:
-    input:
-        SIM_DIR+"/sim_scores.tsv"
-    output:
-        mean=FIG_DIR+"/simulation_study/heatmaps/{method}-{mcmc_method}-{score}-mean.png"
-        t=FIG_DIR+"/simulation_study/heatmaps/{method}-{mcmc_method}-{score}-t.png"
-    shell:
-        "python scripts/sim_heatmap.py {input} {output.mean} {output.t} {wildcards.score} prior_baseline {wildcards.method} {wildcards.mcmc_method}" 
+#rule sim_heatmaps:
+#    input:
+#        SIM_DIR+"/sim_scores.tsv"
+#    output:
+#        mean=FIG_DIR+"/simulation_study/heatmaps/{method}-{mcmc_method}-{score}-mean.png",
+#        t=FIG_DIR+"/simulation_study/heatmaps/{method}-{mcmc_method}-{score}-t.png"
+#    shell:
+#        "python scripts/sim_heatmap.py {input} {output.mean} {output.t} {wildcards.score} prior_baseline {wildcards.method} {wildcards.mcmc_method}" 
 
 rule convergence_viz:
     input:
@@ -265,6 +265,7 @@ rule run_conv_mcmc_sim:
         +" --n-steps {CONV_MAX_SAMPLES} --regression-deg {wildcards.d}"\
         +" --lambda-prop-std {wildcards.lstd}"
 
+
 rule postprocess_sim_mcmc:
     input:
         pp=JULIA_PROJ_DIR+"/postprocess_samples.jl",
@@ -292,8 +293,43 @@ rule run_sim_mcmc:
         mem_mb=2000
     shell:
         "julia --project={JULIA_PROJ_DIR} {input.method} {input.ts_file} {input.ref_dg} {output} {SIM_TIMEOUT}"\
-        +" --regression-deg {wildcards.d} --n-steps {SIM_MAX_SAMPLES} --vertex-lambda"\
-        +" --lambda-prop-std 3.0 --large-indeg 15.0 --continuous-reference"
+        +" --regression-deg {wildcards.d} --n-steps {SIM_MAX_SAMPLES}"\
+        +" --lambda-prop-std 3.0 --large-indeg 15.0"
+
+
+###############################
+# Uniform MCMC
+#
+rule postprocess_sim_uniform_mcmc:
+    input:
+        pp=JULIA_PROJ_DIR+"/postprocess_samples.jl",
+        raw=expand(RAW_DIR+"/uniform/{{replicate}}/{chain}.json",
+                   chain=SIM_CHAINS)
+    output:
+        out=PRED_DIR+"/uniform/{replicate}.json"
+    resources:
+        runtime=3600,
+        threads=1,
+        mem_mb=6000
+    shell:
+        "julia --project={JULIA_PROJ_DIR} {input.pp} --chain-samples {input.raw}  --output-file {output.out}"
+
+
+rule run_sim_uniform_mcmc:
+    input:
+        method=JULIA_PROJ_DIR+"/Catsupp.jl",
+        ts_file=TS_DIR+"/{replicate}.csv",
+        ref_dg=REF_DIR+"/{replicate}.csv",
+    output:
+        RAW_DIR+"/uniform/{replicate}/{chain}.json"
+    resources:
+        runtime=SIM_TIMEOUT,
+        threads=1,
+        mem_mb=2000
+    shell:
+        "julia --project={JULIA_PROJ_DIR} {input.method} {input.ts_file} {input.ref_dg} {output} {SIM_TIMEOUT}"\
+        +" --regression-deg 1 --n-steps {SIM_MAX_SAMPLES}"\
+        +" --lambda-prop-std 3.0 --large-indeg 15.0 --proposal uniform"
 
 
 # END MCMC JOBS
@@ -456,7 +492,7 @@ rule run_dream_mcmc:
     shell:
         "julia --project={JULIA_PROJ_DIR} {input.method} {input.ts_file} {input.ref_dg} {output} {DREAM_TIMEOUT}"\
         +" --n-steps {CONV_MAX_SAMPLES} --regression-deg {wildcards.d}"\
-        +" --continuous-reference --lambda-prop-std {wildcards.lstd} --large-indeg {MCMC_INDEG} --vertex-lambda"
+        +" --lambda-prop-std {wildcards.lstd} --large-indeg {MCMC_INDEG}"
 
 
 rule score_dream_predictions:
