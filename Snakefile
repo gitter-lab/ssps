@@ -78,6 +78,7 @@ HILL_TIME_PARAMS = config["hill_timetest"]
 HILL_TIME_COMBS = HILL_TIME_PARAMS["deg_v_combs"]
 HILL_MODES = HILL_TIME_PARAMS["modes"]
 HILL_TIME_TIMEOUT = HILL_TIME_PARAMS["timeout"]
+HILL_TIME_MB = HILL_TIME_PARAMS["mem_mb"]
 
 # Convergence analysis 
 CONV_DIR = os.path.join(TEMP_DIR, "convergence")
@@ -138,6 +139,9 @@ rule all:
         # Convergence tests on experimental data
         #expand(FIG_DIR+"/dream/convergence/mcmc_d={d}_lstd={lstd}/cl={cell_line}_stim={stimulus}.png", 
         #       cell_line=CELL_LINES, stimulus=STIMULI, d=DREAM_REGDEGS, lstd=DREAM_LSTD),
+        #FIG_DIR+"/simulation_study/heatmaps/hill-mcmc_d=1-aucroc.png",
+        #expand(FIG_DIR+"/dream/convergence/mcmc_d={d}_lstd={lstd}/cl={cell_line}_stim={stimulus}.png", 
+        #       cell_line=CELL_LINES, stimulus=STIMULI, d=DREAM_REGDEGS, lstd=DREAM_LSTD),
         #expand(FIG_DIR+"/simulation_study/heatmaps/{method}-mcmc_d=1-{score}-{style}.png",
         #        method=SIM_BASELINES, score=["aucroc","aucpr"], style=["mean","t"])
         # Simulation scores
@@ -145,8 +149,11 @@ rule all:
         # DREAM scores
         #DREAM_DIR+"/dream_scores.tsv"
         # Hill timetest results
-        #FIG_DIR+"/hill_method_timetest.csv"
-
+        FIG_DIR+"/hill_method_timetest.csv"
+        # THIS IS A HACK FOR LOOKING AT MEMORY FOOTPRINT
+        #expand(RAW_DIR+"/mcmc_d={d}/v={v}_r={r}_a={a}_t={t}_replicate={rep}/{chain}.json",
+        #       d=REG_DEGS, v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"], 
+        #       rep=SIM_REPLICATES, chain=SIM_CHAINS)
 
 rule sim_heatmaps:
     input:
@@ -177,7 +184,7 @@ rule tabulate_dream_scores:
     output:
         DREAM_DIR+"/dream_scores.tsv"
     shell:
-        "python scripts/tabulate_scores.py {input.mcmc} {input.baselines}"
+        "python scripts/tabulate_scores.py {input.mcmc} {input.baselines} {output}"
 
 
 rule simulate_data:
@@ -381,8 +388,12 @@ rule run_timetest_hill:
         ref=REF_DIR+"/{replicate}.csv"
     output:
         HILL_TIME_DIR+"/preds/hill_deg={deg}_mode={mode}/{replicate}.json"
+    resources:
+        runtime=HILL_TIME_TIMEOUT+60,
+        threads=1,
+        mem_mb=HILL_TIME_MB
     shell:
-        "matlab -nodesktop -nosplash -nojvm -singleCompThread -r \'cd(\""+HILL_DIR+"\"); try, hill_dbn_wrapper(\"{input.ts}\", \"{input.ref}\", \"{output}\", {wildcards.deg}, \"{wildcards.mode}\", "+str(HILL_TIME_TIMEOUT)+"), catch e, quit(1), end, quit\'"
+        "matlab -nodesktop -nosplash -nojvm -singleCompThread -r \'cd(\"{HILL_DIR}\"); try, hill_dbn_wrapper(\"{input.ts}\", \"{input.ref}\", \"{output}\", {wildcards.deg}, \"{wildcards.mode}\", {HILL_TIME_TIMEOUT}), catch e, quit(1), end, quit\'"
 
 
 rule tabulate_timetest_hill:
@@ -390,8 +401,8 @@ rule tabulate_timetest_hill:
         [HILL_TIME_DIR+"/preds/hill_deg="+str(comb[0])+"_mode="+str(m)+"/v="+str(comb[1])+"_r="+str(SIM_GRID["R"][0])+"_a="+str(SIM_GRID["A"][0])+"_t="+str(SIM_GRID["T"][0])+"_replicate=0.json" for comb in HILL_TIME_COMBS for m in HILL_MODES]
     output:
         FIG_DIR+"/hill_method_timetest.csv"
-    script:
-        SCRIPT_DIR+"/tabulate_timetest_results.py"
+    shell:
+        "python {SCRIPT_DIR}/tabulate_timetest_results.py {input} {output}"
 
 # END HILL JOBS
 #####################
