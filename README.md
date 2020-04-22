@@ -1,4 +1,4 @@
-# Catsupp
+# Sparse Signaling Pathway Sampling
 
 TODO: probably choose a different name
 
