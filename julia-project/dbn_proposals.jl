@@ -128,7 +128,7 @@ end
 
 
 function unpaired_edges(tr, V)
-    result = Vector{Tuple{Int64,Int64}}()
+    result = Set()
     for child = 1:V
         for p in tr[:parent_sets => child => :parents]
             if (child, p) in result
@@ -138,19 +138,20 @@ function unpaired_edges(tr, V)
             end
         end
     end
-    return collect(result)
+    return sort(collect(result))
 end
 
 
 @gen function uniform_proposal(tr, V)
 
+    #println("V IN UNIFORM PROPOSAL", V)
     ue = unpaired_edges(tr,V)
     bound = V^2 + length(ue)
     idx = @trace(Gen.uniform_discrete(1, bound), :idx)
 
     if idx <= V^2
-        u_idx = div(idx, V) + 1
-        v_idx = idx % V 
+        u_idx = div(idx-1, V) + 1
+        v_idx = ((idx-1) % V) + 1 
 
         if u_idx in tr[:parent_sets => v_idx => :parents]
             return (u_idx, v_idx), bound, ue, "remove"
@@ -163,9 +164,9 @@ end
 end
 
 
-function rev_lt(tup1,tup2)
-    return reverse(tup1) < reverse(tup2)
-end
+#function rev_lt(tup1,tup2)
+#    return reverse(tup1) < reverse(tup2)
+#end
 
 
 function uniform_involution(cur_tr, fwd_choices, fwd_ret, prop_args)
@@ -176,13 +177,16 @@ function uniform_involution(cur_tr, fwd_choices, fwd_ret, prop_args)
     bound = fwd_ret[2]
     ue = fwd_ret[3]
     action = fwd_ret[4]
-    V = prop_args[2]
+    V = prop_args[1]
+    
+    #println(action, " ", (u_idx,v_idx))
 
     update_choices = Gen.choicemap()
     bwd_choices = Gen.choicemap()
 
     if action == "add"
-        bwd_choices[:idx] = (v_idx-1)*V + u_idx
+        bwd_choices[:idx] = (u_idx-1)*V + v_idx
+        
         # update_choices needs to:
         #     * add u_idx to the parent set of v_idx
         v_parents = copy(cur_tr[:parent_sets => v_idx => :parents])
@@ -191,7 +195,7 @@ function uniform_involution(cur_tr, fwd_choices, fwd_ret, prop_args)
         update_choices[:parent_sets => v_idx => :parents] = v_parents
 
     elseif action == "remove"
-        bwd_choices[:idx] = (v_idx-1)*V + u_idx
+        bwd_choices[:idx] = (u_idx-1)*V + v_idx
         
         # update_choices needs to:
         #     * remove u_idx from the parent set of v_idx
@@ -201,7 +205,11 @@ function uniform_involution(cur_tr, fwd_choices, fwd_ret, prop_args)
         update_choices[:parent_sets => v_idx => :parents] = v_parents
 
     elseif action == "reverse"
-        bwd_choices[:idx] = V^2 + searchsortedfirst(ue, (v_idx, u_idx), lt=rev_lt)
+        
+        ue_idx = searchsortedfirst(ue, (u_idx, v_idx))
+        deleteat!(ue, ue_idx)
+
+        bwd_choices[:idx] = V^2 + searchsortedfirst(ue, (v_idx, u_idx)) #, lt=rev_lt)
 
         # update_choices needs to:
         #     * remove u_idx from the parent set of v_idx
@@ -211,11 +219,13 @@ function uniform_involution(cur_tr, fwd_choices, fwd_ret, prop_args)
         deleteat!(v_parents, rem_idx)
         update_choices[:parent_sets => v_idx => :parents] = v_parents
         
-        u_parents = copy(cur_tr[:parent_sets => v_idx => :parents])
+        u_parents = copy(cur_tr[:parent_sets => u_idx => :parents])
         insert_idx = searchsortedfirst(u_parents, v_idx)
         insert!(u_parents, insert_idx, v_idx)
         update_choices[:parent_sets => u_idx => :parents] = u_parents
     end 
+
+    #println("UPDATES: ", update_choices)
 
     new_tr, weight, _, _ = Gen.update(cur_tr, Gen.get_args(cur_tr),
                                       (), update_choices)

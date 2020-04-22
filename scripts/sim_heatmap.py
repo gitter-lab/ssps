@@ -168,7 +168,7 @@ if __name__=="__main__":
 
     print(mean_outfile)
     subplot_heatmaps(aggregate_table, "v", "method", "r", "a", score_str, score_str,
-                     output_filename=mean_outfile, macro_y_vals=methods+[baseline_name],
+                     output_filename=mean_outfile, macro_y_vals=[baseline_name]+methods,
                      cmap="Greys")
 
     print(t_outfile)

@@ -122,7 +122,7 @@ function perform_inference(timeseries_filename::String,
     # Decide the kind of results to store:
     # summary statistics -- or -- a record of all samples
     update_results_fn = update_results_storediff
-    update_results_args = [V, vertex_lambda]
+    update_results_args = [V, true]
     
     # prepare parameters for proposal distributions
     ref_parent_counts = [max(sum(values(ps)), 2.0) for ps in ref_ps]

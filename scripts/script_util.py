@@ -9,9 +9,9 @@ import re
 import pandas as pd
 
 
-NICE_NAMES = {"mcmc_d=1": "MCMC",
+NICE_NAMES = {"mcmc_d=1": "SSPS",
               "mcmc_d=1_lstd=3.0": "MCMC",
-              "hill": "Hill's Exact",
+              "hill": "Exact DBN",
               "lasso": "LASSO",
               "funchisq": "FunChisq",
               "prior_baseline": "Prior knowledge (baseline)",
@@ -28,7 +28,7 @@ NICE_NAMES = {"mcmc_d=1": "MCMC",
 
 SHORT_NAMES = NICE_NAMES.copy()
 SHORT_NAMES["prior_baseline"] = "Prior"
-SHORT_NAMES["hill"] = "Hill"
+SHORT_NAMES["hill"] = "Exact"
 
 
 def parse_path_kvs(file_path):
@@ -54,7 +54,7 @@ def to_number(num_str):
             return num_str
 
 
-def tabulate_results(filenames, key_lists, map_fn=None):
+def tabulate_results(filenames, key_lists, map_fn=None, verbose=False):
     """
     General purpose function for extracting 
     values stored in JSON files and building
@@ -86,6 +86,8 @@ def tabulate_results(filenames, key_lists, map_fn=None):
                 v = v[k]
             row["_".join(kl)] = map_fn(v)
 
+        if verbose:
+            print(fname)
         table = table.append(row, ignore_index=True)
 
     return table

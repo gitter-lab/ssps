@@ -27,9 +27,9 @@ function julia_main()
 
     while true
         
-        ref_dg = generate_random_digraph(V,p)
+        true_dg = generate_random_digraph(V,p)
         
-        true_dg, timeseries = modify_and_simulate(ref_dg, remove, add,
+        ref_dg, timeseries = modify_and_simulate(true_dg, remove, add,
         					  T, N, coeff_std,
         					  regression_deg,
         					  regression_std)

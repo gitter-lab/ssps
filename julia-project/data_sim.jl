@@ -243,7 +243,7 @@ function modify_and_simulate(ref_ps::Vector{Vector{Bool}}, remove::Float64, add:
     ref_ps_copy = [copy(ps) for ps in ref_ps]
     modify_digraph!(ref_ps_copy, remove, add)
     
-    ds = generate_dataset(T, N, ref_ps_copy, coeff_std, regression_deg, regression_std) 
+    ds = generate_dataset(T, N, ref_ps, coeff_std, regression_deg, regression_std) 
     
     return ref_ps_copy, ds
 end
