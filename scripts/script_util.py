@@ -10,7 +10,7 @@ import pandas as pd
 
 
 NICE_NAMES = {"mcmc_d=1": "SSPS",
-              "mcmc_d=1_lstd=3.0": "MCMC",
+              "mcmc_d=1_lstd=3.0": "SSPS",
               "hill": "Exact DBN",
               "lasso": "LASSO",
               "funchisq": "FunChisq",

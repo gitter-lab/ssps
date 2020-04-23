@@ -25,30 +25,6 @@ function ingest_timeseries!(timeseries_df)
 end
 
 
-"""
-Receive a dataframe containing an adjacency matrix,
-and return a Vector{Vector{Int64}} representing the 
-parent sets of the graph.
-"""
-function ingest_bool_adjacency!(adjacency_df; thresh::Float64=0.5)
-
-    parent_vecs = Vector{Vector{Int64}}()
-    adj_mat = convert(Matrix{Float64}, adjacency_df)
-    adj_mat = (adj_mat .> thresh)
-
-    for j=1:size(adj_mat,2)
-        ps = Vector{Int64}()
-        for i=1:size(adj_mat,1)
-            if adj_mat[i,j]
-                push!(ps, i)
-            end
-        end
-        push!(parent_vecs, ps)
-    end
-    return parent_vecs
-end
-
-
 function ingest_conf_adjacency!(adjacency_df)
 
     parent_confs = Vector{Dict{Int64,Float64}}()
@@ -80,19 +56,13 @@ This function assumes the data (time series and adjacency matrices)
 are stored in text-delimited files formatted in a very particular way.
 """
 function load_formatted_data(timeseries_data_path::String,
-		             reference_graph_path::String;
-                             boolean_adj::Bool=true)
+		                     reference_graph_path::String)
 
     timeseries_df = CSV.read(timeseries_data_path)
     ts_vec = ingest_timeseries!(timeseries_df)
 
     ref_adj_df = CSV.read(reference_graph_path, header=false)
-    
-    if boolean_adj
-        ref_ps = ingest_bool_adjacency!(ref_adj_df)
-    else
-        ref_ps = ingest_conf_adjacency!(ref_adj_df)
-    end
+    ref_ps = ingest_conf_adjacency!(ref_adj_df)
 
     return ts_vec, ref_ps
 end

@@ -132,24 +132,10 @@ DREAM_METHODS += ["mcmc_d={}_lstd={}".format(deg, lstd) for deg in DREAM_REGDEGS
 #############################
 rule all:
     input:
-        # Convergence tests on simulated data
-        #expand(FIG_DIR+"/convergence/v={v}_r={r}_a={a}_t={t}_d={d}.png",
-        #       v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"],
-        #       t=SIM_GRID["T"], d=CONV_DEGS)
-        # Convergence tests on experimental data
-        #expand(FIG_DIR+"/dream/convergence/mcmc_d={d}_lstd={lstd}/cl={cell_line}_stim={stimulus}.png", 
-        #       cell_line=CELL_LINES, stimulus=STIMULI, d=DREAM_REGDEGS, lstd=DREAM_LSTD),
-        #expand(FIG_DIR+"/dream/convergence/mcmc_d={d}_lstd={lstd}/cl={cell_line}_stim={stimulus}.png", 
-        #       cell_line=CELL_LINES, stimulus=STIMULI, d=DREAM_REGDEGS, lstd=DREAM_LSTD),
+        # simulation study results 
         expand(FIG_DIR+"/simulation_study/heatmaps/aucpr-{style}.png", style=["mean","t"])
-        # DREAM scores
-        #DREAM_DIR+"/dream_scores.tsv"
-        # Hill timetest results
-        #FIG_DIR+"/hill_method_timetest.csv"
-        # THIS IS A HACK FOR LOOKING AT MEMORY FOOTPRINT
-        #expand(RAW_DIR+"/mcmc_d={d}/v={v}_r={r}_a={a}_t={t}_replicate={rep}/{chain}.json",
-        #       d=REG_DEGS, v=SIM_GRID["V"], r=SIM_GRID["R"], a=SIM_GRID["A"], t=SIM_GRID["T"], 
-        #       rep=SIM_REPLICATES, chain=SIM_CHAINS)
+        # HPN-DREAM results
+        DREAM_DIR+"/dream_scores.tsv"
 
 
 rule tabulate_sim_scores:
@@ -161,7 +147,6 @@ rule tabulate_sim_scores:
         SIM_DIR+"/sim_scores.tsv"
     shell:
         "python scripts/tabulate_scores.py {input.scores} {output}"
-
 
 rule tabulate_dream_scores:
     input:
@@ -206,7 +191,6 @@ rule score_sim_predictions:
 ##########################
 # SIM VISUALIZATION RULES
 
-
 rule sim_heatmaps:
     input:
         SIM_DIR+"/sim_scores.tsv"
@@ -246,7 +230,7 @@ rule postprocess_conv_mcmc_sim:
 
 rule run_conv_mcmc_sim:
     input:
-        method=JULIA_PROJ_DIR+"/Catsupp.jl",
+        method=JULIA_PROJ_DIR+"/SSPS.jl",
         ts_file=TS_DIR+"/{dataset}.csv",
         ref_dg=REF_DIR+"/{dataset}.csv",
     output:
@@ -277,7 +261,7 @@ rule postprocess_sim_mcmc:
 
 rule run_sim_mcmc:
     input:
-        method=JULIA_PROJ_DIR+"/Catsupp.jl",
+        method=JULIA_PROJ_DIR+"/SSPS.jl",
         ts_file=TS_DIR+"/{replicate}.csv",
         ref_dg=REF_DIR+"/{replicate}.csv",
     output:
@@ -312,7 +296,7 @@ rule postprocess_sim_uniform_mcmc:
 
 rule run_sim_uniform_mcmc:
     input:
-        method=JULIA_PROJ_DIR+"/Catsupp.jl",
+        method=JULIA_PROJ_DIR+"/SSPS.jl",
         ts_file=TS_DIR+"/{replicate}.csv",
         ref_dg=REF_DIR+"/{replicate}.csv",
     output:
@@ -479,7 +463,7 @@ rule postprocess_dream_mcmc:
 
 rule run_dream_mcmc:
     input:
-        method=JULIA_PROJ_DIR+"/Catsupp.jl",
+        method=JULIA_PROJ_DIR+"/SSPS.jl",
         ts_file=DREAM_PREP_TS_DIR+"/cl={cell_line}_stim={stimulus}.csv",
         ref_dg=DREAM_REF_DIR+"/cl={cell_line}.csv",
     output:

@@ -2,9 +2,8 @@
 # 2020-01-02
 # David Merrell
 #
-# A module for performing network inference
-# via adaptive LASSO.
-# It's intended for static compilation.
+# A module for performing network inference via adaptive LASSO.
+# It selects the LASSO parameter using Bayesian Information Criterion.
 
 module Lasso
 

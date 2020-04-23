@@ -23,10 +23,13 @@ def get_avg_parentset_neffs(parent_sets):
 if __name__=="__main__":
 
     out_file = sys.argv[1]
-    time_file = sys.argv[2]
-    pred_files = sys.argv[3:]
+    pred_files = sys.argv[2:]
+    TIME_STR = "t_elapsed" 
+    N_STR = "n"
     
-    rep_results = pd.read_csv(time_file, sep="\t")
+    rep_results = su.tabulate_results(input_files, [[TIME_STR], [N_STR]], 
+                                      verbose=True, map_fn=sum)
+
     rep_results = rep_results.set_index(["v","r","a","replicate"])
     #rep_results = gp["n"].sum().to_frame()
     #rep_results["t_elapsed"] = gp["t_elapsed"].sum()

@@ -130,7 +130,7 @@ def subplot_heatmaps(qty_df, macro_x_col, macro_y_col,
             #ax.set_xlim([0,3])
             #ax.set_ylim([0,3])
             if i == len(macro_y_vals)-1:
-                ax.set_xlabel("${}$\n$V$ = {}".format(micro_x_col, psize),family='serif')
+                ax.set_xlabel("${}$\n$V$ = {:d}".format(micro_x_col, int(psize)),family='serif')
             if j == 0:
                 ax.set_ylabel("{}\n${}$".format(su.NICE_NAMES[myv], micro_y_col),family='serif')
     
@@ -168,7 +168,7 @@ if __name__=="__main__":
 
     print(mean_outfile)
     subplot_heatmaps(aggregate_table, "v", "method", "r", "a", score_str, score_str,
-                     output_filename=mean_outfile, macro_y_vals=[baseline_name]+methods,
+                     output_filename=mean_outfile, macro_y_vals=methods+[baseline_name],
                      cmap="Greys")
 
     print(t_outfile)

@@ -1,4 +1,4 @@
-# dbn_inference.jl
+# mcmc_inference.jl
 # 2019-11-11
 # David Merrell
 #
@@ -8,7 +8,16 @@
 
 """
 Generic MCMC inference wrapper.
-Some important arguments:
+Arguments:
+    * gen_model: a Gen probabilistic program
+    * model_args: a tuple of arguments for the "gen_model"
+    * update_loop_fn: a function which updates the variables in "gen_model"
+    * update_loop_args: a tuple of arguments for "update_loop_fn"
+    * update_results_fn: a function which updates the data structure holding MCMC results
+    * update_results_args: arguments for "update_results_fn"
+    * timeout: maximum execution time (in seconds) (default 1 hour)
+    * n_steps: maximum number of iterations (default no limit)
+    * thinning: only store results once every "thinning"th iteration
 """
 function mcmc_inference(gen_model, 
                         model_args,

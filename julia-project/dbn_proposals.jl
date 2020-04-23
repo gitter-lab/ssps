@@ -2,9 +2,12 @@
 # 2019-11-12
 # David Merrell
 #
-#
+# Some proposal distributions for exploring the space
+# of directed graphs.
 
-
+############################################
+# PARENT SET PROPOSAL DISTRIBUTION
+############################################
 function compute_move_probs(indeg::Int64, degmax::Int64, prob_param::Float64)
     frac = (indeg/degmax)^prob_param
     comp = 1.0 - frac
@@ -22,10 +25,10 @@ function ith_nonparent(i, parents::Vector{Int64})
     
     p = 1
     while p <= n
-	if (parents[p] - p) >= i
-	    break
+    if (parents[p] - p) >= i
+        break
         end
-	p += 1
+    p += 1
     end
     return i + p - 1
 end
@@ -45,18 +48,18 @@ function searchsorted_exclude(a::Vector{Int64}, x::Int64)
     end
 end
 
+
 """
-Proposal distribution for updating the parent set of a vertex.
+Parent set proposal distribution.
 
-This proposal prioritizes "swap" moves: rather than adding or removing
-and edge, just move it to a different parent. 
+This proposal allows "add parent", "remove parent", and "swap parent" moves.
 
-"Swap" proposals preserve in-degree. This is a good thing, since our 
+"Swap" moves preserve in-degree. This is a good thing, since our 
 model's posterior distribution varies pretty strongly with in-degree.
 """
 @gen function smart_proposal(tr, vertex::Int64, 
-	                         prob_param::Float64,
-                                 V::Int64)
+                             prob_param::Float64,
+                             V::Int64)
 
     parents = copy(tr[:parent_sets => vertex => :parents])
     indeg = length(parents)
@@ -69,10 +72,10 @@ model's posterior distribution varies pretty strongly with in-degree.
     elseif action == 2
         to_swp_add = @trace(Gen.uniform_discrete(1, V-indeg), :to_swp_add)
         to_swp_rem = @trace(Gen.uniform_discrete(1, indeg), :to_swp_rem)
-	return (parents, action, to_swp_add, to_swp_rem)
+        return (parents, action, to_swp_add, to_swp_rem)
     else
         to_rem = @trace(Gen.uniform_discrete(1, indeg), :to_rem)
-	return (parents, action, to_rem)
+        return (parents, action, to_rem)
     end
 end
 
@@ -88,36 +91,36 @@ function smart_involution(cur_tr, fwd_choices, fwd_ret, prop_args)
 
     if action == 1
         to_add = fwd_ret[3]
-	add_parent = ith_nonparent(to_add, parents)
+        add_parent = ith_nonparent(to_add, parents)
         insert_idx = searchsortedfirst(parents, add_parent)
         insert!(parents, insert_idx, add_parent)
         update_choices[:parent_sets => vertex => :parents] = parents
-	bwd_choices[:action] = 3
-	bwd_choices[:to_rem] = insert_idx 
+        bwd_choices[:action] = 3
+        bwd_choices[:to_rem] = insert_idx 
     
     elseif action == 2
         to_swp_add = fwd_ret[3]
-	to_swp_rem = fwd_ret[4]
-	add_parent = ith_nonparent(to_swp_add, parents)
-	rem_parent = parents[to_swp_rem]
+        to_swp_rem = fwd_ret[4]
+        add_parent = ith_nonparent(to_swp_add, parents)
+        rem_parent = parents[to_swp_rem]
         
         deleteat!(parents, to_swp_rem)
         insert_idx = searchsortedfirst(parents, add_parent)
         insert!(parents, insert_idx, add_parent) 
         
         update_choices[:parent_sets => vertex => :parents] = parents
-	
+    
         bwd_choices[:action] = 2
-	bwd_choices[:to_swp_add] = searchsorted_exclude(parents, rem_parent)
-	bwd_choices[:to_swp_rem] = insert_idx
+        bwd_choices[:to_swp_add] = searchsorted_exclude(parents, rem_parent)
+        bwd_choices[:to_swp_rem] = insert_idx
 
     else
         to_rem = fwd_ret[3]
-	rem_parent = parents[to_rem]
+        rem_parent = parents[to_rem]
         deleteat!(parents, to_rem)
-	update_choices[:parent_sets => vertex => :parents] = parents
+        update_choices[:parent_sets => vertex => :parents] = parents
         bwd_choices[:action] = 1
-	bwd_choices[:to_add] = searchsorted_exclude(parents, rem_parent)
+        bwd_choices[:to_add] = searchsorted_exclude(parents, rem_parent)
     end
 
     new_tr, weight, _, _ = Gen.update(cur_tr, Gen.get_args(cur_tr),
@@ -127,6 +130,15 @@ function smart_involution(cur_tr, fwd_choices, fwd_ret, prop_args)
 end
 
 
+
+####################################
+# UNIFORM GRAPH PROPOSAL
+####################################
+
+"""
+In order to propose reverse-edge moves, 
+we need to know which of the edges are not paired.
+"""
 function unpaired_edges(tr, V)
     result = Set()
     for child = 1:V
@@ -142,9 +154,11 @@ function unpaired_edges(tr, V)
 end
 
 
+"""
+Uniform graph proposal distribution.
+"""
 @gen function uniform_proposal(tr, V)
 
-    #println("V IN UNIFORM PROPOSAL", V)
     ue = unpaired_edges(tr,V)
     bound = V^2 + length(ue)
     idx = @trace(Gen.uniform_discrete(1, bound), :idx)
@@ -163,12 +177,9 @@ end
     end
 end
 
-
-#function rev_lt(tup1,tup2)
-#    return reverse(tup1) < reverse(tup2)
-#end
-
-
+"""
+Involution for the uniform graph proposal
+"""
 function uniform_involution(cur_tr, fwd_choices, fwd_ret, prop_args)
     
     idx = fwd_ret[1]
@@ -179,16 +190,12 @@ function uniform_involution(cur_tr, fwd_choices, fwd_ret, prop_args)
     action = fwd_ret[4]
     V = prop_args[1]
     
-    #println(action, " ", (u_idx,v_idx))
-
     update_choices = Gen.choicemap()
     bwd_choices = Gen.choicemap()
 
     if action == "add"
         bwd_choices[:idx] = (u_idx-1)*V + v_idx
         
-        # update_choices needs to:
-        #     * add u_idx to the parent set of v_idx
         v_parents = copy(cur_tr[:parent_sets => v_idx => :parents])
         insert_idx = searchsortedfirst(v_parents, u_idx)
         insert!(v_parents, insert_idx, u_idx)
@@ -197,8 +204,6 @@ function uniform_involution(cur_tr, fwd_choices, fwd_ret, prop_args)
     elseif action == "remove"
         bwd_choices[:idx] = (u_idx-1)*V + v_idx
         
-        # update_choices needs to:
-        #     * remove u_idx from the parent set of v_idx
         v_parents = copy(cur_tr[:parent_sets => v_idx => :parents])
         rem_idx = searchsortedfirst(v_parents, u_idx)
         deleteat!(v_parents, rem_idx)
@@ -209,11 +214,8 @@ function uniform_involution(cur_tr, fwd_choices, fwd_ret, prop_args)
         ue_idx = searchsortedfirst(ue, (u_idx, v_idx))
         deleteat!(ue, ue_idx)
 
-        bwd_choices[:idx] = V^2 + searchsortedfirst(ue, (v_idx, u_idx)) #, lt=rev_lt)
+        bwd_choices[:idx] = V^2 + searchsortedfirst(ue, (v_idx, u_idx)) 
 
-        # update_choices needs to:
-        #     * remove u_idx from the parent set of v_idx
-        #     * add v_idx to parent set of u_idx
         v_parents = copy(cur_tr[:parent_sets => v_idx => :parents])
         rem_idx = searchsortedfirst(v_parents, u_idx)
         deleteat!(v_parents, rem_idx)
@@ -224,8 +226,6 @@ function uniform_involution(cur_tr, fwd_choices, fwd_ret, prop_args)
         insert!(u_parents, insert_idx, v_idx)
         update_choices[:parent_sets => u_idx => :parents] = u_parents
     end 
-
-    #println("UPDATES: ", update_choices)
 
     new_tr, weight, _, _ = Gen.update(cur_tr, Gen.get_args(cur_tr),
                                       (), update_choices)

@@ -1,3 +1,9 @@
+# prior_baseline.jl
+# David Merrell
+# 
+# A simple script for using the prior knowledge
+# as though it were a predictor.
+#
 
 module PriorPredictor
 

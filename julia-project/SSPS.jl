@@ -1,5 +1,5 @@
 
-module Catsupp
+module Ssps 
 
 using Gen
 using GLMNet
@@ -11,7 +11,7 @@ export parse_script_arguments, perform_inference, make_output_dict, julia_main
 include("dbn_preprocess.jl")
 include("dbn_models.jl")
 include("dbn_proposals.jl")
-include("dbn_inference.jl")
+include("mcmc_inference.jl")
 include("state_updates.jl")
 
 Gen.load_generated_functions()
@@ -72,8 +72,10 @@ function parse_script_arguments()
 end
 
 
+"""
+Load arguments into a vector
+"""
 function transform_arguments(parsed_arg_dict)
-
     arg_vec = []
     push!(arg_vec, parsed_arg_dict["timeseries_filename"])
     push!(arg_vec, parsed_arg_dict["ref_graph_filename"])
@@ -91,6 +93,9 @@ function transform_arguments(parsed_arg_dict)
 end
 
 
+"""
+A wrapper around the MCMC inference procedure
+"""
 function perform_inference(timeseries_filename::String,
                            ref_graph_filename::String,
                            output_path::String,
@@ -116,7 +121,7 @@ function perform_inference(timeseries_filename::String,
     Xminus, Xplus = vectorize_X(Xminus, Xplus)
     V = length(Xplus)
   
-    println("Invoking Catsupp on input files:\n\t", 
+    println("Invoking SSPS on input files:\n\t", 
             timeseries_filename, "\n\t", ref_graph_filename)
 
     # Decide the kind of results to store:
@@ -129,15 +134,8 @@ function perform_inference(timeseries_filename::String,
     update_loop_args = 1.0 ./ log2.(V ./ ref_parent_counts)
     push!(update_loop_args, lambda_prop_std)
 
+    # Choose a lower bound for the lambda variable
     lambda_min = log(max(V/large_indeg - 1.0, exp(0.5)))
-
-    # Choose the right generative model, and prepare its arguments
-    gen_model = vertex_lambda_dbn_model
-    model_args = (ref_ps,
-                  Xminus,
-                  lambda_min, 
-                  lambda_max,
-                  regression_deg)
 
     # Choose the right update loop
     update_loop_fn = vertex_lambda_update_loop 
@@ -156,8 +154,15 @@ function perform_inference(timeseries_filename::String,
         observations[:Xplus => i => :Xp] = Xp
     end
 
+    # Prepare the Gen model's arguments
+    model_args = (ref_ps,
+                  Xminus,
+                  lambda_min, 
+                  lambda_max,
+                  regression_deg)
+
     t_start = time()
-    results = mcmc_inference(gen_model, model_args, observations,
+    results = mcmc_inference(vertex_lambda_dbn_model, model_args, observations,
                              update_loop_fn,
                              update_loop_args,
                              update_results_fn,
@@ -190,7 +195,7 @@ end
 # END MODULE
 end
 
-using .Catsupp
+using .Ssps
 
 julia_main()
 

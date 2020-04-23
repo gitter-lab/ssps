@@ -4,7 +4,7 @@
 # 
 # Functions for postprocessing MCMC sample output.
 # Specifically for computing convergence statistics
-# (PSRF and effective samples).
+# (PSRF and N_eff).
 
 module SamplePostprocess
 
@@ -91,7 +91,7 @@ end
 n_eff_stat(corr_sum::Float64, m::Int64, n::Int64) = m*n/(1.0 + 2.0*corr_sum)
 
 
-#######
+#################################################
 # These functions are used for computing PSRF and 
 # N_eff (diagnostic scores for MCMC convergence)
 #################################################
@@ -205,10 +205,10 @@ end
 
 is_cpv = x -> (typeof(x) <: ChangepointVec)
 
-###############################################################
 
 ###############################################################
 # CORE FUNCTIONS
+###############################################################
 function collect_stats(dict_vec, stop_points; burnin::Float64=0.5)
 
     results = Dict()

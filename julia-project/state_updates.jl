@@ -1,4 +1,8 @@
-
+# state_updates.jl
+# David Merrell
+# 
+# A collection of functions for updating variables in a trace,
+# or storing updates from MCMC.
 
 """
 Loop through the model variables and perform

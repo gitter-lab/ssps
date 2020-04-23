@@ -2,8 +2,9 @@
 # 2019-12-28
 # David Merrell
 #
-# Methods for scoring performance
-# in network inference tasks.
+# Methods for scoring performance in network inference tasks.
+# In particular, for the simulation study (where we score
+# edge prediction as a probabilistic classification task)
 
 module Scoring
 

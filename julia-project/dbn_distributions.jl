@@ -1,3 +1,11 @@
+# dbn_distributions.jl
+# David Merrell
+# 2019-11
+#
+# We define some probability distribution objects:
+#     * prior distributions for parent sets
+#     * a marginal likelihood function for Gaussian DBNs
+
 using LRUCache
 using Combinatorics
 using LinearAlgebra
