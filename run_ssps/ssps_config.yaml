@@ -1,0 +1,19 @@
+# Configure an individual SSPS run by setting values in this file
+
+# Input and output files
+ts_file: "my_timeseries.csv" # Must be TAB SEPARATED (for now)
+prior_file: "my_prior.csv"   # Must be COMMA SEPARATED (for now)
+prediction_file: "my_predictions.json" 
+
+temp_dir: "temp"
+
+# MCMC settings
+mcmc_hyperparams:
+    burnin: 0.5 
+    regression_deg: 1  
+    max_samples: 100000
+    lambda_prop_std: 3.0 
+    large_indeg: 20
+    n_chains: 4
+    timeout: 60 
+

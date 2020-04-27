@@ -1,0 +1,70 @@
+# To run SSPS: 
+# 1) Make sure the values in `ssps_config.yaml` are all set correctly.
+#     A) Make sure your input files are correctly formatted.
+#        See the included files for an example.
+#     B) Make sure "my_timeseries" and "my_prior" point to your time 
+#        series and prior files, respectively.
+#     C) If necessary, set any MCMC parameters
+# 2) cd to this directory and run Snakemake: 
+#    ```
+#    $ cd run_ssps/
+#    $ snakemake
+#    ```
+# 3) at completion, find your predictions in the "predictions_file" 
+
+
+import os
+
+configfile: "ssps_config.yaml"
+
+# directories
+TIMESERIES = config["ts_file"]
+PRIOR = config["prior_file"]
+OUTFILE = config["prediction_file"]
+TEMPDIR = config["temp_dir"]
+JULIA_PROJ_DIR = os.path.join(os.path.pardir, "julia-project")
+
+# MCMC hyperparameters
+MCMC_PARAMS = config["mcmc_hyperparams"]
+BURNIN = MCMC_PARAMS["burnin"]
+REGDEG = MCMC_PARAMS["regression_deg"]
+MAX_SAMPLES = MCMC_PARAMS["max_samples"]
+LSTD = MCMC_PARAMS["lambda_prop_std"]
+LARGE_INDEG = MCMC_PARAMS["large_indeg"]
+CHAINS = range(MCMC_PARAMS["n_chains"])
+TIMEOUT = MCMC_PARAMS["timeout"]
+
+rule all:
+    input:
+        OUTFILE
+
+rule postprocess_mcmc:
+    input:
+        pp=JULIA_PROJ_DIR+"/postprocess_samples.jl",
+        raw=expand(TEMPDIR+"/{chain}.json", chain=CHAINS)
+    output:
+        out=OUTFILE
+    resources:
+        runtime=3600,
+        threads=1,
+        mem_mb=6000
+    shell:
+        "julia --project={JULIA_PROJ_DIR} {input.pp} --chain-samples {input.raw}  --output-file {output.out}"
+
+
+rule run_mcmc:
+    input:
+        method=JULIA_PROJ_DIR+"/SSPS.jl",
+        ts_file=TIMESERIES,
+        ref_dg=PRIOR,
+    output:
+        TEMPDIR+"/{chain}.json"
+    resources:
+        runtime=TIMEOUT+10,
+        threads=1,
+        mem_mb=2000
+    shell:
+        "julia --project={JULIA_PROJ_DIR} {input.method} {input.ts_file} {input.ref_dg} {output} {TIMEOUT}"\
+        +" --regression-deg {REGDEG} --n-steps {MAX_SAMPLES}"\
+        +" --lambda-prop-std {LSTD} --large-indeg {LARGE_INDEG}"
+

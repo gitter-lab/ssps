@@ -13,7 +13,7 @@ include("dbn_distributions.jl")
 
 """
 parent set prior parameterized by (1) reference graph and (2) lambda
-P(G | G', lambda) \propto exp(-lambda * sum( z_ij, ij not in reference graph ))
+P(G | G', lambda) \\propto exp(-lambda * sum( z_ij, ij not in reference graph ))
 """
 @gen (static) function ref_parents_prior(V::Int64, ref_parents::Vector{Int64},
                                                 lambda::Float64)

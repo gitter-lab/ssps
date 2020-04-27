@@ -112,8 +112,7 @@ function perform_inference(timeseries_filename::String,
 
 
     ts_vec, ref_ps = load_formatted_data(timeseries_filename, 
-                                         ref_graph_filename;
-                                         boolean_adj=false) 
+                                         ref_graph_filename)
     
     # Some data preprocessing
     Xminus, Xplus  = combine_X(ts_vec)

@@ -132,7 +132,7 @@ DREAM_METHODS += ["mcmc_d={}_lstd={}".format(deg, lstd) for deg in DREAM_REGDEGS
 rule all:
     input:
         # simulation study results 
-        expand(FIG_DIR+"/simulation_study/heatmaps/aucpr-{style}.png", style=["mean","t"])
+        expand(FIG_DIR+"/simulation_study/heatmaps/aucpr-{style}.png", style=["mean","t"]),
         # HPN-DREAM results
         DREAM_DIR+"/dream_scores.tsv"
 

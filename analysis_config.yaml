@@ -35,7 +35,7 @@ simulation_study:
         max_samples: 100000
         lambda_prop_std: [3.0] 
         large_indeg: 15
-    baseline_methods: ["funchisq", "lasso", "hill", "prior_baseline"] #, "uniform"]
+    baseline_methods: ["funchisq", "lasso", "hill", "prior_baseline", "uniform"]
 
 dream_challenge: 
     cell_lines: ["BT20", "BT549", "MCF7", "UACC812"]
