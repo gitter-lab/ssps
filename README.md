@@ -1,6 +1,6 @@
 # Sparse Signaling Pathway Sampling
 
-Code related to the preprint _Inferring Signaling Pathways with Probabilistic Programming_ (Merrell & Gitter, 2020) (under review).
+Code related to the manuscript _Inferring Signaling Pathways with Probabilistic Programming_ (Merrell & Gitter, 2020) (under review).
 
 This repository contains the following:
 
