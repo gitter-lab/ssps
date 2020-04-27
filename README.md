@@ -1,5 +1,6 @@
 # Sparse Signaling Pathway Sampling
 
+Code related to the preprint _Inferring Signaling Pathways with Probabilistic Programming_ (Merrell & Gitter, 2020) (under review).
 
 This repository contains the following:
 
@@ -117,8 +118,8 @@ After completing this additional setup, we are ready to **run the analyses**.
 
 # Licenses
 
-SSPS is available under the [MIT License](LICENSE.txt), Copyright © 2020 David Merrell.
+SSPS is available under the [MIT License](LICENSE.txt), Copyright Â© 2020 David Merrell.
 
-The MATLAB code [`dynamic_network_inference.m`](hill-method/dynamic_network_inference.m) has been modified from the [original version](http://mukherjeelab.nki.nl/DBN.html), Copyright © 2012 Steven Hill and Sach Mukherjee.
+The MATLAB code [`dynamic_network_inference.m`](hill-method/dynamic_network_inference.m) has been modified from the [original version](http://mukherjeelab.nki.nl/DBN.html), Copyright Â© 2012 Steven Hill and Sach Mukherjee.
 
 The `dream-challenge` data is described in [Hill et al., 2016](http://doi.org/10.1038/nmeth.3773) and is originally from [Synapse](https://www.synapse.org/#!Synapse:syn1720047/wiki/93228).
