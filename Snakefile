@@ -3,8 +3,7 @@
 # David Merrell
 #
 # This snakemake file manages the execution of all 
-# analyses related to the Merrell et al. 
-# ISMB 2020 submission.
+# analyses related to the SSPS manuscript
 #
 # Run as follows:
 # $ cd directory/containing/Snakefile
