@@ -114,3 +114,11 @@ After completing this additional setup, we are ready to **run the analyses**.
     ```
     (You will probably need to edit the job submission parameters in the profile's `config.yaml` file.)
 3. Relax. It will probably take a few thousand cpu-hours to run all of the analyses.
+
+# Licenses
+
+SSPS is available under the [MIT License](LICENSE.txt), Copyright © 2020 David Merrell.
+
+The MATLAB code [`dynamic_network_inference.m`](hill-method/dynamic_network_inference.m) has been modified from the [original version](http://mukherjeelab.nki.nl/DBN.html), Copyright © 2012 Steven Hill and Sach Mukherjee.
+
+The `dream-challenge` data is described in [Hill et al., 2016](http://doi.org/10.1038/nmeth.3773) and originally from [Synapse](https://www.synapse.org/#!Synapse:syn1720047/wiki/93228).

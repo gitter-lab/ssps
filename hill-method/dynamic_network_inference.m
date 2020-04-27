@@ -35,8 +35,9 @@ function [edge_prob_matrix interaction_sign_matrix chosen_lambda timed_out] = dy
 %                          Outputs cell array if network inference performed on multiple datasets (i.e. D is cell array).
 % chosen_lambda: - Prior strength parameter selected by empirical Bayes
 %
+% original code from http://mukherjeelab.nki.nl/DBN.html
 % version date: 31/7/12
-% ï¿½ Steven Hill and Sach Mukherjee, 2012
+% © Steven Hill and Sach Mukherjee, 2012
 
 % Minor modifications made by David Merrell: 11/2019-01/2020
 % NOTE: 
