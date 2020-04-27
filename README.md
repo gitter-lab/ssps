@@ -49,7 +49,16 @@ git clone git@github.com:gitter-lab/ssps.git
     julia> exit()
     ```
 
-      
+# Running SSPS
+
+Follow these steps to run SSPS on your dataset. You will need
+* a CSV file (tab separated) containing your time series data
+* a CSV file (comma separated) containing your prior edge confidences.
+
+1. `cd` to the `run_ssps` directory
+2. Configure the parameters in `ssps_config.yaml` as appropriate
+3. run Snakemake: `$ snakemake`.
+
 # Reproducing the analyses
 
 In order to reproduce the analyses, you will need some extra bits of software.
