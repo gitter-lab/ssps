@@ -121,4 +121,4 @@ SSPS is available under the [MIT License](LICENSE.txt), Copyright © 2020 David M
 
 The MATLAB code [`dynamic_network_inference.m`](hill-method/dynamic_network_inference.m) has been modified from the [original version](http://mukherjeelab.nki.nl/DBN.html), Copyright © 2012 Steven Hill and Sach Mukherjee.
 
-The `dream-challenge` data is described in [Hill et al., 2016](http://doi.org/10.1038/nmeth.3773) and originally from [Synapse](https://www.synapse.org/#!Synapse:syn1720047/wiki/93228).
+The `dream-challenge` data is described in [Hill et al., 2016](http://doi.org/10.1038/nmeth.3773) and is originally from [Synapse](https://www.synapse.org/#!Synapse:syn1720047/wiki/93228).
