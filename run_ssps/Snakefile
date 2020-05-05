@@ -20,9 +20,12 @@ configfile: "ssps_config.yaml"
 # directories
 TIMESERIES = config["ts_file"]
 PRIOR = config["prior_file"]
+NODE_NAME_FILE = config["node_name_file"]
 OUTFILE = config["prediction_file"]
 TEMPDIR = config["temp_dir"]
+PRED_JSON = os.path.join(TEMPDIR, "predictions.json")
 JULIA_PROJ_DIR = os.path.join(os.path.pardir, "julia-project")
+SCRIPT_DIR = os.path.join(os.path.pardir, "scripts")
 
 # MCMC hyperparameters
 MCMC_PARAMS = config["mcmc_hyperparams"]
@@ -38,16 +41,27 @@ rule all:
     input:
         OUTFILE
 
+
+rule to_genie:
+    input: 
+        pred=PRED_JSON,
+        nn=NODE_NAME_FILE
+    output:
+        OUTFILE
+    shell:
+        "python {SCRIPT_DIR}/json_to_genie.py {input.pred} {OUTFILE} {input.nn}"
+
+
 rule postprocess_mcmc:
     input:
         pp=JULIA_PROJ_DIR+"/postprocess_samples.jl",
         raw=expand(TEMPDIR+"/{chain}.json", chain=CHAINS)
     output:
-        out=OUTFILE
+        out=PRED_JSON
     resources:
         runtime=3600,
         threads=1,
-        mem_mb=6000
+        mem_mb=3000
     shell:
         "julia --project={JULIA_PROJ_DIR} {input.pp} --chain-samples {input.raw}  --output-file {output.out}"
 
