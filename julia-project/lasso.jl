@@ -118,7 +118,7 @@ function julia_main()
     ref_dg_fname = arg_dict["graph_prior"]
 
     # load and preprocess data
-    ts_vec, ref_ps = load_formatted_data(ts_fname, ref_dg_fname; boolean_adj=false)
+    ts_vec, ref_ps = load_formatted_data(ts_fname, ref_dg_fname)
     Xminus, Xplus = combine_X(ts_vec)
     Xminus = standardize_X(Xminus)[1]
     Xplus = standardize_X(Xplus)[1]
