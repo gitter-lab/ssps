@@ -33,7 +33,7 @@ git clone git@github.com:gitter-lab/ssps.git
     * Find additional installation instructions here: https://julialang.org/downloads/platform/.
     * Use `Pkg` -- Julia's package manager -- to install the project's julia dependencies:
     ```
-    $ cd graph-ppl/julia-project
+    $ cd ssps/julia-project
     $ julia --project=. 
                    _
        _       _ _(_)_     |  Documentation: https://docs.julialang.org
@@ -49,15 +49,6 @@ git clone git@github.com:gitter-lab/ssps.git
     julia> exit()
     ```
 
-# Running SSPS
-
-Follow these steps to run SSPS on your dataset. You will need
-* a CSV file (tab separated) containing your time series data
-* a CSV file (comma separated) containing your prior edge confidences.
-
-1. `cd` to the `run_ssps` directory
-2. Configure the parameters in `ssps_config.yaml` as appropriate
-3. run Snakemake: `$ snakemake`.
 
 # Reproducing the analyses
 
@@ -104,7 +95,7 @@ Hence, the analyses entail some extra setup:
 3. Check whether **MATLAB** is installed.
     * If you don't have MATLAB, then you won't be able to run the 
     [exact DBN inference method of Hill et al., 2012](https://academic.oup.com/bioinformatics/article/28/21/2804/235527).
-    * You'll
+    * You'll need to comment out the `hill` method wherever it appears in `analysis_config.yaml`.
 
 After completing this additional setup, we are ready to **run the analyses**.
 1. Make any necessary modifications to the configuration file: `analysis_config.yaml`.
@@ -113,17 +104,32 @@ After completing this additional setup, we are ready to **run the analyses**.
     * If you're running the analyses on your local host, simply move to the directory containing `Snakefile`
     and call `snakemake`.
     ```
-    (my_environment) $ cd graph-ppl
+    (my_environment) $ cd ssps
     (my_environment) $ snakemake
     ```
+    * Since Julia is a dynamically compiled language, some time will be devoted to compilation when you run SSPS for the first time. You may see some warnings in `stdout` -- this is normal.
     * If you're running the analyses on a cluster, call snakemake with the same **Snakemake profile** you found 
     [here](https://github.com/Snakemake-Profiles/doc):
     ```
-    (my_environment) $ cd graph-ppl
-    (my_environment) $ snakemake --profile
+    (my_environment) $ cd ssps
+    (my_environment) $ snakemake --profile YOUR_PROFILE_NAME
     ```
     (You will probably need to edit the job submission parameters in the profile's `config.yaml` file.)
-3. Relax. It will probably take a few thousand cpu-hours to run all of the analyses.
+4. Relax. It will probably take a few thousand cpu-hours to run all of the analyses.
+
+
+# Running SSPS on your data
+
+Follow these steps to run SSPS on your dataset. You will need
+* a CSV file (tab separated) containing your time series data
+* a CSV file (comma separated) containing your prior edge confidences.
+* Optional: a JSON file containing a list of variable names (i.e., node names).
+
+1. Install the **python3.7 dependencies** if you haven't already. Find detailed instructions above.
+2. `cd` to the `run_ssps` directory
+3. Configure the parameters in `ssps_config.yaml` as appropriate
+4. run Snakemake: `$ snakemake`.
+
 
 # Licenses
 
