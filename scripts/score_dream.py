@@ -36,7 +36,7 @@ def load_true_desc(desc_filename):
 def compute_scores(pred_file, desc_file, antibody_file, root_antibody):
   
     with open(antibody_file, "r") as abf: 
-        antibody_idx = json.load(abf)[root_antibody] 
+        antibody_idx = json.load(abf).index(root_antibody)
     
     # (probabilistic) parent sets 
     parent_pred = load_predictions(pred_file)
