@@ -46,8 +46,7 @@ end
 
 """
     load_formatted_data(timeseries_data_path::String,
-                        reference_graph_path::String;
-                        boolean_adj::Bool=true)
+                        reference_graph_path::String)
 
 Load data from files and convert to the types requisite
 for our probabilistic program.
@@ -56,7 +55,7 @@ This function assumes the data (time series and adjacency matrices)
 are stored in text-delimited files formatted in a very particular way.
 """
 function load_formatted_data(timeseries_data_path::String,
-		                     reference_graph_path::String)
+	                     reference_graph_path::String)
 
     timeseries_df = CSV.read(timeseries_data_path)
     ts_vec = ingest_timeseries!(timeseries_df)

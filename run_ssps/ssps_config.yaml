@@ -3,6 +3,8 @@
 # Input and output files
 ts_file: "my_timeseries.csv" # Must be TAB SEPARATED (for now)
 prior_file: "my_prior.csv"   # Must be COMMA SEPARATED (for now)
+node_name_file: "node_names.json" # Optional. If included, must be a JSON list.
+                                  # Otherwise, set to empty string: "".
 prediction_file: "my_predictions.json" 
 
 temp_dir: "temp"
@@ -15,5 +17,5 @@ mcmc_hyperparams:
     lambda_prop_std: 3.0 
     large_indeg: 20
     n_chains: 4
-    timeout: 60 
+    timeout: 300 
 

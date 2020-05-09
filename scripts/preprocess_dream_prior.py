@@ -26,7 +26,11 @@ def build_weighted_adj(eda_filename):
 
     print(adj)
 
-    return adj, antibody_map
+    antibody_ls = [0 for i in antibody_map]
+    for (name, idx) in antibody_map.items():
+        antibody_ls[idx] = name
+
+    return adj, antibody_ls
 
 
 
@@ -38,11 +42,11 @@ if __name__=="__main__":
     parser.add_argument("antibody_file", help="path to output JSON file containing the indices of antibodies")
     args = parser.parse_args()
 
-    adj_mat, antibody_map = build_weighted_adj(args.eda_file)
+    adj_mat, antibody_ls = build_weighted_adj(args.eda_file)
 
     df = pd.DataFrame(adj_mat)
     df.to_csv(args.output_file, sep=",", index=False, header=False) 
 
-    json.dump(antibody_map, open(args.antibody_file, "w"))
+    json.dump(antibody_ls, open(args.antibody_file, "w"))
 
 
