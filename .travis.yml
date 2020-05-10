@@ -11,4 +11,4 @@ notifications:
 
 script:
   - cd julia-project
-  - julia --project=. 'using Pkg; Pkg.instantiate()'
+  - julia --project=. --eval 'using Pkg; Pkg.instantiate()'
