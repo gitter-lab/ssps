@@ -1,0 +1,14 @@
+language: julia
+
+os:
+  - osx
+
+julia:
+  - 1.2
+
+notifications:
+  email: false
+
+script:
+  - cd julia-project
+  - julia --project=. 'using Pkg; Pkg.instantiate()'
