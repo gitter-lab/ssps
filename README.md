@@ -129,7 +129,7 @@ Follow these steps to run SSPS on your dataset. You will need
 1. Install the **python3.7 dependencies** if you haven't already. Find detailed instructions above.
 2. `cd` to the `run_ssps` directory
 3. Configure the parameters in `ssps_config.yaml` as appropriate
-4. Run Snakemake: `$ snakemake --cores 1`. Increase 1 to increase maximum number of CPU cores to be used.
+4. Run Snakemake: `$ snakemake --cores 1`. Increase 1 to increase the maximum number of CPU cores to be used.
 
 
 # Licenses
