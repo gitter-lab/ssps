@@ -1,4 +1,5 @@
 # Sparse Signaling Pathway Sampling
+[![Build Status](https://travis-ci.com/gitter-lab/ssps.svg?branch=master)](https://travis-ci.com/gitter-lab/ssps)
 
 Code related to the manuscript _Inferring Signaling Pathways with Probabilistic Programming_ (Merrell & Gitter, 2020) (under review).
 
@@ -128,7 +129,7 @@ Follow these steps to run SSPS on your dataset. You will need
 1. Install the **python3.7 dependencies** if you haven't already. Find detailed instructions above.
 2. `cd` to the `run_ssps` directory
 3. Configure the parameters in `ssps_config.yaml` as appropriate
-4. run Snakemake: `$ snakemake`.
+4. Run Snakemake: `$ snakemake --cores 1`. Increase 1 to increase the maximum number of CPU cores to be used.
 
 
 # Licenses

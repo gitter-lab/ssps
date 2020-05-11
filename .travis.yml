@@ -1,0 +1,26 @@
+language: julia
+
+os:
+  - linux
+
+julia:
+  - 1.2
+
+notifications:
+  email: false
+
+# Install Julia dependencies, Miniconda, and Snakemake
+install:
+  - julia --project=julia-project --eval 'using Pkg; Pkg.instantiate()'
+  - wget https://repo.continuum.io/miniconda/Miniconda3-py37_4.8.2-Linux-x86_64.sh --output-document miniconda.sh
+  - bash miniconda.sh -b -p $HOME/miniconda
+  - source $HOME/miniconda/etc/profile.d/conda.sh
+  - hash -r
+  - conda config --set always_yes yes --set changeps1 no
+  - conda create -n ssps -c bioconda -c conda-forge python=3.7 snakemake
+  - conda activate ssps
+
+script:
+  - cd run_ssps
+  - snakemake --cores 2
+  - cat my_predictions.csv

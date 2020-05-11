@@ -5,17 +5,16 @@ ts_file: "my_timeseries.csv" # Must be TAB SEPARATED (for now)
 prior_file: "my_prior.csv"   # Must be COMMA SEPARATED (for now)
 node_name_file: "node_names.json" # Optional. If included, must be a JSON list.
                                   # Otherwise, set to empty string: "".
-prediction_file: "my_predictions.json" 
+prediction_file: "my_predictions.csv" # TAB SEPARATED edge predictions
 
 temp_dir: "temp"
 
 # MCMC settings
 mcmc_hyperparams:
-    burnin: 0.5 
-    regression_deg: 1  
+    burnin: 0.5
+    regression_deg: 1
     max_samples: 100000
-    lambda_prop_std: 3.0 
+    lambda_prop_std: 3.0
     large_indeg: 20
     n_chains: 4
-    timeout: 300 
-
+    timeout: 300
