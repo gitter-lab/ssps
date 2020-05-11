@@ -2,6 +2,7 @@ language: julia
 
 os:
   - linux
+  - osx
 
 julia:
   - 1.2
@@ -12,7 +13,15 @@ notifications:
 # Install Julia dependencies, Miniconda, and Snakemake
 install:
   - julia --project=julia-project --eval 'using Pkg; Pkg.instantiate()'
-  - wget https://repo.continuum.io/miniconda/Miniconda3-py37_4.8.2-Linux-x86_64.sh --output-document miniconda.sh
+  # Download OS-specific version of Miniconda installer
+  - |
+    if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
+      wget https://repo.continuum.io/miniconda/Miniconda3-py37_4.8.2-Linux-x86_64.sh -O miniconda.sh
+    fi
+  - |
+    if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
+      wget https://repo.continuum.io/miniconda/Miniconda3-py37_4.8.2-MacOSX-x86_64.sh -O miniconda.sh
+    fi
   - bash miniconda.sh -b -p $HOME/miniconda
   - source $HOME/miniconda/etc/profile.d/conda.sh
   - hash -r
