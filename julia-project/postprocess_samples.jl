@@ -184,7 +184,7 @@ function evaluate_summary(whole_seqs::Vector{ChangepointVec}, stop_idxs;
                           burnin::Float64=0.5)
 
     burnin_idxs = [Int(floor(burnin*length(seq))) for seq in whole_seqs]
-    sums = [sum(cpv[burnin_idxs[i]:length(cpv)]) for (i, cpv) in enumerate(whole_seqs)]
+    sums = [sum(cpv[(burnin_idxs[i]+1):length(cpv)]) for (i, cpv) in enumerate(whole_seqs)]
     ns = [length(cpv) - burnin_idxs[i] for (i, cpv) in enumerate(whole_seqs)]
 
     return sum(sums) / sum(ns)
