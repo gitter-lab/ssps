@@ -1,11 +1,11 @@
 # Configure an individual SSPS run by setting values in this file
 
 # Input and output files
-ts_file: "my_timeseries.csv" # Must be TAB SEPARATED (for now)
-prior_file: "my_prior.csv"   # Must be COMMA SEPARATED (for now)
-node_name_file: "node_names.json" # Optional. If included, must be a JSON list.
+ts_file: "example_timeseries.csv" # Must be TAB SEPARATED (for now)
+prior_file: "example_prior.csv"   # Must be COMMA SEPARATED (for now)
+node_name_file: "example_node_names.json" # Optional. If included, must be a JSON list.
                                   # Otherwise, set to empty string: "".
-prediction_file: "my_predictions.csv" # TAB SEPARATED edge predictions
+prediction_file: "example_predictions.csv" # COMMA SEPARATED edge predictions
 
 temp_dir: "temp"
 
