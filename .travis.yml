@@ -26,7 +26,8 @@ install:
   - source $HOME/miniconda/etc/profile.d/conda.sh
   - hash -r
   - conda config --set always_yes yes --set changeps1 no
-  - conda create -n ssps -c bioconda -c conda-forge -c dimazest python=3.7 snakemake csvdiff
+  - conda create -n ssps -c bioconda -c conda-forge python=3.7 snakemake
+  - conda install -c dimazest csvdiff
   - conda activate ssps
 
 script:
