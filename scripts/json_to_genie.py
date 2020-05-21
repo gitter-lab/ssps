@@ -46,8 +46,9 @@ if __name__=="__main__":
     # to edge-list dataframe
     parent_sets = preds[preds["edge_conf_key"]]
     edge_df = psets_to_edgedf(parent_sets, node_names=node_names)
+    edge_df.columns = ['node1', 'node2', 'score']
 
     # output GENIE3
-    edge_df.to_csv(out_file, sep="\t", header=False, index=False)
+    edge_df.to_csv(out_file, sep=",", index=False)
 
 
