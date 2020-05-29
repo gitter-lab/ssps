@@ -1,7 +1,7 @@
 # Sparse Signaling Pathway Sampling
 [![Build Status](https://travis-ci.com/gitter-lab/ssps.svg?branch=master)](https://travis-ci.com/gitter-lab/ssps)
 
-Code related to the manuscript _Inferring Signaling Pathways with Probabilistic Programming_ (Merrell & Gitter, 2020) (under review).
+Code related to the manuscript _Inferring Signaling Pathways with Probabilistic Programming_ (Merrell & Gitter, 2020) [arXiv:2005.14062](https://arxiv.org/abs/2005.14062).
 
 This repository contains the following:
 
