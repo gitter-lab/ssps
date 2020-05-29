@@ -25,3 +25,5 @@
 # Julia stuff
 *Manifest.toml
 
+# Snakemake outputs
+.snakemake
