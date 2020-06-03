@@ -28,7 +28,8 @@ ROOT_DIR = os.getcwd()
 BIN_DIR = os.path.join(ROOT_DIR,"bin")
 FIG_DIR = os.path.join(ROOT_DIR,"figures")
 SCRIPT_DIR = os.path.join(ROOT_DIR, "scripts")
-JULIA_PROJ_DIR = os.path.join(ROOT_DIR, "julia-project")
+JULIA_PROJ_DIR = os.path.join(ROOT_DIR, "SSPS")
+SSPS_SCRIPT = os.path.join(JULIA_PROJ_DIR, "ssps_wrapper.jl")
 HILL_DIR = os.path.join(ROOT_DIR, "hill-method")
 FUNCH_DIR = os.path.join(ROOT_DIR, "funchisq")
 DREAM_RAW_DIR = os.path.join(ROOT_DIR, "dream-challenge")
@@ -229,7 +230,7 @@ rule postprocess_conv_mcmc_sim:
 
 rule run_conv_mcmc_sim:
     input:
-        method=JULIA_PROJ_DIR+"/SSPS.jl",
+        method=SSPS_SCRIPT,
         ts_file=TS_DIR+"/{dataset}.csv",
         ref_dg=REF_DIR+"/{dataset}.csv",
     output:
@@ -260,7 +261,7 @@ rule postprocess_sim_mcmc:
 
 rule run_sim_mcmc:
     input:
-        method=JULIA_PROJ_DIR+"/SSPS.jl",
+        method=SSPS_SCRIPT,
         ts_file=TS_DIR+"/{replicate}.csv",
         ref_dg=REF_DIR+"/{replicate}.csv",
     output:
@@ -295,7 +296,7 @@ rule postprocess_sim_uniform_mcmc:
 
 rule run_sim_uniform_mcmc:
     input:
-        method=JULIA_PROJ_DIR+"/SSPS.jl",
+        method=SSPS_SCRIPT,
         ts_file=TS_DIR+"/{replicate}.csv",
         ref_dg=REF_DIR+"/{replicate}.csv",
     output:
@@ -462,7 +463,7 @@ rule postprocess_dream_mcmc:
 
 rule run_dream_mcmc:
     input:
-        method=JULIA_PROJ_DIR+"/SSPS.jl",
+        method=SSPS_SCRIPT,
         ts_file=DREAM_PREP_TS_DIR+"/cl={cell_line}_stim={stimulus}.csv",
         ref_dg=DREAM_REF_DIR+"/cl={cell_line}.csv",
     output:

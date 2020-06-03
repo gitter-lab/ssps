@@ -24,7 +24,10 @@ NODE_NAME_FILE = config["node_name_file"]
 OUTFILE = config["prediction_file"]
 TEMPDIR = config["temp_dir"]
 PRED_JSON = os.path.join(TEMPDIR, "predictions.json")
-JULIA_PROJ_DIR = os.path.join(os.path.pardir, "julia-project")
+JULIA_PROJ_DIR = os.path.join(os.path.pardir, "SSPS")
+JULIA_SCRIPTS = os.path.join(JULIA_PROJ_DIR, "other_scripts") 
+SSPS_SRC_DIR = os.path.join(JULIA_PROJ_DIR, "src")
+SSPS_SCRIPT = os.path.join(JULIA_PROJ_DIR, "ssps_wrapper.jl")
 SCRIPT_DIR = os.path.join(os.path.pardir, "scripts")
 
 # MCMC hyperparameters
@@ -41,7 +44,6 @@ rule all:
     input:
         OUTFILE
 
-
 rule to_genie:
     input: 
         pred=PRED_JSON,
@@ -54,7 +56,7 @@ rule to_genie:
 
 rule postprocess_mcmc:
     input:
-        pp=JULIA_PROJ_DIR+"/postprocess_samples.jl",
+        pp=JULIA_SCRIPTS+"/postprocess_samples.jl",
         raw=expand(TEMPDIR+"/{chain}.json", chain=CHAINS)
     output:
         out=PRED_JSON
@@ -68,7 +70,7 @@ rule postprocess_mcmc:
 
 rule run_mcmc:
     input:
-        method=JULIA_PROJ_DIR+"/SSPS.jl",
+        method=SSPS_SCRIPT,
         ts_file=TIMESERIES,
         ref_dg=PRIOR,
     output:
