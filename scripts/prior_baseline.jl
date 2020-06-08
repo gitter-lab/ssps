@@ -17,7 +17,7 @@ export julia_main
 function load_args(args::Vector{String})
     
     s = ArgParseSettings()
-    @add_arg_table s begin
+    @add_arg_table! s begin
         "prior_graph"
             help="path to a reference graph file"
             required = true

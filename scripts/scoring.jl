@@ -270,7 +270,7 @@ end
 function get_args(args::Vector{String})
 
     s = ArgParseSettings()
-    @add_arg_table s begin
+    @add_arg_table! s begin
         "--pred-file"
             help="The path to a JSON file containing edge predictions"
             required=true

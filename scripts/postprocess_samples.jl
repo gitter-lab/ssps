@@ -262,7 +262,7 @@ end
 function get_args(args::Vector{String})
     
     s = ArgParseSettings()
-    @add_arg_table s begin
+    @add_arg_table! s begin
         "--chain-samples"
             help = "mcmc sample files for one or more chains"
     	    required = true

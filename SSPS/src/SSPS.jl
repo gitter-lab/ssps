@@ -167,8 +167,6 @@ function perform_inference(timeseries_filename::String,
 
     t_start = time()
 
-    # results = Dict("chains" => [Dict() for _=1:n_chains])
-        # results["chains"][chain_id] = mcmc_inference(vertex_lambda_dbn_model, 
     results = mcmc_inference(vertex_lambda_dbn_model, 
                              model_args, observations,
                              update_loop_fn,
