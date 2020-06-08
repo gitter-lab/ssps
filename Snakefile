@@ -162,7 +162,7 @@ rule tabulate_dream_scores:
 
 rule simulate_data:
     input:
-        simulator=JULIA_PROJ_DIR+"/simulate_data.jl"
+        simulator=SCRIPT_DIR+"/simulate_data.jl"
     output:
         ts=TS_DIR+"/v={v}_r={r}_a={a}_t={t}_replicate={rep}.csv",
         ref=REF_DIR+"/v={v}_r={r}_a={a}_t={t}_replicate={rep}.csv",
@@ -176,7 +176,7 @@ rule simulate_data:
 
 rule score_sim_predictions:
     input:
-        scorer=JULIA_PROJ_DIR+"/scoring.jl",
+        scorer=SCRIPT_DIR+"/scoring.jl",
         tr_dg=TRU_DIR+"/{replicate}.csv",
         pp_res=PRED_DIR+"/{method}/{replicate}.json"
     output:
@@ -216,7 +216,7 @@ rule convergence_viz:
 
 rule postprocess_conv_mcmc_sim:
     input:
-        pp=JULIA_PROJ_DIR+"/postprocess_samples.jl",
+        pp=SCRIPT_DIR+"/postprocess_samples.jl",
         raw=expand(CONV_RAW_DIR+"/{{mcmc_settings}}/{{dataset}}/{chain}.json", chain=CONV_CHAINS)
     output:
         out=CONV_RES_DIR+"/{mcmc_settings}/{dataset}.json"
@@ -247,7 +247,7 @@ rule run_conv_mcmc_sim:
 
 rule postprocess_sim_mcmc:
     input:
-        pp=JULIA_PROJ_DIR+"/postprocess_samples.jl",
+        pp=SCRIPT_DIR+"/postprocess_samples.jl",
         raw=expand(RAW_DIR+"/mcmc_{{mcmc_settings}}/{{replicate}}/{chain}.json",
                    chain=SIM_CHAINS)
     output:
@@ -281,7 +281,7 @@ rule run_sim_mcmc:
 #
 rule postprocess_sim_uniform_mcmc:
     input:
-        pp=JULIA_PROJ_DIR+"/postprocess_samples.jl",
+        pp=SCRIPT_DIR+"/postprocess_samples.jl",
         raw=expand(RAW_DIR+"/uniform/{{replicate}}/{chain}.json",
                    chain=SIM_CHAINS)
     output:
@@ -384,7 +384,7 @@ rule tabulate_timetest_hill:
 
 rule run_sim_lasso:
     input:
-        method=JULIA_PROJ_DIR+"/lasso.jl",
+        method=SCRIPT_DIR+"/lasso.jl",
 	ts=TS_DIR+"/{replicate}.csv",
         ref=REF_DIR+"/{replicate}.csv"
     output:
@@ -403,7 +403,7 @@ rule run_sim_lasso:
 # BASELINE JOBS 
 rule run_sim_prior_baseline:
     input:
-        method=JULIA_PROJ_DIR+"/prior_baseline.jl",
+        method=SCRIPT_DIR+"/prior_baseline.jl",
         ref=REF_DIR+"/{replicate}.csv"
     output:
         PRED_DIR+"/prior_baseline/{replicate}.json"
@@ -447,7 +447,7 @@ rule score_dream_mcmc:
 
 rule postprocess_dream_mcmc:
     input:
-        pp=JULIA_PROJ_DIR+"/postprocess_samples.jl",
+        pp=SCRIPT_DIR+"/postprocess_samples.jl",
         raw=expand(DREAM_OUT_DIR+"/mcmc_{{mcmc_settings}}/{{replicate}}/chain={chain}.json",
                    chain=DREAM_CHAINS)
     output:
@@ -523,7 +523,7 @@ rule run_dream_hill:
 
 rule run_dream_lasso:
     input:
-        method=JULIA_PROJ_DIR+"/lasso.jl",
+        method=SCRIPT_DIR+"/lasso.jl",
         ref=DREAM_REF_DIR+"/cl={cell_line}.csv",
 	ts=DREAM_PREP_TS_DIR+"/cl={cell_line}_stim={stim}.csv"
     output:
@@ -538,7 +538,7 @@ rule run_dream_lasso:
 
 rule run_dream_prior_baseline:
     input:
-        method=JULIA_PROJ_DIR+"/prior_baseline.jl",
+        method=SCRIPT_DIR+"/prior_baseline.jl",
         ref=DREAM_REF_DIR+"/cl={cell_line}.csv"
     output:
         DREAM_PRED_DIR+"/prior_baseline/cl={cell_line}_stim={stim}.json"

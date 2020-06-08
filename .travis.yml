@@ -6,13 +6,14 @@ os:
 
 julia:
   - 1.2
+  - 1.4
 
 notifications:
   email: false
 
 # Install Julia dependencies, Miniconda, and Snakemake
 install:
-  - julia --project=julia-project --eval 'using Pkg; Pkg.instantiate()'
+  - julia --project=SSPS --eval 'using Pkg; Pkg.instantiate()'
   # Download OS-specific version of Miniconda installer
   - |
     if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then

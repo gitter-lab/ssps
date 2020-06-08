@@ -24,17 +24,17 @@ Ideally, you would have access to a cluster of some sort.)
 ```
 git clone git@github.com:gitter-lab/ssps.git
 ```
-2. Install **Julia 1.2.0** (and all Julia dependencies)
-    * Download the correct Julia 1.2.0 binary here: https://julialang.org/downloads/oldreleases/. <br>
+2. Install **Julia 1.4** (and all Julia dependencies)
+    * Download the correct Julia binary here: https://julialang.org/downloads/. <br>
       E.g., for Linux x86_64:
     ```
-    $ wget https://julialang-s3.julialang.org/bin/linux/x64/1.2/julia-1.2.0-linux-x86_64.tar.gz
+    $ wget https://julialang-s3.julialang.org/bin/linux/x64/1.4/julia-1.4.2-linux-x86_64.tar.gz
     $ tar -xvzf julia-1.2.0-linux-x86_64.tar.gz
     ```
     * Find additional installation instructions here: https://julialang.org/downloads/platform/.
     * Use `Pkg` -- Julia's package manager -- to install the project's julia dependencies:
     ```
-    $ cd ssps/julia-project
+    $ cd ssps/SSPS
     $ julia --project=. 
                    _
        _       _ _(_)_     |  Documentation: https://docs.julialang.org
@@ -116,7 +116,7 @@ After completing this additional setup, we are ready to **run the analyses**.
     (my_environment) $ snakemake --profile YOUR_PROFILE_NAME
     ```
     (You will probably need to edit the job submission parameters in the profile's `config.yaml` file.)
-4. Relax. It will probably take a few thousand cpu-hours to run all of the analyses.
+4. Relax. It will take tens of thousands of cpu-hours to run all of the analyses.
 
 
 # Running SSPS on your data
