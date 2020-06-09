@@ -1,12 +1,11 @@
-
-module Ssps 
+module SSPS
 
 using Gen
 using GLMNet
 using ArgParse
 using JSON
 
-export parse_script_arguments, perform_inference, make_output_dict, julia_main 
+export julia_main 
 
 include("dbn_preprocess.jl")
 include("dbn_models.jl")
@@ -14,7 +13,7 @@ include("dbn_proposals.jl")
 include("mcmc_inference.jl")
 include("state_updates.jl")
 
-Gen.load_generated_functions()
+@load_generated_functions()
 
 """
 parse the script's arguments using ArgParse.
@@ -22,7 +21,7 @@ parse the script's arguments using ArgParse.
 function parse_script_arguments()
     
     s = ArgParseSettings()
-    @add_arg_table s begin
+    @add_arg_table! s begin
         "timeseries_filename"
             help = "name of timeseries data file"
             required = true
@@ -32,7 +31,7 @@ function parse_script_arguments()
         "output_path"
             help = "name of output JSON file"
             required = true
-        "timeout"
+        "time-per-chain"
             help = "execution timeout (in seconds). When reached, terminate and output results as they are."
             arg_type = Float64
         "--thinning"
@@ -58,6 +57,10 @@ function parse_script_arguments()
             help = "Terminate the markov chain after it runs this many steps."
             arg_type = Int64
             default = -1
+        "--n-chains"
+            help = "The number of markov chains to run. Will run up to JULIA_NUM_THREADS in parallel."
+            arg_type = Int64
+            default = 1 
         "--proposal"
             help = "The graph proposal distribution to use in MCMC ('sparse' or 'uniform')"
             arg_type = String
@@ -80,8 +83,9 @@ function transform_arguments(parsed_arg_dict)
     push!(arg_vec, parsed_arg_dict["timeseries_filename"])
     push!(arg_vec, parsed_arg_dict["ref_graph_filename"])
     push!(arg_vec, parsed_arg_dict["output_path"])
-    push!(arg_vec, parsed_arg_dict["timeout"])
+    push!(arg_vec, parsed_arg_dict["time-per-chain"])
     push!(arg_vec, parsed_arg_dict["n-steps"])
+    push!(arg_vec, parsed_arg_dict["n-chains"])
     push!(arg_vec, parsed_arg_dict["thinning"])
     push!(arg_vec, parsed_arg_dict["large-indeg"])
     push!(arg_vec, parsed_arg_dict["lambda-max"])
@@ -99,8 +103,9 @@ A wrapper around the MCMC inference procedure
 function perform_inference(timeseries_filename::String,
                            ref_graph_filename::String,
                            output_path::String,
-                           timeout::Float64,
+                           time_per_chain::Float64,
                            n_steps::Int64,
+                           n_chains::Int64,
                            thinning::Int64,
                            large_indeg::Float64,
                            lambda_max::Float64,
@@ -144,7 +149,7 @@ function perform_inference(timeseries_filename::String,
 
     # Check for some default arguments 
     if n_steps == -1
-        n_steps = Inf
+        n_steps = typemax(Int64)
     end
 
     # Load observations into a choice map
@@ -161,15 +166,18 @@ function perform_inference(timeseries_filename::String,
                   regression_deg)
 
     t_start = time()
-    results = mcmc_inference(vertex_lambda_dbn_model, model_args, observations,
+
+    results = mcmc_inference(vertex_lambda_dbn_model, 
+                             model_args, observations,
                              update_loop_fn,
                              update_loop_args,
                              update_results_fn,
                              update_results_args;
-                             timeout=timeout,
+                             timeout=time_per_chain,
                              n_steps=n_steps,
                              thinning=thinning)
-    
+    # end
+
     # Some last updates to the `results` object
     results["t_elapsed"] = time() - t_start   
     delete!(results, "prev_parents") 
@@ -184,7 +192,8 @@ function perform_inference(timeseries_filename::String,
 end
 
 
-function julia_main()
+function julia_main()::Cint
+
     arg_vec = parse_script_arguments()
     perform_inference(arg_vec...)
     return 0
@@ -193,8 +202,4 @@ end
 
 # END MODULE
 end
-
-using .Ssps
-
-julia_main()
 

@@ -17,4 +17,4 @@ mcmc_hyperparams:
     lambda_prop_std: 3.0
     large_indeg: 20
     n_chains: 4
-    timeout: 300
+    timeout: 60

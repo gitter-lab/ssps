@@ -7,7 +7,7 @@
 
 module Lasso
 
-include("dbn_preprocess.jl")
+include("../SSPS/src/dbn_preprocess.jl")
 using GLMNet, JSON, ArgParse
 
 export julia_main
@@ -90,7 +90,7 @@ end
 function get_args(ARGS::Vector{String})
 
     s = ArgParseSettings()
-    @add_arg_table s begin
+    @add_arg_table! s begin
         "timeseries_fname"
             help="Path to a TSV file containing time series data"
             required=true
