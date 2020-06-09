@@ -7,7 +7,7 @@
 exit_status=0
 
 cd ../run_ssps
-snakemake --cores 2
+snakemake --cores 1
 csvdiff --style=summary --sep=',' --ignore-columns=score --output=csvdiff.out node1,node2 example_predictions.csv ../tests/baseline_predictions.csv
 
 comparison=$(cat csvdiff.out)
