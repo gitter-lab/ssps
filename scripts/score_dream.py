@@ -47,8 +47,8 @@ def compute_scores(pred_file, desc_file, antibody_file, root_antibody):
 
     score_dict = {"aucroc": score_tuple[0],
                   "aucpr": score_tuple[1],
-                  "roc_curves": score_tuple[2]
-                  "pr_curves": score_tuple[3],
+                  "roc_curves": score_tuple[2],
+                  "pr_curves": score_tuple[3]
                  }
 
     return score_dict
