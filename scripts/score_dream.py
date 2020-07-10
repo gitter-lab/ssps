@@ -45,10 +45,10 @@ def compute_scores(pred_file, desc_file, antibody_file, root_antibody):
 
     score_tuple = descendant_set_auc(parent_pred, true_desc, antibody_idx, return_curves=True)
 
-    score_dict = {"aucpr": score_tuple[0],
-                  "aucroc": score_tuple[1],
-                  "pr_curves": score_tuple[2],
-                  "roc_curves": score_tuple[3]
+    score_dict = {"aucroc": score_tuple[0],
+                  "aucpr": score_tuple[1],
+                  "roc_curves": score_tuple[2]
+                  "pr_curves": score_tuple[3],
                  }
 
     return score_dict
