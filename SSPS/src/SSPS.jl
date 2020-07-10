@@ -4,6 +4,7 @@ using Gen
 using GLMNet
 using ArgParse
 using JSON
+using Base.Threads
 
 export julia_main 
 
@@ -31,8 +32,8 @@ function parse_script_arguments()
         "output_path"
             help = "name of output JSON file"
             required = true
-        "time-per-chain"
-            help = "execution timeout (in seconds). When reached, terminate and output results as they are."
+        "timeout"
+            help = "execution timeout (in seconds). When reached, terminate and output results as they are. SSPS attempts to divide "
             arg_type = Float64
         "--thinning"
             help = "number of proposals to make for each sample taken"
@@ -54,7 +55,7 @@ function parse_script_arguments()
             arg_type = Float64
             default = 0.25
         "--n-steps"
-            help = "Terminate the markov chain after it runs this many steps."
+            help = "Terminate a markov chain after it runs this many steps."
             arg_type = Int64
             default = -1
         "--n-chains"
@@ -83,7 +84,7 @@ function transform_arguments(parsed_arg_dict)
     push!(arg_vec, parsed_arg_dict["timeseries_filename"])
     push!(arg_vec, parsed_arg_dict["ref_graph_filename"])
     push!(arg_vec, parsed_arg_dict["output_path"])
-    push!(arg_vec, parsed_arg_dict["time-per-chain"])
+    push!(arg_vec, parsed_arg_dict["timeout"])
     push!(arg_vec, parsed_arg_dict["n-steps"])
     push!(arg_vec, parsed_arg_dict["n-chains"])
     push!(arg_vec, parsed_arg_dict["thinning"])
@@ -103,7 +104,7 @@ A wrapper around the MCMC inference procedure
 function perform_inference(timeseries_filename::String,
                            ref_graph_filename::String,
                            output_path::String,
-                           time_per_chain::Float64,
+                           timeout::Float64,
                            n_steps::Int64,
                            n_chains::Int64,
                            thinning::Int64,
@@ -147,11 +148,6 @@ function perform_inference(timeseries_filename::String,
         update_loop_fn = uniform_update_loop
     end
 
-    # Check for some default arguments 
-    if n_steps == -1
-        n_steps = typemax(Int64)
-    end
-
     # Load observations into a choice map
     observations = Gen.choicemap()
     for (i, Xp) in enumerate(Xplus)
@@ -166,6 +162,8 @@ function perform_inference(timeseries_filename::String,
                   regression_deg)
 
     t_start = time()
+
+    time_per_chain = timeout * min(1, nthreads() / n_chains)
 
     results = mcmc_inference(vertex_lambda_dbn_model, 
                              model_args, observations,
