@@ -16,7 +16,6 @@ parent set prior parameterized by (1) reference graph and (2) lambda
 P(G | G', lambda) \\propto exp(-lambda * sum( z_ij, ij not in reference graph ))
 """
 @gen (static) function ref_parents_prior(V::Int64, ref_parents::Vector{Int64},
-#@gen function ref_parents_prior(V::Int64, ref_parents::Vector{Int64},
                                                 lambda::Float64)
     parents = @trace(refparentprior(V, ref_parents, lambda), :parents)
     return parents
@@ -29,9 +28,10 @@ ref_graph_prior = Gen.Map(ref_parents_prior)
 parent set prior parameterized by (1) edge confidences and (2) lambda;
 a "smooth" version of the other graph prior.
 """
-@gen  function conf_parents_prior(V::Int64, parent_confs::Dict,
-                                          lambda::Float64)
-    parents = @trace(confparentprior(V, parent_confs, lambda), :parents)
+@gen function conf_parents_prior(idx::Int64, V::Int64, 
+                                 parent_confs::Dict,
+                                 lambda::Float64)
+    parents = @trace(confparentprior(idx, V, parent_confs, lambda), :parents)
     return parents
 end
 # A `Map` operation over vertices yields a graph prior distribution.
@@ -43,7 +43,6 @@ conf_graph_prior = Gen.Map(conf_parents_prior)
 in the time series data (i.e., this is the marginal likelihood function)
 """
 @gen (static) function generate_Xp(ind::Int64, Xminus::Matrix{Float64}, 
-#@gen function generate_Xp(ind::Int64, Xminus::Matrix{Float64}, 
                                    parents::Vector{Int64}, regression_deg::Int64)
     return @trace(cpdmarginal(Xminus, ind, parents, regression_deg), :Xp)
 end
@@ -76,7 +75,6 @@ Model for the generative process, i.e.
 P(G, Lambda|X) propto P(X|G) * P(G|Lambda) * P(Lambda)
 """
 @gen (static) function vertex_lambda_dbn_model(parent_confs::Vector{Dict}, 
-#@gen function vertex_lambda_dbn_model(parent_confs::Vector{Dict}, 
                                                Xminus::Array{Float64,2}, 
                                                lambda_min::Float64,
                                                lambda_max::Float64,
@@ -94,7 +92,7 @@ P(G, Lambda|X) propto P(X|G) * P(G|Lambda) * P(Lambda)
 
     # This is the actual substance of the probabilistic program
     lambda_vec = @trace(generate_lambda_vec(min_vec, max_vec), :lambda_vec)
-    parent_sets = @trace(conf_graph_prior(Vvec, parent_confs, lambda_vec), :parent_sets)
+    parent_sets = @trace(conf_graph_prior(1:V, Vvec, parent_confs, lambda_vec), :parent_sets)
     Xplus = @trace(generate_Xplus(1:V, Xminus_vec, parent_sets, regdeg_vec), :Xplus)
     return Xplus
 

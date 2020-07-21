@@ -1,5 +1,5 @@
 
-TS_DATA_FILE = "data/genes_869.tsv"
+TS_DATA_FILE = "data/genes_868.tsv"
 TIMEOUT = 259200 # 3 days
 MAX_ITER = 100000
 N_CHAINS = 4

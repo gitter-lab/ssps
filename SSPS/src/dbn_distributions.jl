@@ -69,10 +69,10 @@ struct ConfParentPrior <: Distribution{Vector{Int64}} end
 const confparentprior = ConfParentPrior()
 
 
-confparentprior(V, parent_confs::Dict,
-                lambda::Float64) = random(confparentprior, V, parent_confs, lambda)
+confparentprior(idx, V, parent_confs::Dict,
+                lambda::Float64) = random(confparentprior, idx, V, parent_confs, lambda)
 
-function random(pp::ConfParentPrior, V, parent_confs::Dict, lambda::Float64)
+function random(pp::ConfParentPrior, idx, V, parent_confs::Dict, lambda::Float64)
 
     enl = exp(-lambda)
 
@@ -88,31 +88,66 @@ function random(pp::ConfParentPrior, V, parent_confs::Dict, lambda::Float64)
     return parents
 end
 
+# We use LRU caching to reduce redundant computation.
+TENMB = 10000000
+global prior_cache = LRU{Vector{Int64}, Float64}(maxsize=10*TENMB, by=Base.summarysize)
 
 
-function logpdf(pp::ConfParentPrior, x_parents::Vector{Int64}, V,
+function logpdf(pp::ConfParentPrior, x_parents::Vector{Int64}, 
+				     idx::Int64,
+				     V::Int64,
                                      parent_confs::Dict, 
                                      lambda::Float64)
     
-    enl = exp(-lambda)
-    ref_nonzero = keys(parent_confs)
-    lp = 0.0
+    lp = get!(prior_cache, pushfirst!(copy(x_parents), idx)) do
+    
+        enl = exp(-lambda)
+        ref_nonzero = keys(parent_confs)
+        lp = 0.0
 
-    # parents 
-    for parent in x_parents
-        conf = get(parent_confs, parent, 0.0)
-        lp += -lambda - log(enl + exp(-conf*lambda))
+        # If the number of nonzero confidences is large,
+        # then we use array computations
+        if length(ref_nonzero) > 50
+
+            # All zero-confidence vertices
+            lp += -log(1.0 + enl) * (V - length(parent_confs))
+
+            # All nonzero-confidence vertices
+            npl = map(x-> -lambda * x, values(parent_confs)) 
+            lp += sum(map(x-> x - log(enl + exp(x)), npl))
+
+            # parents
+            for parent in x_parents
+                # nonzero-confidence parents
+                if haskey(parent_confs, parent)
+                    lp += -lambda * (1.0 - parent_confs[parent]) 
+                # zero-confidence parents
+                else 
+                    lp += -lambda
+                end
+            end
+
+        # Otherwise, we operate on the dictionaries
+        else
+            # parents 
+            for parent in x_parents
+                conf = get(parent_confs, parent, 0.0)
+                lp += -lambda - log(enl + exp(-conf*lambda))
+            end
+            
+            # nonparents AND ref_nonzero 
+            for nonparent in setdiff(ref_nonzero, x_parents)
+                npl = -parent_confs[nonparent]*lambda
+                lp += npl - log(enl + exp(npl))
+            end 
+            
+            # nonparents AND NOT ref_nonzero
+            zero_n_lp = - log(1.0 + enl)
+            lp += zero_n_lp*(V - length(union(ref_nonzero, x_parents)))
+        end
+
+        return lp
     end
-    
-    # nonparents AND ref_nonzero 
-    for nonparent in setdiff(ref_nonzero, x_parents)
-        npl = -parent_confs[nonparent]*lambda
-        lp += npl - log(enl + exp(npl))
-    end 
-    
-    # nonparents AND NOT ref_nonzero
-    zero_n_lp = - log(1.0 + enl)
-    lp += zero_n_lp*(V - length(union(ref_nonzero, x_parents)))
 
     return lp
 end
@@ -123,10 +158,10 @@ end
 ###########################################
 
 # We use LRU caching to reduce redundant computation.
-TENMB = 10000000
 global lml_cache = LRU{Vector{Int64}, Float64}(maxsize=10*TENMB, by=Base.summarysize)
 
 function clear_caches()
+    empty!(prior_cache)
     empty!(lml_cache)
 end
 
