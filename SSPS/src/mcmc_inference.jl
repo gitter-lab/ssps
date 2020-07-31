@@ -39,9 +39,9 @@ function mcmc_inference(gen_model,
     # Generate an initial trace
     tr, _ = Gen.generate(gen_model, model_args,
 			 observations)
-   
+  
     # The results we care about
-    results = nothing
+    results = update_results_fn(nothing, tr, update_results_args)
 
     # Sampling loop
     print_str = string("Sampling for ",string(timeout), " seconds.")

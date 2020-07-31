@@ -16,6 +16,33 @@ include("state_updates.jl")
 
 @load_generated_functions()
 
+
+"""
+Given the results of a previous run, recover the 
+state of the markov chain and store it in the given
+choicemap object.
+"""
+function recover_state!(cmap, samples)
+
+    # Recover the lambda values
+    for (j, svec) in enumerate(samples["lambda"])
+        cmap[:lambda_vec => j => :lambda] = svec[end][2]
+    end
+
+    # Recover the parent sets
+    for (j, pdict) in enumerate(samples["parent_sets"])
+        pset = Int64[]
+        for (k,v) in pdict
+            if v[end][2] == 1
+                append!(pset, parse(Int64, k))
+            end
+        end
+        sort!(pset)
+        cmap[:parent_sets => j => :parents] = pset 
+    end 
+
+end
+
 """
 parse the script's arguments using ArgParse.
 """
@@ -67,6 +94,11 @@ function parse_script_arguments()
             arg_type = String
             default = "sparse"
             range_tester = x -> x in ("sparse", "uniform")
+        "--resume-sampling"
+            help = "Continue sampling the markov chain stored in the given JSON file"
+            required = false
+            arg_type = String
+            default = ""
     end
 
     args = parse_args(s)
@@ -93,6 +125,7 @@ function transform_arguments(parsed_arg_dict)
     push!(arg_vec, parsed_arg_dict["regression-deg"])
     push!(arg_vec, parsed_arg_dict["lambda-prop-std"])
     push!(arg_vec, parsed_arg_dict["proposal"])
+    push!(arg_vec, parsed_arg_dict["resume-sampling"])
 
     return arg_vec
 end
@@ -112,10 +145,10 @@ function perform_inference(timeseries_filename::String,
                            lambda_max::Float64,
                            regression_deg::Int64,
                            lambda_prop_std::Float64,
-                           proposal::String)
+                           proposal::String,
+			   resume_sampling::String)
 
     clear_caches()
-
 
     ts_vec, ref_ps = load_formatted_data(timeseries_filename, 
                                          ref_graph_filename)
@@ -129,11 +162,6 @@ function perform_inference(timeseries_filename::String,
     println("Invoking SSPS on input files:\n\t", 
             timeseries_filename, "\n\t", ref_graph_filename)
 
-    # Decide the kind of results to store:
-    # summary statistics -- or -- a record of all samples
-    update_results_fn = update_results_storediff
-    update_results_args = [V, true]
-    
     # prepare parameters for proposal distributions
     ref_parent_counts = [max(sum(values(ps)), 2.0) for ps in ref_ps]
     update_loop_args = 1.0 ./ log2.(V ./ ref_parent_counts)
@@ -154,6 +182,18 @@ function perform_inference(timeseries_filename::String,
         observations[:Xplus => i => :Xp] = Xp
     end
 
+    # If necessary, reload state from a previous session
+    if resume_sampling != ""
+        println("Resuming Markov Chain stored at ", resume_sampling)
+        
+        f = open(resume_sampling, "r")
+        str = read(f, String)
+        close(f)
+        samples = JSON.parse(str)
+       
+        recover_state!(observations, samples)
+    end
+
     # Prepare the Gen model's arguments
     model_args = (ref_ps,
                   Xminus,
@@ -165,11 +205,13 @@ function perform_inference(timeseries_filename::String,
 
     time_per_chain = timeout * min(1, nthreads() / n_chains)
 
+    update_results_args = [V, true]
+    
     results = mcmc_inference(vertex_lambda_dbn_model, 
                              model_args, observations,
                              update_loop_fn,
                              update_loop_args,
-                             update_results_fn,
+                             update_results_storediff,
                              update_results_args;
                              timeout=time_per_chain,
                              n_steps=n_steps,
