@@ -28,7 +28,8 @@ function mcmc_inference(gen_model,
                         update_results_args::Vector;
                         timeout::Float64=3600.0,
                         n_steps::Int64=-1,
-                        thinning::Int64=1)
+                        thinning::Int64=1,
+                        chain_id::String="chain_0")
 
     
     # start the timer
@@ -38,13 +39,21 @@ function mcmc_inference(gen_model,
     # Generate an initial trace
     tr, _ = Gen.generate(gen_model, model_args,
 			 observations)
-   
+  
     # The results we care about
-    results = nothing
+    results = update_results_fn(nothing, tr, update_results_args)
 
     # Sampling loop
+    print_str = string("Sampling for ",string(timeout), " seconds.")
+    if n_steps > 0
+        print_str = string(print_str, " (Or ", n_steps, " iterations.)")
+    else
+        n_steps = typemax(Int64)
+        print_str = string(print_str, " (No iteration limit.)")
+    end
+    println(print_str)
+
     prop_count = 0
-    println("Sampling for ", timeout, " seconds. (Or ", n_steps," steps).")
     t_print = 0.0
     while t_elapsed < timeout && prop_count <= n_steps
         
@@ -53,7 +62,7 @@ function mcmc_inference(gen_model,
             
             # Print progress
             if (prop_count > 0) && (t_elapsed - t_print >= 20.0)
-                println("\t", prop_count," steps in ", round(t_elapsed), " seconds.")
+                println("[", chain_id, "]\t", prop_count," iterations;\t", round(t_elapsed), " seconds")
                 t_print = t_elapsed 
             end
 

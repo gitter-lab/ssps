@@ -120,22 +120,22 @@ function update_results_storediff(results, tr, args)
     # Initialize the state
     if results == nothing
         results = Dict("parent_sets" => [DefaultDict{Int64,Vector{Tuple{Int64,Int64}}}([]) for i=1:V],
-                       "n" => 1,
+                       "n" => 0,
                        "prev_parents" => [Vector{Int64}() for i=1:V]
                        )
         if vector_lambda
             results["lambda"] = [Vector{Tuple{Int64,Float64}}() for i=1:V]
             for i=1:V
-                push!(results["lambda"][i], (1, tr[:lambda_vec => i => :lambda]))
+                push!(results["lambda"][i], (0, tr[:lambda_vec => i => :lambda]))
             end
         else
             results["lambda"] = Vector{Tuple{Int64,Float64}}()
-            push!(results["lambda"], (1, tr[:lambda]))
+            push!(results["lambda"], (0, tr[:lambda]))
         end
 
         for i=1:V
             for parent in tr[:parent_sets => i => :parents]
-                push!(results["parent_sets"][i][parent], (1,1))
+                push!(results["parent_sets"][i][parent], (0,1))
             end
             results["prev_parents"][i] = tr[:parent_sets => i => :parents]
         end
