@@ -60,7 +60,7 @@ function parse_script_arguments()
             help = "name of output JSON file"
             required = true
         "timeout"
-            help = "execution timeout (in seconds). When reached, terminate and output results as they are. SSPS attempts to divide "
+            help = "execution timeout (in seconds). When reached, terminate and output results as they are."
             arg_type = Float64
         "--thinning"
             help = "number of proposals to make for each sample taken"
