@@ -4,11 +4,15 @@
 # A collection of functions for updating variables in a trace,
 # or storing updates from MCMC.
 
+import Base: lock, ReentrantLock
+import Base.Threads: @threads
+
 """
 Loop through the model variables and perform
 Metropolis-Hastings updates on them.
 It's called ``smart'' because it uses a fancy
 proposal distribution for the parent sets.
+It also allows multi-threading
 """
 function smart_update_loop(tr, proposal_param_vec::Vector{Float64})
 
@@ -19,11 +23,25 @@ function smart_update_loop(tr, proposal_param_vec::Vector{Float64})
     tr, lambda_acc = Gen.mh(tr, lambda_proposal, (lambda_prop_std,))
 
     acc_vec = zeros(V)
-    for i=1:V
-        tr, acc_vec[i] = Gen.mh(tr, smart_proposal,
-				(i, proposal_param_vec[i], V),
-				smart_involution)
+    cmap = Gen.choicemap()
+    r = ReentrantLock()
+
+    # This loop is the thing we want to parallelize
+    @threads for i=1:V 
+        # The thing that stops us from parallelizing immediately is the
+        # sequential trace update (which is completely unnecessary.
+        # The updates of different `i` do not affect each other.)
+        new_tr, acc_vec[i] = Gen.mh(tr, smart_proposal,
+                                    (i, proposal_param_vec[i], V),
+                                    smart_involution)
+        if acc_vec[i]
+            lock(r) do
+                cmap[:parent_sets => i => :parents] = new_tr[:parent_sets => i => :parents]
+            end
+        end
     end
+
+    tr, _, _, _ = Gen.update(tr, (), (), cmap)
 
     return tr, (lambda_acc, acc_vec)
 end

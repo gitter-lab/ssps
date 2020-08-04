@@ -98,3 +98,12 @@ P(G, Lambda|X) propto P(X|G) * P(G|Lambda) * P(Lambda)
 
 end
 
+#import Gen: simulate, generate, update, regenerate, get_args, get_retval, get_choices, get_score, get_gen_fn, project, has_argument_grads, accepts_output_grad 
+#
+#"""
+#This trace type is designed for  
+#"""
+#mutable struct ParallelTrace <: Trace
+#    
+#end
+
