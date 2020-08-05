@@ -29,9 +29,9 @@ function mcmc_inference(gen_model,
                         timeout::Float64=3600.0,
                         n_steps::Int64=-1,
                         thinning::Int64=1,
-                        chain_id::String="chain_0")
+                        chain_id::String="")
 
-    
+
     # start the timer
     t_start = time()
     t_elapsed = 0.0

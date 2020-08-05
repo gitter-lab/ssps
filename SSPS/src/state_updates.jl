@@ -7,46 +7,31 @@
 import Base: lock, ReentrantLock
 import Base.Threads: @threads
 
-"""
-Loop through the model variables and perform
-Metropolis-Hastings updates on them.
-It's called ``smart'' because it uses a fancy
-proposal distribution for the parent sets.
-It also allows multi-threading
-"""
-function smart_update_loop(tr, proposal_param_vec::Vector{Float64})
+
+function old_update_loop(tr, proposal_param_vec::Vector{Float64})
 
     lambda_prop_std = proposal_param_vec[end]
-    
+
     V = length(proposal_param_vec) - 1
     lambda_acc = false
     tr, lambda_acc = Gen.mh(tr, lambda_proposal, (lambda_prop_std,))
 
     acc_vec = zeros(V)
-    cmap = Gen.choicemap()
-    r = ReentrantLock()
-
-    # This loop is the thing we want to parallelize
-    @threads for i=1:V 
-        # The thing that stops us from parallelizing immediately is the
-        # sequential trace update (which is completely unnecessary.
-        # The updates of different `i` do not affect each other.)
-        new_tr, acc_vec[i] = Gen.mh(tr, smart_proposal,
-                                    (i, proposal_param_vec[i], V),
-                                    smart_involution)
-        if acc_vec[i]
-            lock(r) do
-                cmap[:parent_sets => i => :parents] = new_tr[:parent_sets => i => :parents]
-            end
-        end
+    for i=1:V
+        tr, acc_vec[i] = Gen.mh(tr, smart_proposal,
+                                (i, proposal_param_vec[i], V),
+                                smart_involution)
     end
-
-    tr, _, _, _ = Gen.update(tr, (), (), cmap)
 
     return tr, (lambda_acc, acc_vec)
 end
 
 
+"""
+Loop through the model variables and perform
+Metropolis-Hastings updates on them.
+It uses the parent set proposal distribution.
+"""
 function vertex_lambda_update_loop(tr, proposal_param_vec::Vector{Float64})
     
     lambda_prop_std = proposal_param_vec[end]
@@ -63,6 +48,48 @@ function vertex_lambda_update_loop(tr, proposal_param_vec::Vector{Float64})
     end
 
     return tr, (lambda_acc, acc_vec)
+end
+
+
+"""
+Equivalent to `vertex_lambda_update_loop`, except that it uses
+multithread parallelism to update the parent sets.
+"""
+function multithread_update_loop(tr, proposal_param_vec::Vector{Float64})
+
+    lambda_prop_std = proposal_param_vec[end]
+    cmap = Gen.choicemap()
+    r = ReentrantLock()
+
+    V = length(proposal_param_vec) - 1
+
+    acc_vec = zeros(Bool, V)
+    lambda_acc = zeros(Bool, V)
+    # Parallelize the loop over vertices
+    @threads for i=1:V
+        
+        # Update the inverse temperature for this vertex
+        new_tr, lambda_acc[i] = Gen.mh(tr, lambda_vec_proposal, (i, lambda_prop_std))
+        if lambda_acc[i]
+            lock(r) do
+                cmap[:lambda_vec => i => :lambda] = new_tr[:lambda_vec => i => :lambda]
+            end
+        end
+        
+        # Update the parent set for this vertex
+        new_tr, acc_vec[i] = Gen.mh(new_tr, smart_proposal,
+				(i, proposal_param_vec[i], V),
+				smart_involution)
+        if acc_vec[i]
+            # Update the choice map in a thread-safe fashion
+            lock(r) do
+                cmap[:parent_sets => i => :parents] = new_tr[:parent_sets => i => :parents]
+            end
+        end
+    end
+
+    tr, _, _, _ = Gen.update(tr, Gen.get_args(tr), (), cmap)
+    return tr, (true, acc_vec)
 end
 
 
