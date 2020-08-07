@@ -4,16 +4,14 @@
 # A collection of functions for updating variables in a trace,
 # or storing updates from MCMC.
 
-"""
-Loop through the model variables and perform
-Metropolis-Hastings updates on them.
-It's called ``smart'' because it uses a fancy
-proposal distribution for the parent sets.
-"""
-function smart_update_loop(tr, proposal_param_vec::Vector{Float64})
+import Base: lock, ReentrantLock
+import Base.Threads: @threads
+
+
+function old_update_loop(tr, proposal_param_vec::Vector{Float64})
 
     lambda_prop_std = proposal_param_vec[end]
-    
+
     V = length(proposal_param_vec) - 1
     lambda_acc = false
     tr, lambda_acc = Gen.mh(tr, lambda_proposal, (lambda_prop_std,))
@@ -21,14 +19,19 @@ function smart_update_loop(tr, proposal_param_vec::Vector{Float64})
     acc_vec = zeros(V)
     for i=1:V
         tr, acc_vec[i] = Gen.mh(tr, smart_proposal,
-				(i, proposal_param_vec[i], V),
-				smart_involution)
+                                (i, proposal_param_vec[i], V),
+                                smart_involution)
     end
 
     return tr, (lambda_acc, acc_vec)
 end
 
 
+"""
+Loop through the model variables and perform
+Metropolis-Hastings updates on them.
+It uses the parent set proposal distribution.
+"""
 function vertex_lambda_update_loop(tr, proposal_param_vec::Vector{Float64})
     
     lambda_prop_std = proposal_param_vec[end]
@@ -45,6 +48,48 @@ function vertex_lambda_update_loop(tr, proposal_param_vec::Vector{Float64})
     end
 
     return tr, (lambda_acc, acc_vec)
+end
+
+
+"""
+Equivalent to `vertex_lambda_update_loop`, except that it uses
+multithread parallelism to update the parent sets.
+"""
+function multithread_update_loop(tr, proposal_param_vec::Vector{Float64})
+
+    lambda_prop_std = proposal_param_vec[end]
+    cmap = Gen.choicemap()
+    r = ReentrantLock()
+
+    V = length(proposal_param_vec) - 1
+
+    acc_vec = zeros(Bool, V)
+    lambda_acc = zeros(Bool, V)
+    # Parallelize the loop over vertices
+    @threads for i=1:V
+        
+        # Update the inverse temperature for this vertex
+        new_tr, lambda_acc[i] = Gen.mh(tr, lambda_vec_proposal, (i, lambda_prop_std))
+        if lambda_acc[i]
+            lock(r) do
+                cmap[:lambda_vec => i => :lambda] = new_tr[:lambda_vec => i => :lambda]
+            end
+        end
+        
+        # Update the parent set for this vertex
+        new_tr, acc_vec[i] = Gen.mh(new_tr, smart_proposal,
+				(i, proposal_param_vec[i], V),
+				smart_involution)
+        if acc_vec[i]
+            # Update the choice map in a thread-safe fashion
+            lock(r) do
+                cmap[:parent_sets => i => :parents] = new_tr[:parent_sets => i => :parents]
+            end
+        end
+    end
+
+    tr, _, _, _ = Gen.update(tr, Gen.get_args(tr), (), cmap)
+    return tr, (true, acc_vec)
 end
 
 

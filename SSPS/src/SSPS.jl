@@ -4,7 +4,6 @@ using Gen
 using GLMNet
 using ArgParse
 using JSON
-using Base.Threads
 
 export julia_main 
 
@@ -85,10 +84,6 @@ function parse_script_arguments()
             help = "Terminate a markov chain after it runs this many steps."
             arg_type = Int64
             default = -1
-        "--n-chains"
-            help = "The number of markov chains to run. Will run up to JULIA_NUM_THREADS in parallel."
-            arg_type = Int64
-            default = 1 
         "--proposal"
             help = "The graph proposal distribution to use in MCMC ('sparse' or 'uniform')"
             arg_type = String
@@ -99,6 +94,9 @@ function parse_script_arguments()
             required = false
             arg_type = String
             default = ""
+        "--multithread"
+            help = "Parallelize each iteration with multiple threads. The number of threads is specified by the `--threads` julia argument or the `JULIA_NUM_THREADS` environment variable."
+            action = :store_true
     end
 
     args = parse_args(s)
@@ -118,7 +116,6 @@ function transform_arguments(parsed_arg_dict)
     push!(arg_vec, parsed_arg_dict["output_path"])
     push!(arg_vec, parsed_arg_dict["timeout"])
     push!(arg_vec, parsed_arg_dict["n-steps"])
-    push!(arg_vec, parsed_arg_dict["n-chains"])
     push!(arg_vec, parsed_arg_dict["thinning"])
     push!(arg_vec, parsed_arg_dict["large-indeg"])
     push!(arg_vec, parsed_arg_dict["lambda-max"])
@@ -126,6 +123,7 @@ function transform_arguments(parsed_arg_dict)
     push!(arg_vec, parsed_arg_dict["lambda-prop-std"])
     push!(arg_vec, parsed_arg_dict["proposal"])
     push!(arg_vec, parsed_arg_dict["resume-sampling"])
+    push!(arg_vec, parsed_arg_dict["multithread"])
 
     return arg_vec
 end
@@ -139,14 +137,14 @@ function perform_inference(timeseries_filename::String,
                            output_path::String,
                            timeout::Float64,
                            n_steps::Int64,
-                           n_chains::Int64,
                            thinning::Int64,
                            large_indeg::Float64,
                            lambda_max::Float64,
                            regression_deg::Int64,
                            lambda_prop_std::Float64,
                            proposal::String,
-			   resume_sampling::String)
+			   resume_sampling::String,
+			   multithread::Bool)
 
     clear_caches()
 
@@ -174,6 +172,9 @@ function perform_inference(timeseries_filename::String,
     update_loop_fn = vertex_lambda_update_loop 
     if proposal == "uniform"
         update_loop_fn = uniform_update_loop
+    end
+    if multithread
+        update_loop_fn = multithread_update_loop
     end
 
     # Load observations into a choice map
@@ -203,9 +204,9 @@ function perform_inference(timeseries_filename::String,
 
     t_start = time()
 
-    time_per_chain = timeout * min(1, nthreads() / n_chains)
-
     update_results_args = [V, true]
+    
+    chain_id = string("pid_",getpid())
     
     results = mcmc_inference(vertex_lambda_dbn_model, 
                              model_args, observations,
@@ -213,10 +214,10 @@ function perform_inference(timeseries_filename::String,
                              update_loop_args,
                              update_results_storediff,
                              update_results_args;
-                             timeout=time_per_chain,
+                             timeout=timeout,
                              n_steps=n_steps,
-                             thinning=thinning)
-    # end
+                             thinning=thinning,
+			     chain_id=chain_id)
 
     # Some last updates to the `results` object
     results["t_elapsed"] = time() - t_start   

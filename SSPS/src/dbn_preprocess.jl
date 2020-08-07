@@ -57,10 +57,10 @@ are stored in text-delimited files formatted in a very particular way.
 function load_formatted_data(timeseries_data_path::String,
 	                     reference_graph_path::String)
 
-    timeseries_df = CSV.read(timeseries_data_path)
+    timeseries_df = DataFrame!(CSV.File(timeseries_data_path))
     ts_vec = ingest_timeseries!(timeseries_df)
 
-    ref_adj_df = CSV.read(reference_graph_path, header=false)
+    ref_adj_df = DataFrame!(CSV.File(reference_graph_path, header=false))
     ref_ps = ingest_conf_adjacency!(ref_adj_df)
 
     return ts_vec, ref_ps
