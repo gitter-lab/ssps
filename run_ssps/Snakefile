@@ -81,5 +81,6 @@ rule run_mcmc:
     shell:
         "julia --project={JULIA_PROJ_DIR} {input.method} {input.ts_file} {input.ref_dg} {output} {TIMEOUT}"\
         +" --regression-deg {REGDEG} --n-steps {MAX_SAMPLES}"\
-        +" --lambda-prop-std {LSTD} --large-indeg {LARGE_INDEG}"
+        +" --lambda-prop-std {LSTD} --large-indeg {LARGE_INDEG}"\
+        +" --multithread"
 

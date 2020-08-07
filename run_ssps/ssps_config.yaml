@@ -5,7 +5,7 @@ ts_file: "example_timeseries.csv" # Must be TAB SEPARATED (for now)
 prior_file: "example_prior.csv"   # Must be COMMA SEPARATED (for now)
 node_name_file: "example_node_names.json" # Optional. If included, must be a JSON list.
                                   # Otherwise, set to empty string: "".
-prediction_file: "example_predictions.csv" # COMMA SEPARATED edge predictions
+prediction_file: "example_predictions.genie" # COMMA SEPARATED edge predictions
 
 temp_dir: "temp"
 

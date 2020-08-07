@@ -4,6 +4,9 @@ os:
   - linux
   - osx
 
+env:
+  - JULIA_NUM_THREADS=2
+
 julia:
   - 1.2
   - 1.4
