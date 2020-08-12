@@ -132,6 +132,12 @@ Follow these steps to run SSPS on your dataset. You will need
 3. Configure the parameters in `ssps_config.yaml` as appropriate
 4. Run Snakemake: `$ snakemake --cores 1`. Increase 1 to increase the maximum number of CPU cores to be used.
 
+## A note about parallelism 
+
+SSPS allows two levels of parallelism: (1) at the Markov chain level and (2) at the iteration level.
+* Chain-level parallelism is provided via Snakemake. For example, Snakemake can run 4 chains simultaneously if you specify `--cores 4` at the command line: `$ snakemake --cores 4`. In essence, this just creates 4 instances of SSPS that run simultaneously.
+* Iteration-level parallelism is provided by [Julia's multi-threading features](https://docs.julialang.org/en/v1/manual/multi-threading/). The number of threads available to a SSPS instance is specified by an environment variable: `JULIA_NUM_THREADS`.
+* The total number of CPUs used by your SSPS jobs is **the product** of Snakemake's `--cores` parameter and Julia's `JULIA_NUM_THREADS` environment variable. Concretely: if we run `snakemake --cores 2` and have `JULIA_NUM_THREADS=4`, then up to 8 CPUs may be used at one time by the SSPS jobs.
 
 # Licenses
 
