@@ -85,7 +85,7 @@ function parse_script_arguments()
             arg_type = Int64
             default = -1
         "--proposal"
-            help = "The graph proposal distribution to use in MCMC ('sparse' or 'uniform')"
+            help = "(DEPRECATED. Future versions of SSPS will only use 'sparse'.) The graph proposal distribution to use in MCMC: 'sparse' or 'uniform'."
             arg_type = String
             default = "sparse"
             range_tester = x -> x in ("sparse", "uniform")
@@ -95,7 +95,7 @@ function parse_script_arguments()
             arg_type = String
             default = ""
         "--multithread"
-            help = "Parallelize each iteration with multiple threads. The number of threads is specified by the `--threads` julia argument or the `JULIA_NUM_THREADS` environment variable."
+            help = "Parallelize each iteration with multiple threads. The number of threads is specified by the `JULIA_NUM_THREADS` environment variable. This flag overrides the `--proposal` argument, setting it to 'sparse'."
             action = :store_true
     end
 
