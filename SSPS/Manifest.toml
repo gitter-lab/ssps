@@ -841,6 +841,12 @@ git-tree-sha1 = "c197888ea15879ecd257ba142a3078248540fbda"
 uuid = "35661453-b289-5fab-8a00-3d9160c6a3a4"
 version = "1.4.2+2"
 
+[[Xorg_xkeyboard_config_jll]]
+deps = ["Libdl", "Pkg", "Xorg_xkbcomp_jll"]
+git-tree-sha1 = "416f9257ada9365f53766394af77134bf594e1a2"
+uuid = "33bec58e-1273-512f-9401-5d533626f822"
+version = "2.27.0+1"
+
 [[Xorg_xtrans_jll]]
 deps = ["Libdl", "Pkg"]
 git-tree-sha1 = "b6e7d70f5fc9e3fde505539194c8caaab3c40ebf"
