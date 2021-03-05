@@ -20,10 +20,10 @@ jobs:
         uses: julia-actions/setup-julia@v1
         with:
           version: ${{ matrix.julia-version }}
-#      - name: Install Julia packages
-#        run: |
-#          julia --project=SSPS --eval 'using Pkg; Pkg.instantiate()'
-#          julia --project=SSPS SSPS/precompile_script.jl
+      - name: Install Julia packages
+        run: |
+          julia --project=SSPS --eval 'using Pkg; Pkg.instantiate()'
+          julia --project=SSPS SSPS/precompile_script.jl
       - name: Install conda environment with Snakemake
         uses: conda-incubator/setup-miniconda@v2
         with:
