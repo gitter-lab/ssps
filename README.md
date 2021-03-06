@@ -1,5 +1,5 @@
 # Sparse Signaling Pathway Sampling
-[![Build Status](https://travis-ci.com/gitter-lab/ssps.svg?branch=master)](https://travis-ci.com/gitter-lab/ssps)
+[![Test SSPS](https://github.com/gitter-lab/ssps/actions/workflows/test.yml/badge.svg)](https://github.com/gitter-lab/ssps/actions/workflows/test.yml)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3939287.svg)](https://doi.org/10.5281/zenodo.3939287)
 
 Code related to the manuscript _[Inferring signaling pathways with probabilistic programming](https://doi.org/10.1093/bioinformatics/btaa861)_ (Merrell & Gitter, 2020) Bioinformatics, 36:Supplement_2, i822–i830.
