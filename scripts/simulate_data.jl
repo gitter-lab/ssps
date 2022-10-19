@@ -280,8 +280,8 @@ end
 function save_graph(parent_sets::Vector{Vector{Bool}}, file_name::String)
    
     CSV.write(file_name, 
-              DataFrame(convert(Matrix{Int64}, hcat(parent_sets...)));
-              delim=",", writeheader=false)
+              DataFrame(convert(Matrix{Int64}, hcat(parent_sets...)), :auto);
+              delim=",", header=false)
     
 end
 

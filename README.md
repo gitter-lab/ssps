@@ -25,12 +25,12 @@ Ideally, you would have access to a cluster of some sort.)
 ```
 git clone git@github.com:gitter-lab/ssps.git
 ```
-2. Install **Julia 1.4** (and all Julia dependencies)
+2. Install **Julia 1.6** (and all Julia dependencies)
     * Download the correct Julia binary here: https://julialang.org/downloads/. <br>
       E.g., for Linux x86_64:
     ```
-    $ wget https://julialang-s3.julialang.org/bin/linux/x64/1.4/julia-1.4.2-linux-x86_64.tar.gz
-    $ tar -xvzf julia-1.4.2-linux-x86_64.tar.gz
+    $ wget https://julialang-s3.julialang.org/bin/linux/x64/1.6/julia-1.6.7-linux-x86_64.tar.gz 
+    $ tar -xvzf julia-1.6.7-linux-x86_64.tar.gz
     ```
     * Find additional installation instructions here: https://julialang.org/downloads/platform/.
     * Use `Pkg` -- Julia's package manager -- to install the project's julia dependencies:
@@ -42,7 +42,7 @@ git clone git@github.com:gitter-lab/ssps.git
       (_)     | (_) (_)    |
        _ _   _| |_  __ _   |  Type "?" for help, "]?" for Pkg help.
       | | | | | | |/ _` |  |
-      | | |_| | | | (_| |  |  Version 1.4.2 (2020-05-23)
+      | | |_| | | | (_| |  |  Version 1.6.7 (2022-07-19)
      _/ |\__'_|_|_|\__'_|  |  Official https://julialang.org/ release
     |__/                   |
 

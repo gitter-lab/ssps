@@ -18,7 +18,7 @@ function ingest_timeseries!(timeseries_df)
     for name in unique(timeseries_df.timeseries)
         ts = timeseries_df[timeseries_df.timeseries .== name, :]
         sort!(ts, [:timestep])
-        push!(result, convert(Matrix{Float64}, ts[:,3:end]))
+        push!(result, Matrix{Float64}(ts[:,3:end]))
     end
 
     return result
@@ -28,7 +28,7 @@ end
 function ingest_conf_adjacency!(adjacency_df)
 
     parent_confs = Vector{Dict{Int64,Float64}}()
-    adj_mat = convert(Matrix{Float64}, adjacency_df)
+    adj_mat = Matrix{Float64}(adjacency_df)
 
     for j=1:size(adj_mat,2)
         ps = Dict{Int64,Float64}()
@@ -57,10 +57,10 @@ are stored in text-delimited files formatted in a very particular way.
 function load_formatted_data(timeseries_data_path::String,
 	                     reference_graph_path::String)
 
-    timeseries_df = DataFrame!(CSV.File(timeseries_data_path))
+    timeseries_df = DataFrame(CSV.File(timeseries_data_path))
     ts_vec = ingest_timeseries!(timeseries_df)
 
-    ref_adj_df = DataFrame!(CSV.File(reference_graph_path, header=false))
+    ref_adj_df = DataFrame(CSV.File(reference_graph_path, header=false))
     ref_ps = ingest_conf_adjacency!(ref_adj_df)
 
     return ts_vec, ref_ps

@@ -8,7 +8,7 @@
 
 module Scoring
 
-using JSON, CSV, ArgParse 
+using JSON, CSV, ArgParse, DataFrames 
 
 export aucroc, aucpr, average_precision, julia_main
 
@@ -240,8 +240,8 @@ parent sets). Each entry must be 0 or 1.
 """
 function load_ps_truths(truths_fname)
 
-    df = CSV.read(truths_fname; header=false)
-    adj_mat = convert(Matrix{Bool}, df)
+    df = DataFrame(CSV.File(truths_fname; header=false))
+    adj_mat = Matrix{Bool}(df)
 
     parent_sets = [adj_mat[:,i] for i=1:size(adj_mat,2)]
 

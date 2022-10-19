@@ -234,14 +234,14 @@ function uniform_involution(cur_tr, fwd_choices, fwd_ret, prop_args)
 end
 
 
-@gen function lambda_proposal(tr, std::Int64)
+@gen function lambda_proposal(tr, std::Float64)
 
     @trace(Gen.normal(tr[:lambda], std), :lambda)
 
 end
 
 
-@gen function lambda_vec_proposal(tr, i::Int64, std::Int64)
+@gen function lambda_vec_proposal(tr, i::Int64, std::Float64)
 
     @trace(Gen.normal(tr[:lambda_vec => i => :lambda], std), :lambda_vec => i => :lambda)
 
