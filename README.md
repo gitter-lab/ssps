@@ -62,33 +62,30 @@ In order to reproduce the analyses, you will need some extra bits of software.
 
 Hence, the analyses entail some extra setup:
     
-1. Install **python3.7 dependencies (using `conda`)**
+1. Install **python dependencies (using `conda`)**
     * For the purposes of these instructions, we assume you have Anaconda3 or Miniconda3 installed,
       and have access to the `conda` environment manager. <br>
       (We recommend using [Miniconda](https://docs.conda.io/en/latest/miniconda.html);
       [find full installation instructions here](https://conda.io/projects/conda/en/latest/user-guide/install/index.html).) 
-    * We recommend setting up a dedicated virtual environment for this project:
+    * We recommend setting up a dedicated virtual environment for this project.
+      The following will create a new environment named `ssps` and install the required python packages:
     ```
-    $ conda env create -n my_environment
-    $ conda activate my_environment
-    (my_environment) $ 
-    ```
-    * Make sure Snakemake, pandas, numpy, and matplotlib are installed.
-    ```
-    (my_environment) $ conda install -c bioconda -c conda-forge snakemake
-    (my_environment) $ conda install pandas matplotlib numpy
+    $ conda create -n ssps -c conda-forge pandas matplotlib numpy bioconda::snakemake-minimal
+    $ conda activate ssps
+    (ssps) $
     ```
     * If you plan to reproduce the analyses **on a cluster**, then install 
-    [cookiecutter](https://cookiecutter.readthedocs.io/en/1.7.0/)...
+    [cookiecutter](https://cookiecutter.readthedocs.io/en/1.7.0/) and the complete version of snakemake
     ```
-    conda install -c conda-forge cookiecutter
+    (ssps) $ conda install -c conda-forge cookiecutter bioconda::snakemake
     ```
     and find the appropriate *Snakemake profile* from this list:
     https://github.com/Snakemake-Profiles/doc
     install the *Snakemake profile* using cookiecutter:
     ```
-    (my_environment) $ cookiecutter https://github.com/OWNER/PROFILE.git
+    (ssps) $ cookiecutter https://github.com/Snakemake-Profiles/htcondor.git
     ```
+    replacing the example with the desired profile.
     
 2. Install **R packages**
     * [Ckmeans.1d.dp](https://cran.r-project.org/web/packages/Ckmeans.1d.dp/index.html)
@@ -106,15 +103,15 @@ After completing this additional setup, we are ready to **run the analyses**.
     * If you're running the analyses on your local host, simply move to the directory containing `Snakefile`
     and call `snakemake`.
     ```
-    (my_environment) $ cd ssps
-    (my_environment) $ snakemake
+    (ssps) $ cd ssps
+    (ssps) $ snakemake
     ```
     * Since Julia is a dynamically compiled language, some time will be devoted to compilation when you run SSPS for the first time. You may see some warnings in `stdout` -- this is normal.
     * If you're running the analyses on a cluster, call snakemake with the same **Snakemake profile** you found 
     [here](https://github.com/Snakemake-Profiles/doc):
     ```
-    (my_environment) $ cd ssps
-    (my_environment) $ snakemake --profile YOUR_PROFILE_NAME
+    (ssps) $ cd ssps
+    (ssps) $ snakemake --profile YOUR_PROFILE_NAME
     ```
     (You will probably need to edit the job submission parameters in the profile's `config.yaml` file.)
 4. Relax. It will take tens of thousands of cpu-hours to run all of the analyses.
@@ -127,7 +124,7 @@ Follow these steps to run SSPS on your dataset. You will need
 * a CSV file (comma separated) containing your prior edge confidences.
 * Optional: a JSON file containing a list of variable names (i.e., node names).
 
-1. Install the **python3.7 dependencies** if you haven't already. Find detailed instructions above.
+1. Install the **python dependencies** if you haven't already. Find detailed instructions above.
 2. `cd` to the `run_ssps` directory
 3. Configure the parameters in `ssps_config.yaml` as appropriate
 4. Run Snakemake: `$ snakemake --cores 1`. Increase 1 to increase the maximum number of CPU cores to be used.
@@ -143,6 +140,6 @@ SSPS allows two levels of parallelism: (1) at the Markov chain level and (2) at 
 
 SSPS is available under the [MIT License](LICENSE.txt), Copyright © 2020 David Merrell.
 
-The MATLAB code [`dynamic_network_inference.m`](hill-method/dynamic_network_inference.m) has been modified from the [original version](http://mukherjeelab.nki.nl/DBN.html), Copyright © 2012 Steven Hill and Sach Mukherjee.
+The MATLAB code [`dynamic_network_inference.m`](hill-method/dynamic_network_inference.m) has been modified from the [original version](https://web.archive.org/web/20190110032714/http://mukherjeelab.nki.nl/DBN.html), Copyright © 2012 Steven Hill and Sach Mukherjee.
 
 The `dream-challenge` data is described in [Hill et al., 2016](http://doi.org/10.1038/nmeth.3773) and is originally from [Synapse](https://www.synapse.org/#!Synapse:syn1720047/wiki/93228).
