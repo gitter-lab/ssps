@@ -37,9 +37,9 @@ function make_output(argd::Dict)
     infile = argd["prior_graph"]
     outfile = argd["output_file"]
 
-    ref_adj_df = CSV.read(infile, header=false)
+    ref_adj_df = DataFrame(CSV.File(infile, header=false))
     ref_ps = Vector{Vector{Float64}}()
-    adj_mat = convert(Matrix, ref_adj_df)
+    adj_mat = Matrix(ref_adj_df)
 
     for i=1:size(adj_mat,1)
         push!(ref_ps, adj_mat[:,i])
