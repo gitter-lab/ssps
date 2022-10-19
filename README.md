@@ -77,7 +77,7 @@ Hence, the analyses entail some extra setup:
     * If you plan to reproduce the analyses **on a cluster**, then install 
     [cookiecutter](https://cookiecutter.readthedocs.io/en/1.7.0/) and the complete version of snakemake
     ```
-    (my_environment) $ conda install -c conda-forge cookiecutter bioconda::snakemake
+    (ssps) $ conda install -c conda-forge cookiecutter bioconda::snakemake
     ```
     and find the appropriate *Snakemake profile* from this list:
     https://github.com/Snakemake-Profiles/doc
