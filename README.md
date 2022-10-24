@@ -90,6 +90,7 @@ Hence, the analyses entail some extra setup:
 2. Install **R packages**
     * [Ckmeans.1d.dp](https://cran.r-project.org/web/packages/Ckmeans.1d.dp/index.html)
     * [FunChisq](https://cran.r-project.org/web/packages/FunChisq/index.html)
+    * [mclust](https://cran.r-project.org/web/packages/mclust/index.html)
 
 3. Check whether **MATLAB** is installed.
     * If you don't have MATLAB, then you won't be able to run the 
